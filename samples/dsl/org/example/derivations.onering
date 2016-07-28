@@ -1,0 +1,122 @@
+
+namespace org.example
+
+// Default cleanslate derivation - start with none of the fields and include the ones you want
+derive CompanyPegasus : Company {
+    name
+    industries
+}
+
+// Same as above but do it in a single line
+derive CompanyPegasus2 : Company {
+    /(name, industries)
+}
+
+// Redefine fields
+// Note how a source field can be renamed, retyped or even defined 
+// multiple times (with different names ofcourse
+derive CompanyPegasus3 : Company {
+    // rename Company.name -> companyName (type remains string)
+    name as companyName
+ 
+    // change the type to UnicodeString but leave name unchanged
+    name : UnicodeString
+ 
+    // change name AND the type
+    name as companyName2 : UnicodeString
+ 
+    // change name, type, optionality AND default value
+    name as companyName3 : UnicodeString ? = "SuperMan Inc"
+}
+
+
+// Field paths.  You can include from another level too
+derive CompanyPegasus4 : Company {
+    // Include a single field
+    profile/annualRevenue
+ 
+    // Include a single field and rename and redefine it like a normal field
+    profile/annualRevenue as companyRevenue : double = 0
+}
+
+derive CompanyPegasus5 : Company { 
+    // Or include multiple fields
+    profile/(yearFounded, annualRevenue)
+}
+
+derive CompanyPegasus6 : Company { 
+    // Or just flatten and include it all
+    profile/ *
+}
+
+// Record Mutations!
+derive CompanyPegasus7 : Company {
+    // NOTE:
+    // 1. the renaming to theProfile is optional
+    // 2. This is a clean slate derivation as normal
+    profile as theProfile : {   // equal to record : typeof(profile) - say P {
+        yearFounded : Timestamp
+
+        // Note the referral and subsequent inclusion of a field from the parent level
+        // This can also have the full redefinition of name, type, optionality and default values
+        // as in previous examples
+        /ceo
+    }
+}
+
+derive CompanyPegasus8 : Company {
+    profile : {     //  mutating CompanyProfile
+        yearFounded : {     // mutating Date
+            /ceo
+        }
+    }
+}
+
+//////  Type Streaming - TBD
+derive CompanyPegasus9 : Company {
+    industries[ind] => map[
+        // So where should "ind" be bound to?
+        // this is where the idea of scopes is important.
+        // As soon as map is declared it should open up a scope
+        // just like any other templatised type would (except it would be empty)
+        // Firstly this should only create a map of the type:
+        // map [typeof(ind/id) and typeof({ind/labels, ind/maleToFemaleRatio})]
+        // The dependency tracking should be deferred to later - how do we remember
+        // to do this?
+        // What if we just created the record with all the right types, but in the
+        // field put in a reference to the projection that got us here?
+        // A projection to a field is one to one anyway so this should help us
+        // Mark a dependency.   A field without an associated projection implies 
+        // a "new" field?
+
+        // Are these actually a list of projects - well they are projection  sources
+        // or projection values - but not both!  Unlike in a record you need both!
+        ind/id,
+        {
+            ind/labels
+            ind/maleToFemaleRatio
+        }
+    ]
+}
+
+/*
+
+
+record CompanyPegasusWithBind : Company {
+    departments => array[
+        {
+            $0 as manager
+            $1 / *
+        }
+    ]
+}
+
+record CompanyPegasusWithNames : Company {
+    departments => array[<key, value>
+        {
+            key as manager
+            value / *
+        }
+    ]
+}
+*/

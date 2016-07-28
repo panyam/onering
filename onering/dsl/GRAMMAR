@@ -1,0 +1,53 @@
+
+compilation_unit := namespace_declaration ?
+                    (import_declaration | type_declaration) *
+                    
+namespace_declaration := "namespace" FQN
+
+import_declaration  := "import" FQN
+
+type_declaration := typeref_declaration | complex_type_declaration
+
+typeref_declaration := "typeref" "=" any_type_decl
+
+any_type_decl   :=  array_type_decl
+                |   map_type_decl
+                |   complex_type_decl
+                |   primitive_type
+
+primitive_type := FQN
+
+array_type_decl := "array" "[" any_type_decl "]"
+
+map_type_decl := "map" "[" any_type_decl "," any_type_decl "]"
+
+complex_type_declaration :=  "enum" IDENTIFIER ? enum_type_body
+                        |   "union" IDENTIFIER ? union_type_body
+                        |   "record" record_type_header ? record_type_body
+
+enum_type_body :=  "{" enum_symbol * "}"
+
+enum_symbol := annotation * IDENTIFIER
+
+union_type_body := "{" any_type_decl + "}"
+
+record_type_header := IDENTIFIER ( ":" record_source_decl ( "," record_source_decl * ) ) ?
+
+record_source_decl := FQN ( "as" IDENTIFIER ) ?
+
+record_type_body := "{" field_decl ) * "}"
+
+field_decl :=   multi_field_path 
+            |   field_name_or_path retype_redefine_spec 
+            |   field_name_or_path retype_redefine_spec 
+
+retype_redefine_spec := ( "as" IDENTIFIER ) ? 
+                        ( ":" ( any_type_decl | record_type_body ) ) ?
+                        "?" ?
+                        ( "=" json_value ) ?
+
+multi_field_path  :=    field_path
+                    |   field_path "/" "*"
+                    |   field_path "/" "(" IDENTIFIER ( "," IDENTIFIER ) * ")"
+
+field_name_or_path := ( annotation * ) ( IDENTIFIER | field_path )

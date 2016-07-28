@@ -1,0 +1,25 @@
+package {{record.namespace}};
+
+{% for imp in record.import_types %}
+import {{imp}};
+{% endfor %}
+
+public class {{record.name}} {
+    public {{record.name}}() {
+    }
+
+    {% for field in record.fields %}
+    private {{signature(field.field_type)}} _{{field.field_name}};
+    {% endfor %}
+
+    {% for field in record.fields %}
+    public {{signature(field.field_type)}} get{{camel_case(field.field_name)}}() {
+      return _{{field.field_name}};
+    }
+
+    public void set{{camel_case(field.field_name)}}({{signature(field.field_type)}} {{field.field_name}}) {
+      _{{field.field_name}} = {{field.field_name}};
+    }
+    {% endfor %}
+}
+

@@ -1,0 +1,82 @@
+
+namespace org.example
+
+typeref Amount = double
+
+typeref User = string
+
+enum IndustryType {
+    Manufacturing
+    Technology
+    Banking
+}
+ 
+record CompanyProfile {
+    founders : array[User]
+    yearFounded : Date
+    annualRevenue : Amount
+}
+ 
+record Company {
+    name : string
+    ceo : string
+    profile : CompanyProfile
+    industries : array[Industry]
+    locations : array[Address]
+    departmentHeads : map[User, Department]
+    products : ProductInfo
+}
+ 
+record ProductInfo {
+    productCodes : array [ record ProductCodeOnly {
+        code : string
+    } ]
+    productInfos : array [ record ProductInfoOnly {
+        description : string
+        created : Date
+        tags : array [string]
+        price : Amount
+    } ]
+}
+
+record Address {
+    id : string
+    number : string
+    street  : string
+    city : string
+    state : string
+    country : string
+    zipcode : string
+}
+ 
+record Industry {
+    id : string
+    labels : array[string]
+    maleToFemaleRatio : double
+}
+ 
+record Department {
+    id : string
+    name : string
+    numberOfEmployees : int
+}
+
+record UserProfile {
+    userid : Urn
+    firstName : string
+    lastName : string
+    manager : Urn
+    degrees : array[Education]
+}
+ 
+record Education {
+   level : enum EducationLevel { Schooling, Bachelors, Masters, Doctorate }
+   school : School
+   graduated : Date
+   speciality : string
+}
+
+record School {
+    name : string
+}
+

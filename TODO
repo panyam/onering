@@ -1,0 +1,18 @@
+* Generate transformer classes in different langauges (start with Java!)
+* Create Manifest snapshot file on each run
+    - Should contain generated models (and their relative paths + namespace + projects etc)
+    - Should contain field dependancies 
+* Implement instance transformer rules.
+* Generate default instance transformer
+* Unit tests
+
+* Courier loads happening
+* Put in resolution dependancies so things can be kicked off when at type is resolved.
+
+
+
+
+
+* Generate import_types
+* enable include tags to include other files
+* [DONE] Ensure annotations are working - should be in the type?
