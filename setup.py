@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from __future__ import absolute_import
 import os
 import sys
 from distutils.sysconfig import get_python_lib
@@ -25,6 +26,7 @@ if "install" in sys.argv:
 
 # Any packages inside the onering source folder we dont want in the packages
 EXCLUDE_FROM_PACKAGES = [ ]
+
 # Dynamically calculate the version based on courier.VERSION.
 version = __import__('onering').get_version()
 # for scheme in INSTALL_SCHEMES.values(): scheme['data']=scheme['purelib']
@@ -32,7 +34,6 @@ version = __import__('onering').get_version()
 print "=" * 80
 print "Packages: ", find_packages(exclude=EXCLUDE_FROM_PACKAGES)
 print "=" * 80
-
 
 setup(name="onering",
       version=version,
@@ -45,7 +46,7 @@ setup(name="onering",
       },
       packages=find_packages(exclude=EXCLUDE_FROM_PACKAGES),
       include_package_data = True,
-      scripts = ['bin/onering-console', 'bin/onering-cli'],
+      scripts = ['bin/onering-console'],
       classifiers=[
           'Intended Audience :: Developers',
           'License :: OSI Approved :: MIT License',
