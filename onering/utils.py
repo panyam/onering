@@ -1,4 +1,5 @@
 
+import typelib
 from typelib.utils import *
 import pkgutil
 import ipdb
