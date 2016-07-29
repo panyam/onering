@@ -3,7 +3,6 @@ import collections
 import json
 import os
 import pprint
-from typelib import registry
 import transformers
 import graph
 import backends
@@ -14,6 +13,7 @@ class OneRing(object):
     """
     DEFAULT_OUTPUT_PATH = "./gen"
     def __init__(self):
+        from typelib import registry
         self.artifact = {}
         self.type_registry = registry.TypeRegistry()
         self.field_graph = graph.FieldGraph()
@@ -75,6 +75,7 @@ class OneRing(object):
         Any model referred from these transformers are implicitly loaded into onering and will be 
         included in the final snapshot.
         """
+        from typelib import registry
         schema_transformer = self.schema_registry.load_schema_from_path_or_fqn(transformer_path, registry.SCHEMA_CLASS_ST, root_dir)
         if not schema_transformer.is_anonymous():
             schema_transformer.apply(self)
@@ -98,6 +99,7 @@ class OneRing(object):
         Any model referred from these transformers are implicitly loaded into onering and will be 
         included in the final snapshot.
         """
+        from typelib import registry
         instance_transformer = self.schema_registry.load_schema_from_path_or_fqn(transformer_path, registry.SCHEMA_CLASS_IT, root_dir)
         if not instance_transformer.is_anonymous():
             instance_transformer.apply(self)
