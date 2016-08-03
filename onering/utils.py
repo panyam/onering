@@ -17,12 +17,13 @@ def load_template(template_path, extensions = None):
                   lstrip_blocks = True,
                   extensions = extensions)
     if not template_path.startswith("/"):
-        kwargs["loader"] = PackageLoader("onering", "templates")
+        kwargs["loader"] = PackageLoader("onering", "data/templates")
     env = Environment(**kwargs)
     if not template_path.startswith("templates/"):
         template_path = "templates/" + template_path
     # ipdb.set_trace() ; return env.get_template(template_path)
-    return env.from_string(pkgutil.get_data("onering", template_path))
+    # ipdb.set_trace()
+    return env.from_string(pkgutil.get_data("onering", "data/" + template_path))
 
 def collect_files(root_dir):
     for root, dirs, files in os.walk(root_dir, topdown=False):

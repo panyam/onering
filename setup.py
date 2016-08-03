@@ -5,7 +5,8 @@ import os
 import sys
 from distutils.sysconfig import get_python_lib
 
-from setuptools import find_packages, setup
+from setuptools import find_packages
+from setuptools import setup
 
 # Warn if we are installing over top of an existing installation. 
 overlay_warning = False
@@ -44,11 +45,12 @@ setup(name="onering",
       author_email="sri.panyam@gmail.com",
       url="https://github.com/panyam/onering",
       package_data = {
-          'onering': ["templates/backends/*"]
+          'onering': ["data/templates/backends/*"]
       },
       packages=find_packages(exclude=EXCLUDE_FROM_PACKAGES),
       include_package_data = True,
       scripts = ['bin/onering-console'],
+      zip_safe = False,
       classifiers=[
           'Intended Audience :: Developers',
           'License :: OSI Approved :: MIT License',
