@@ -14,7 +14,7 @@ class JavaPojoTargetBackend(base.TargetBackend):
     """
     For generating java pojos for a given type
     """
-    def generate(self, type_name, thetype, type_registry, output_dir, **kwargs):
+    def generate(self, type_name, thetype, type_registry, output_dir, template_loader, **kwargs):
         n,ns,fqn = utils.normalize_name_and_ns(type_name, "")
         if "namespace" in kwargs:
             ns = kwargs["namespace"]
@@ -26,7 +26,7 @@ class JavaPojoTargetBackend(base.TargetBackend):
             "fields": [ {'field_name': fname, 
                     'field_type': ftype} for (fname, ftype) in thetype.children]
         }
-        templ = utils.load_template("backends/java_pojo")
+        templ = template_loader.load_template(kwargs.get("template", "backends/java_pojo"))
         templ.globals["camel_case"] = camel_case
         templ.globals["signature"] = get_type_signature
         templ.globals['debug'] = debug_print
