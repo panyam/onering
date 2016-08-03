@@ -5,6 +5,7 @@ import os
 import ipdb
 import json
 from onering import utils
+from typelib import annotations as tlannotations
 import base
 
 from jinja2 import nodes
@@ -23,8 +24,12 @@ class JavaPojoTargetBackend(base.TargetBackend):
             "name": n,
             "namespace": ns,
             "import_types": [],
-            "fields": [ {'field_name': fname, 
-                    'field_type': ftype} for (fname, ftype) in thetype.children]
+            "annotations": tlannotations.Annotations(thetype.annotations),
+            "fields": [ {
+                    'field_name': fname, 
+                    'field_type': ftype,
+                    'annotations': tlannotations.Annotations(annots)
+                } for ((fname, ftype), annots) in zip(thetype.children, thetype._child_annotations)]
         }
         templ = template_loader.load_template(kwargs.get("template", "backends/java_pojo"))
         templ.globals["camel_case"] = camel_case

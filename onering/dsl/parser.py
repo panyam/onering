@@ -8,6 +8,7 @@ from typelib import core as tlcore
 from typelib import utils
 from typelib import records
 from typelib import derivations
+from typelib import annotations as tlannotations
 from typelib import enums as tlenums
 
 class UnexpectedTokenException(Exception):
@@ -311,7 +312,7 @@ def parse_annotation(parser):
     elif parser.peeked_token_is(TokenType.OPEN_PAREN):
         return parse_compound_annotation_body(parser, fqn)
     else:
-        return tlcore.SimpleAnnotation(fqn)
+        return tlannotations.SimpleAnnotation(fqn)
 
 def parse_leaf_annotation_body(parser, fqn):
     """
@@ -321,7 +322,7 @@ def parse_leaf_annotation_body(parser, fqn):
     """
     parser.ensure_token(TokenType.EQUALS)
     value = parser.ensure_literal_value()
-    return tlcore.PropertyAnnotation(fqn, value)
+    return tlannotations.PropertyAnnotation(fqn, value)
 
 def parse_compound_annotation_body(parser, fqn):
     """
@@ -345,7 +346,7 @@ def parse_compound_annotation_body(parser, fqn):
             parser.ensure_token(TokenType.IDENTIFIER, peek = True)
 
     parser.ensure_token(TokenType.CLOSE_PAREN)
-    return tlcore.CompoundAnnotation(fqn, param_specs)
+    return tlannotations.CompoundAnnotation(fqn, param_specs)
 
 ########################################################################
 ##          Type declaration parsing rules
