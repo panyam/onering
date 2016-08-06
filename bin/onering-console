@@ -1,6 +1,14 @@
 #!/usr/bin/env python
 
+import os
+import sys
+import ipdb
+
 if __name__ == "__main__":
+    console_dir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+    if console_dir not in map(os.path.abspath, sys.path):
+        sys.path.append(os.path.abspath(console_dir))
+
     import onering
     from onering import console as orconsole
     thecmd = orconsole.OneringConsole()
