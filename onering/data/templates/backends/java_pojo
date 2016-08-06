@@ -3,6 +3,8 @@ package {{record.namespace}};
 {% for imp in record.import_types %}
 import {{imp}};
 {% endfor %}
+import java.util.List;
+import java.util.Map;
 
 public class {{record.name}} {
     public {{record.name}}() {
