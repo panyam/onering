@@ -6,14 +6,14 @@ namespace org.example.company
 #inject Industry with IndustryPojo
 
 // Default cleanslate derivation - start with none of the fields and include the ones you want
-@onering.backend(name = "onering.backends.java_pojo.JavaPojoTargetBackend", namespace = "org.example.pojo")
+@onering.backend(name = "onering.backends.java.JavaTargetBackend", namespace = "org.example.pojo")
 derive Company : org.example.Company {
     name
     industries  // : array[org.example.company.Industry]
 }
 
 // Same as above but do it in a single line
-@onering.backend(name = "onering.backends.java_pojo.JavaPojoTargetBackend", namespace = "org.example.pojo")
+@onering.backend(name = "onering.backends.java.JavaTargetBackend", namespace = "org.example.pojo")
 derive CompanyPegasus2 : org.example.Company {
     /(name, industries)
 }
@@ -21,7 +21,7 @@ derive CompanyPegasus2 : org.example.Company {
 // Redefine fields
 // Note how a source field can be renamed, retyped or even defined 
 // multiple times (with different names ofcourse
-@onering.backend(name = "onering.backends.java_pojo.JavaPojoTargetBackend", namespace = "org.example.pojo")
+@onering.backend(name = "onering.backends.java.JavaTargetBackend", namespace = "org.example.pojo")
 derive CompanyPegasus3 : org.example.Company {
     // rename Company.name -> companyName (type remains string)
     name as companyName
@@ -38,7 +38,7 @@ derive CompanyPegasus3 : org.example.Company {
 
 
 // Field paths.  You can include from another level too
-@onering.backend(name = "onering.backends.java_pojo.JavaPojoTargetBackend", namespace = "org.example.pojo")
+@onering.backend(name = "onering.backends.java.JavaTargetBackend", namespace = "org.example.pojo")
 derive CompanyPegasus4 : org.example.Company {
     // Include a single field
     profile/annualRevenue
@@ -47,20 +47,20 @@ derive CompanyPegasus4 : org.example.Company {
     profile/annualRevenue as companyRevenue : double = 0
 }
 
-@onering.backend(name = "onering.backends.java_pojo.JavaPojoTargetBackend", namespace = "org.example.pojo")
+@onering.backend(name = "onering.backends.java.JavaTargetBackend", namespace = "org.example.pojo")
 derive CompanyPegasus5 : org.example.Company { 
     // Or include multiple fields
     profile/(yearFounded, annualRevenue)
 }
 
-@onering.backend(name = "onering.backends.java_pojo.JavaPojoTargetBackend", namespace = "org.example.pojo")
+@onering.backend(name = "onering.backends.java.JavaTargetBackend", namespace = "org.example.pojo")
 derive CompanyPegasus6 : org.example.Company { 
     // Or just flatten and include it all
     profile/ *
 }
 
 // Record Mutations!
-@onering.backend(name = "onering.backends.java_pojo.JavaPojoTargetBackend", namespace = "org.example.pojo")
+@onering.backend(name = "onering.backends.java.JavaTargetBackend", namespace = "org.example.pojo")
 derive CompanyPegasus7 : org.example.Company {
     // NOTE:
     // 1. the renaming to theProfile is optional
@@ -75,14 +75,14 @@ derive CompanyPegasus7 : org.example.Company {
     }
 }
 
-@onering.backend(name = "onering.backends.java_pojo.JavaPojoTargetBackend", namespace = "org.example.pojo")
+@onering.backend(name = "onering.backends.java.JavaTargetBackend", namespace = "org.example.pojo")
 derive CompanyPegasus8 : org.example.Company {
     profile : {     //  mutating CompanyProfile
     }
 }
 
 //////  Type Streaming - TBD
-@onering.backend(name = "onering.backends.java_pojo.JavaPojoTargetBackend", namespace = "org.example.pojo")
+@onering.backend(name = "onering.backends.java.JavaTargetBackend", namespace = "org.example.pojo")
 derive CompanyPegasus9 : org.example.Company {
     industries[ind] => map[
         // So where should "ind" be bound to?

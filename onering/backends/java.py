@@ -11,7 +11,7 @@ import base
 from jinja2 import nodes
 from jinja2.ext import Extension, contextfunction
 
-class JavaPojoTargetBackend(base.TargetBackend):
+class JavaTargetBackend(base.TargetBackend):
     """
     For generating java pojos for a given type
     """
