@@ -312,7 +312,7 @@ def parse_annotation(parser):
     elif parser.peeked_token_is(TokenType.OPEN_PAREN):
         return parse_compound_annotation_body(parser, fqn)
     else:
-        return tlannotations.SimpleAnnotation(fqn)
+        return tlannotations.Annotation(fqn)
 
 def parse_leaf_annotation_body(parser, fqn):
     """
@@ -322,7 +322,7 @@ def parse_leaf_annotation_body(parser, fqn):
     """
     parser.ensure_token(TokenType.EQUALS)
     value = parser.ensure_literal_value()
-    return tlannotations.PropertyAnnotation(fqn, value)
+    return tlannotations.Annotation(fqn, value = value)
 
 def parse_compound_annotation_body(parser, fqn):
     """
@@ -346,7 +346,7 @@ def parse_compound_annotation_body(parser, fqn):
             parser.ensure_token(TokenType.IDENTIFIER, peek = True)
 
     parser.ensure_token(TokenType.CLOSE_PAREN)
-    return tlannotations.CompoundAnnotation(fqn, param_specs)
+    return tlannotations.Annotation(fqn, param_specs = param_specs)
 
 ########################################################################
 ##          Type declaration parsing rules
