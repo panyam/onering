@@ -15,10 +15,10 @@ class JavaTargetBackend(base.TargetBackend):
     """
     For generating java pojos for a given type
     """
-    def generate(self, type_name, thetype, type_registry, output_dir, template_loader, **kwargs):
+    def generate(self, type_name, thetype, type_registry, output_dir, template_loader, backend_annotation):
         n,ns,fqn = utils.normalize_name_and_ns(type_name, "")
-        if "namespace" in kwargs:
-            ns = kwargs["namespace"]
+        if backend_annotation.has_param("namespace"):
+            ns = backend_annotation.first_value_of("namespace")
             fqn = ".".join([ns, n])
         record = {
             "name": n,
@@ -31,7 +31,7 @@ class JavaTargetBackend(base.TargetBackend):
                     'annotations': tlannotations.Annotations(annots)
                 } for ((fname, ftype), annots) in zip(thetype.children, thetype._child_annotations)]
         }
-        templ = template_loader.load_template(kwargs.get("template", "backends/java_pojo"))
+        templ = template_loader.load_template(backend_annotation.first_value_of("template") or "backends/java_pojo")
         templ.globals["camel_case"] = camel_case
         templ.globals["signature"] = get_type_signature
         templ.globals['debug'] = debug_print
