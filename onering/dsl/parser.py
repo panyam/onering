@@ -437,7 +437,7 @@ def parse_complex_type_decl(parser, annotations = []):
             newtype.type_data.fqn = fqn
         parse_enum_body(parser, newtype)
     elif type_class == "union":
-        newtype = tlcore.UnionType(annotations = annotations, docs = parser.last_docstring())
+        newtype = tlcore.UnionType([], annotations = annotations, docs = parser.last_docstring())
         if fqn:
             newtype = parser.register_type(fqn, newtype)
         parse_union_body(parser, newtype)
@@ -487,7 +487,7 @@ def parse_union_body(parser, union_type):
     parser.ensure_token(TokenType.OPEN_SQUARE)
     while not parser.peeked_token_is(TokenType.CLOSE_SQUARE):
         child_type = parse_any_type_decl(parser)
-        union_type.type_data.add_type(child_type)
+        union_type.add_child(child_type)
         parser.next_token_if(TokenType.COMMA, consume = True)
     parser.ensure_token(TokenType.CLOSE_SQUARE)
     return union_type
