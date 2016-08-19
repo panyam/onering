@@ -45,7 +45,9 @@ setup(name="onering",
       author_email="sri.panyam@gmail.com",
       url="https://github.com/panyam/onering",
       package_data = {
-          'onering': ["data/templates/backends/*"]
+          'onering': [
+              "data/templates/backends/java/*"
+          ]
       },
       packages=find_packages(exclude=EXCLUDE_FROM_PACKAGES),
       include_package_data = True,

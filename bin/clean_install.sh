@@ -7,6 +7,8 @@ echo PYTHON=$PYTHON
 echo PYTHON_DIR=$PYTHON_DIR
 echo PYTHON_LIB_DIR=$PYTHON_LIB_DIR
 
+# rm -Rf $PYTHON_LIB_DIR/lib/python2.7/site-packages/onering/*
+# rm -Rf $PYTHON_LIB_DIR/lib/python2.7/site-packages/onering-*
 rm -Rf build dist onering.egg-info
 rm -Rf `find ./ | grep "\.pyc#"`
 python setup.py install -f 
