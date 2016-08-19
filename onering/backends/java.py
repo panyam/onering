@@ -31,7 +31,7 @@ class JavaTargetBackend(base.TargetBackend):
                     'annotations': tlannotations.Annotations(annots)
                 } for ((fname, ftype), annots) in zip(thetype.children, thetype._child_annotations)]
         }
-        templ = template_loader.load_template(backend_annotation.first_value_of("template") or "backends/java_pojo")
+        templ = template_loader.load_template(backend_annotation.first_value_of("template") or "backends/java/mutable_pojo")
         templ.globals["camel_case"] = camel_case
         templ.globals["signature"] = get_type_signature
         templ.globals['debug'] = debug_print

@@ -1,7 +1,0 @@
-
-{% macro camel_case(value) -%}{{value[0]|upper}}{{value[1:]}}{%- endmacro %}
-
-{% macro invoke_setter(field) %}set{{camel_case(field.name)}}({{caller()}});{% endmacro %}
-{% macro invoke_getter(field) %}get{{camel_case(field.name)}}(){% endmacro %}
-{% macro invoke_checker(field) %}has{{camel_case(field.name)}}(){% endmacro %}
-
