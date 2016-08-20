@@ -2,14 +2,15 @@
 import ipdb
 import lexer
 import core
-from onering import errors
-from lexer import Token, TokenType
 from typelib import core as tlcore
 from typelib import utils
 from typelib import records
-from typelib import derivations
 from typelib import annotations as tlannotations
 from typelib import enums as tlenums
+from lexer import Token, TokenType
+from onering import errors
+from onering import transformers
+from onering import derivations
 
 class UnexpectedTokenException(Exception):
     def __init__(self, found_token, *expected_tokens):
@@ -162,7 +163,7 @@ class Parser(object):
                     raise errors.OneringException("'inject' directive usage: 'inject <MasterType> with <DerivedType>'")
                 self.injections[parts[3]] = parts[1]
             else:
-                raise "Invalid directive: '%s'" % command
+                raise errors.OneringException("Invalid directive: '%s'" % command)
 
     def ensure_token(self, tok_type, tok_value = None, peek = False):
         """
@@ -283,72 +284,6 @@ def parse_import_decl(parser):
     return fqn
 
 ########################################################################
-##          Annotation Parsing Rules
-########################################################################
-
-def parse_annotations(parser):
-    """
-    Parse a list of annotations
-    """
-    out = []
-    while parser.peeked_token_is(TokenType.AT):
-        out.append(parse_annotation(parser))
-    return out
-
-def parse_annotation(parser):
-    """
-    Parse an annotation:
-        annotation :=   leaf_annotation     |
-                        compound_annotation
-
-        leaf_annotation := "@" FQN "=" ( NUMBER | STRING )
-        compound_annotaiton := "@" FQN "(" parameters ")"
-        parameter_expressions := FQN | FQN "=" ( NUMBER, STRING, FQN )
-    """
-    parser.ensure_token(TokenType.AT)
-    fqn = parser.ensure_fqn()
-    if parser.peeked_token_is(TokenType.EQUALS):
-        return parse_leaf_annotation_body(parser, fqn)
-    elif parser.peeked_token_is(TokenType.OPEN_PAREN):
-        return parse_compound_annotation_body(parser, fqn)
-    else:
-        return tlannotations.Annotation(fqn)
-
-def parse_leaf_annotation_body(parser, fqn):
-    """
-    Parses leaf annotations of the form:
-
-        "=" value
-    """
-    parser.ensure_token(TokenType.EQUALS)
-    value = parser.ensure_literal_value()
-    return tlannotations.Annotation(fqn, value = value)
-
-def parse_compound_annotation_body(parser, fqn):
-    """
-    Parses compound annotation body of the form:
-
-        "(" ( param_spec ( "," param_spec ) * ) ? ")"
-        param_spec := name ( "=" value ) ?
-    """
-    param_specs = []
-    parser.ensure_token(TokenType.OPEN_PAREN)
-    while parser.peeked_token_is(TokenType.IDENTIFIER):
-        param_name = parser.ensure_fqn()
-        param_value = None
-        if parser.next_token_is(TokenType.EQUALS):
-            param_value = parser.ensure_literal_value()
-            param_specs.append((param_name, param_value))
-        else:
-            param_specs.append((None, param_name))
-
-        if parser.next_token_is(TokenType.COMMA):
-            parser.ensure_token(TokenType.IDENTIFIER, peek = True)
-
-    parser.ensure_token(TokenType.CLOSE_PAREN)
-    return tlannotations.Annotation(fqn, param_specs = param_specs)
-
-########################################################################
 ##          Type declaration parsing rules
 ########################################################################
 
@@ -364,6 +299,8 @@ def parse_type_decl(parser):
         return parse_typeref_decl(parser, annotations)
     elif type_class == "derive":
         return parse_derivation(parser, annotations)
+    elif type_class == "transformers":
+        parse_transformers_decl(parser, annotations)
     else:
         return parse_complex_type_decl(parser, annotations)
 
@@ -673,7 +610,7 @@ def parse_projection_target(parser, parent_projection,
     parent_projection.default_value = default_value
     parent_projection.projection_type = projection_type
 
-def parse_field_path(parser):
+def parse_field_path(parser, allow_abs_path = True, allow_child_selection = True):
     """
     Parses a field path of the form:
 
@@ -686,7 +623,9 @@ def parse_field_path(parser):
     field_path_parts = []
 
     # If absolute path then
-    starts_with_slash = parser.next_token_is(TokenType.SLASH)
+    starts_with_slash = False
+    if allow_abs_path:
+        starts_with_slash = parser.next_token_is(TokenType.SLASH)
 
     # read field_path parts
     # field path parts could have following
@@ -701,19 +640,20 @@ def parse_field_path(parser):
 
     # check for multi part includes
     selected_children = None
-    if parser.next_token_is(TokenType.SLASH) or (starts_with_slash and not field_path_parts):
-        # expect "*" or "("
-        if parser.next_token_is(TokenType.STAR):
-            selected_children = "*"
-        elif parser.next_token_is(TokenType.OPEN_PAREN):
-            selected_children = []
-            while not parser.next_token_is(TokenType.CLOSE_PAREN):
-                name = parser.ensure_token(TokenType.IDENTIFIER)
-                selected_children.append(name)
-                if parser.next_token_is(TokenType.COMMA):
-                    parser.ensure_token(TokenType.IDENTIFIER, peek = True)
-        else:
-            raise UnexpectedTokenException(parser.peek_token(), TokenType.STAR, TokenType.OPEN_BRACE)
+    if allow_child_selection:
+        if parser.next_token_is(TokenType.SLASH) or (starts_with_slash and not field_path_parts):
+            # expect "*" or "("
+            if parser.next_token_is(TokenType.STAR):
+                selected_children = "*"
+            elif parser.next_token_is(TokenType.OPEN_PAREN):
+                selected_children = []
+                while not parser.next_token_is(TokenType.CLOSE_PAREN):
+                    name = parser.ensure_token(TokenType.IDENTIFIER)
+                    selected_children.append(name)
+                    if parser.next_token_is(TokenType.COMMA):
+                        parser.ensure_token(TokenType.IDENTIFIER, peek = True)
+            else:
+                raise UnexpectedTokenException(parser.peek_token(), TokenType.STAR, TokenType.OPEN_BRACE)
 
     if starts_with_slash:
         field_path_parts.insert(0, "")
@@ -755,3 +695,188 @@ def parse_type_stream_decl(parser, parent_projection):
     parser.ensure_token(TokenType.CLOSE_SQUARE)
 
     return derivations.TypeStreamDeclaration(type_constructor, param_names, projections)
+
+########################################################################
+##          Transformer Parsing Rules
+########################################################################
+
+def parse_transformers_decl(parser, annotations):
+    """
+    Parses transformer declarations
+
+        transformers name<IDENT>    "{" transformer_decl * "}"
+    """
+    parser.ensure_token(TokenType.IDENTIFIER, "transformers")
+    n = parser.ensure_token(TokenType.IDENTIFIER)
+    ns = parser.document.namespace
+    n,ns,fqn = utils.normalize_name_and_ns(n, ns)
+    print "Parsing new transformer: '%s'" % fqn
+
+    transformer_group = transformers.TransformerGroup(fqn, annotations = annotations, docs = parser.last_docstring())
+    parser.ensure_token(TokenType.OPEN_BRACE)
+    while not parser.peeked_token_is(TokenType.CLOSE_BRACE):
+        # read a transformer
+        transformer = parse_transformer(parser, transformer_group)
+        transformer_group.add_transformer(transformer)
+
+    parser.ensure_token(TokenType.CLOSE_BRACE)
+    return transformer_group
+
+def parse_transformer(parser, transformer_group):
+    """
+    Parses a single transformer declaration
+
+        src_type_fqn<IDENT> "=> dest_type_fqn<IDENT> "{" transformer_rule * "}"
+    """
+    annotations = parse_annotations(parser)
+    src_fqn = parser.ensure_fqn()
+    parser.ensure_token(TokenType.STREAM)
+    dest_fqn = parser.ensure_fqn()
+
+    src_type = parser.get_type(src_fqn)
+    dest_type = parser.get_type(dest_fqn)
+
+    transformer = transformers.Transformer(fqn = None,
+                                           src_type = src_type,
+                                           dest_type = dest_type,
+                                           group = transformer_group,
+                                           annotations = annotations,
+                                           docs = parser.last_docstring())
+
+    parser.ensure_token(TokenType.OPEN_BRACE)
+    while not parser.peeked_token_is(TokenType.CLOSE_BRACE):
+        # read a transformer
+        rule = parse_transformer_rule(parser)
+        transformer.add_rule(rule)
+    parser.ensure_token(TokenType.CLOSE_BRACE)
+    parser.consume_tokens(TokenType.SEMI_COLON)
+    return transformer
+
+def parse_transformer_rule(parser):
+    """
+    Parses a single transformer rule declaration
+
+        rule_lhs "=>" rule_rhs
+    """
+    annotations = parse_annotations(parser)
+
+    # Parse LHS - Source values
+    expression = parse_expression(parser)
+
+    parser.ensure_token(TokenType.STREAM)
+    
+    # Parse RHS - Destination
+    # TODO: should abs paths be forbidden - doesnt make sense to go "above" the current scope
+    target = parse_field_path(parser, allow_abs_path = False)
+
+    rule = transformers.Rule(expression, target, annotations = annotations, docs = parser.last_docstring())
+
+    parser.consume_tokens(TokenType.SEMI_COLON)
+    return rule
+
+def parse_expression(parser):
+    """
+    Parse a function call expression or a literal.
+
+        expr := literal
+                dot_limited_field_path
+                func_fqn "(" ")"
+                func_fqn "(" expr ( "," expr ) * ")"
+    """
+    if parser.peeked_token_is(TokenType.DOLLAR):
+        # Then this is referring to temporary or a "dest" field
+        parser.next_token()
+        source = parse_field_path(parser, allow_abs_path = False, allow_child_selection = False)
+    elif parser.peeked_token_is(TokenType.IDENTIFIER):
+        source = parse_field_path(parser, allow_abs_path = False, allow_child_selection = False)
+
+        func_args = []
+        if parser.peeked_token_is(TokenType.OPEN_PAREN):
+            # function expression, so ensure field path has only one entry
+            if source.length > 1:
+                raise errors.OneringException("Fieldpaths cannot be used as functions")
+
+            # Treat the source as a function name that will be resolved later on
+            source = source.get(0)
+            parser.ensure_token(TokenType.OPEN_PAREN)
+            while not parser.peeked_token_is(TokenType.CLOSE_PAREN):
+                # read another expression
+                expr = parse_expression(parser)
+                func_args.append(expr)
+                if parser.next_token_is(TokenType.COMMA):
+                    # TODO: ensure next val is an IDENTIFIER or a literal value
+                    # Right now lack of this check wont break anything but 
+                    # will allow "," at the end which is a bit, well rough!
+                    pass
+
+            parser.ensure_token(TokenType.CLOSE_PAREN)
+        return transformers.Expression(source, func_args)
+    else:
+        return transformers.Expression(parser.ensure_literal_value())
+
+
+########################################################################
+##          Annotation Parsing Rules
+########################################################################
+
+def parse_annotations(parser):
+    """
+    Parse a list of annotations
+    """
+    out = []
+    while parser.peeked_token_is(TokenType.AT):
+        out.append(parse_annotation(parser))
+    return out
+
+def parse_annotation(parser):
+    """
+    Parse an annotation:
+        annotation :=   leaf_annotation     |
+                        compound_annotation
+
+        leaf_annotation := "@" FQN "=" ( NUMBER | STRING )
+        compound_annotaiton := "@" FQN "(" parameters ")"
+        parameter_expressions := FQN | FQN "=" ( NUMBER, STRING, FQN )
+    """
+    parser.ensure_token(TokenType.AT)
+    fqn = parser.ensure_fqn()
+    if parser.peeked_token_is(TokenType.EQUALS):
+        return parse_leaf_annotation_body(parser, fqn)
+    elif parser.peeked_token_is(TokenType.OPEN_PAREN):
+        return parse_compound_annotation_body(parser, fqn)
+    else:
+        return tlannotations.Annotation(fqn)
+
+def parse_leaf_annotation_body(parser, fqn):
+    """
+    Parses leaf annotations of the form:
+
+        "=" value
+    """
+    parser.ensure_token(TokenType.EQUALS)
+    value = parser.ensure_literal_value()
+    return tlannotations.Annotation(fqn, value = value)
+
+def parse_compound_annotation_body(parser, fqn):
+    """
+    Parses compound annotation body of the form:
+
+        "(" ( param_spec ( "," param_spec ) * ) ? ")"
+        param_spec := name ( "=" value ) ?
+    """
+    param_specs = []
+    parser.ensure_token(TokenType.OPEN_PAREN)
+    while parser.peeked_token_is(TokenType.IDENTIFIER):
+        param_name = parser.ensure_fqn()
+        param_value = None
+        if parser.next_token_is(TokenType.EQUALS):
+            param_value = parser.ensure_literal_value()
+            param_specs.append((param_name, param_value))
+        else:
+            param_specs.append((None, param_name))
+
+        if parser.next_token_is(TokenType.COMMA):
+            parser.ensure_token(TokenType.IDENTIFIER, peek = True)
+
+    parser.ensure_token(TokenType.CLOSE_PAREN)
+    return tlannotations.Annotation(fqn, param_specs = param_specs)

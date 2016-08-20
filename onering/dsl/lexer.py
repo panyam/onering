@@ -14,6 +14,7 @@ class TokenType(Enum):
     COMMENT             = "<COMMENT>"
 
     # Special chars/operators etc
+    DOLLAR              = "$"
     STREAM              = "=>"
     EQUALS              = "="
     COLON               = ":"
@@ -215,6 +216,8 @@ class Lexer(object):
                 return make_token(TokenType.STREAM)
             elif self.matches_symbol('='):
                 return make_token(TokenType.EQUALS)
+            elif self.matches_symbol('$'):
+                return make_token(TokenType.DOLLAR)
             elif self.matches_symbol(':'):
                 return make_token(TokenType.COLON)
             elif self.matches_symbol(';'):
