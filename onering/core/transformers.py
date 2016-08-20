@@ -1,5 +1,5 @@
 
-import errors
+from onering import errors
 
 
 class TransformerGroup(object):

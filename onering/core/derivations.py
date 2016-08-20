@@ -1,10 +1,10 @@
 
-import utils
 import ipdb
-import errors
 from typelib import core
 from typelib import errors as tlerrors
 from typelib import records
+from onering import utils
+from onering import errors
 
 def is_derivation(obj):
     return type(obj) is Derivation

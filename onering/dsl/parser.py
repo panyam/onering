@@ -9,8 +9,8 @@ from typelib import annotations as tlannotations
 from typelib import enums as tlenums
 from lexer import Token, TokenType
 from onering import errors
-from onering import transformers
-from onering import derivations
+from onering.core import transformers
+from onering.core import derivations
 
 class UnexpectedTokenException(Exception):
     def __init__(self, found_token, *expected_tokens):
