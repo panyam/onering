@@ -1,9 +1,10 @@
 
 import utils
-import errors
-import core
 import ipdb
-import records
+import errors
+from typelib import core
+from typelib import errors as tlerrors
+from typelib import records
 
 def is_derivation(obj):
     return type(obj) is Derivation
@@ -96,7 +97,7 @@ class Derivation(object):
         n,ns,fqn = utils.normalize_name_and_ns(source_fqn, None)
         alias = alias or n
         if self.find_source(alias) is not None:
-            raise errors.TLException("A source by name '%s' already exists" % n)
+            raise errors.OneringException("A source by name '%s' already exists" % n)
         self.source_records.append(Derivation.SourceRecordRef(source_fqn, source_type, alias))
 
     def find_source(self, name):
@@ -160,18 +161,18 @@ class Derivation(object):
                     source_rec_ref.record_type = source_rec_type
 
         if len(unresolved_types) > 0:
-            raise errors.TypesNotFoundException(*list(unresolved_types))
+            raise tlerrors.TypesNotFoundException(*list(unresolved_types))
 
     def _resolve_projections(self, registry):
         unresolved_types = set()
         for proj in self.field_projections:
             try:
                 proj.resolve(registry)
-            except errors.TypesNotFoundException, exc:
+            except tlerrors.TypesNotFoundException, exc:
                 unresolved_types.add(exc.missing_types)
 
         if len(unresolved_types) > 0:
-            raise errors.TypesNotFoundException(*list(unresolved_types))
+            raise tlerrors.TypesNotFoundException(*list(unresolved_types))
 
         # otherwise all of these are resolved so create our field list from these
         for proj in self.field_projections:
@@ -398,7 +399,7 @@ class Projection(object):
                 resolved_field.field_type.resolve(registry)
                 if not resolved_field.field_type.is_resolved:
                     ipdb.set_trace()
-                    raise errors.TLException("Unable to resolve type of field: %s.%s" % (resolved_field.record.fqn, resolved_field.field_name))
+                    raise errors.OneringException("Unable to resolve type of field: %s.%s" % (resolved_field.record.fqn, resolved_field.field_name))
 
             final_field_data = self.final_field_data
             starting_record = self.starting_record
@@ -406,7 +407,7 @@ class Projection(object):
             # If there are binding params, see whether the number match the final_field_data.field_type's type args
             if self.target_type and self.projection_type == PROJECTION_TYPE_STREAMING:
                 if len(self.target_type.param_names) != final_field_data.field_type.arglimit:
-                    raise errors.TLException("Number of streamed arguments does not match argument count of type")
+                    raise errors.OneringException("Number of streamed arguments does not match argument count of type")
 
         # Now that the source field has been resolved, we can start resolving target type for
         # mutations and streamings
@@ -452,10 +453,10 @@ class Projection(object):
                     assert self.target_type.type_data.parent_entity is not None
                     if final_field_data:
                         if final_field_data.field_type.constructor != "record" or not final_field_data.field_type.type_data:
-                            raise errors.TLException("'%s' is not of a record type but is being using in a mutation for field '%s'" % (final_field_data.field_type.fqn, field_name))
+                            raise errors.OneringException("'%s' is not of a record type but is being using in a mutation for field '%s'" % (final_field_data.field_type.fqn, field_name))
                         self.target_type.type_data.add_source_record(final_field_data.field_type.type_data.fqn, final_field_data.field_type)
                     if not self.target_type.resolve(registry):
-                        raise errors.TLException("Could not resolve record mutation for field '%s' in record '%s'" % (field_name, parent_fqn))
+                        raise errors.OneringException("Could not resolve record mutation for field '%s' in record '%s'" % (field_name, parent_fqn))
 
                 newfield = Field(self.target_name or self.final_field_data.field_name,
                                  target_type,
@@ -475,14 +476,14 @@ class Projection(object):
                     # then we are starting from the root itself of the starting record as "multiple" entries
                     self._include_child_fields(starting_record)
                 else:
-                    raise errors.TLException("New Field '%s' in '%s' must not have child selections" % (self.field_path, self.parent_entity.type_data.fqn))
+                    raise errors.OneringException("New Field '%s' in '%s' must not have child selections" % (self.field_path, self.parent_entity.type_data.fqn))
             elif self.target_name is not None:
-                raise errors.TLException("New Field '%s' in '%s' should not have a target_name" % (self.field_path, self.parent_entity.type_data.fqn))
+                raise errors.OneringException("New Field '%s' in '%s' should not have a target_name" % (self.field_path, self.parent_entity.type_data.fqn))
             elif self.target_type is None:
                 ipdb.set_trace()
-                raise errors.TLException("New Field '%s' in '%s' does not have a target_type" % (self.field_path, self.parent_entity.type_data.fqn))
+                raise errors.OneringException("New Field '%s' in '%s' does not have a target_type" % (self.field_path, self.parent_entity.type_data.fqn))
             elif self.field_path.length > 1:
-                raise errors.TLException("New Field '%s' in '%s' must not be a field path" % (self.field_path, self.parent_entity.type_data.fqn))
+                raise errors.OneringException("New Field '%s' in '%s' must not be a field path" % (self.field_path, self.parent_entity.type_data.fqn))
             else:
                 newfield = Field(self.field_path.get(0),
                                         self.target_type,
@@ -500,10 +501,10 @@ class Projection(object):
 
         if self.projection_type == PROJECTION_TYPE_MUTATION:
             if self.target_type is None:
-                raise errors.TLException("Record MUST be specified on a mutation")
+                raise errors.OneringException("Record MUST be specified on a mutation")
 
             if field_path and field_path.has_children or len(self.resolved_fields) > 1:
-                raise errors.TLException("Record mutation cannot be applied when selecting multiple fields")
+                raise errors.OneringException("Record mutation cannot be applied when selecting multiple fields")
 
             # The parent fqn is required because the new record name is based on that.
             # The projection can be in two forms:
@@ -519,19 +520,19 @@ class Projection(object):
 
             if not parent_fqn:
                 # Parent name MUST be set otherwise it means parent resolution would have failed!
-                raise errors.TLException("Parent record name not set.  May be it is not yet resolved?")
+                raise errors.OneringException("Parent record name not set.  May be it is not yet resolved?")
 
             if self.resolved_fields:
                 field_name = self.resolved_fields[0].field_name
                 if not field_name:
-                    raise errors.TLException("Source field name is not set.  May be it is not yet resolved?")
+                    raise errors.OneringException("Source field name is not set.  May be it is not yet resolved?")
 
                 field_type = self.resolved_fields[0].field_type
                 if not field_type:
-                    raise errors.TLException("Source field name is not set.  May be it is not yet resolved?")
+                    raise errors.OneringException("Source field name is not set.  May be it is not yet resolved?")
 
                 if field_type.constructor != "record":
-                    raise errors.TLException("Cannot mutate a type that is not a record.  Yet")
+                    raise errors.OneringException("Cannot mutate a type that is not a record.  Yet")
             else:
                 assert self.parent_entity.projection_type == PROJECTION_TYPE_STREAMING
                 proj_index = parent_entity.target_type.projections.index(self)
@@ -547,7 +548,7 @@ class Projection(object):
                         ipdb.set_trace()
                     self.target_type.add_source_record(final_field_data.field_type.type_data.fqn, final_field_data.field_type)
                 if not self.target_type.resolve(registry):
-                    raise errors.TLException("Could not resolve record mutation for field '%s' in record '%s'" % (field_name, parent_fqn))
+                    raise errors.OneringException("Could not resolve record mutation for field '%s' in record '%s'" % (field_name, parent_fqn))
         elif self.projection_type == PROJECTION_TYPE_STREAMING:
             # Here we have to resolve target of the streamed type.
             # Do this by resolving each of the projections into a child type and create a constructed
@@ -571,7 +572,7 @@ class Projection(object):
         if not self.field_path.all_fields_selected:
             missing_fields = set(self.field_path.selected_children) - set(starting_record.child_names)
             if len(missing_fields) > 0:
-                raise errors.TLException("Invalid fields in selection: '%s'" % ", ".join(list(missing_fields)))
+                raise errors.OneringException("Invalid fields in selection: '%s'" % ", ".join(list(missing_fields)))
         selected_fields = self.field_path.get_selected_fields(starting_record)
         for field_name in selected_fields:
             newfield = Field(field_name,
@@ -627,7 +628,7 @@ class PathResolver(object):
                 if is_derivation(curr_entity):
                     derivation = curr_entity
                     if derivation.source_count > 1:
-                        raise errors.TLException("Multiple source derivation not yet supported")
+                        raise errors.OneringException("Multiple source derivation not yet supported")
                     elif derivation.source_count == 1:
                         source_record = derivation.source_records[0].record_type.type_data
                         starting_record, final_field_path = source_record.get_binding(field_path)

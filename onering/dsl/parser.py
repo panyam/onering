@@ -25,15 +25,14 @@ class Parser(object):
     """
     Parses a Onering compilation unit and extracts all records define in it.
     """
-    def __init__(self, instream, registry, resolver):
+    def __init__(self, instream, context):
         self.peeked_tokens = []
         self.lexer = lexer.Lexer(instream)
         self.document = core.Document()
         self.imports = []
         self._last_docstring = ""
         self.injections = {}
-        self.type_registry = registry
-        self.resolver = resolver
+        self.onering_context = context
         self.lazy_resolution_enabled = True
 
     def get_type(self, fqn):
@@ -42,24 +41,24 @@ class Parser(object):
         otherwise returns an unresolved type as a place holder until
         it can be resolved.
         """
-        t = self.type_registry.get_type(fqn, nothrow = True)
+        t = self.onering_context.type_registry.get_type(fqn, nothrow = True)
         if not t:
             # TODO: if the fqn is actually NOT fully qualified, then
             # see if this matches any of the ones in the import decls
 
             fqn = self.normalize_fqn(fqn)
-            t = self.type_registry.get_type(fqn, nothrow = True)
+            t = self.onering_context.type_registry.get_type(fqn, nothrow = True)
 
             if not t:
                 # Try with the namespace as well
                 n,ns,fqn = utils.normalize_name_and_ns(fqn, self.document.namespace, ensure_namespaces_are_equal=False)
-                t = self.type_registry.get_type(fqn, nothrow = True)
+                t = self.onering_context.type_registry.get_type(fqn, nothrow = True)
                 if not t:
-                    t = self.type_registry.register_type(fqn, None)
+                    t = self.onering_context.type_registry.register_type(fqn, None)
         return t
 
     def register_type(self, name, newtype):
-        return self.type_registry.register_type(name, newtype)
+        return self.onering_context.type_registry.register_type(name, newtype)
 
     def normalize_fqn(self, fqn):
         if "." in fqn:
@@ -74,8 +73,8 @@ class Parser(object):
 
     def add_import(self, fqn):
         # see if a type needs to be created
-        if not self.type_registry.get_type(fqn, nothrow = True):
-            self.type_registry.register_type(fqn, None)
+        if not self.onering_context.type_registry.get_type(fqn, nothrow = True):
+            self.onering_context.type_registry.register_type(fqn, None)
         self.imports.append(fqn)
 
     def last_docstring(self, reset = True):
@@ -389,7 +388,7 @@ def parse_complex_type_decl(parser, annotations = []):
 
         # Try for a resolution if we dont want lazy evaluation
         if not parser.lazy_resolution_enabled:
-            newtype.resolve(parser.type_registry, parser.resolver)
+            newtype.resolve(parser.onering_context.type_registry, parser.resolver)
     else:
         assert False
 
@@ -486,7 +485,7 @@ def parse_derivation(parser, annotations = []):
     derivation = derivations.Derivation(fqn, None, annotations = annotations, docs = parser.last_docstring())
     parse_derivation_header(parser, derivation)
     parse_derivation_body(parser, derivation)
-    parser.type_registry.register_derivation(derivation)
+    parser.onering_context.register_derivation(derivation)
 
 
 def parse_derivation_header(parser, derivation):
