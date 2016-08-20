@@ -2,7 +2,7 @@
 from typelib import registry 
 from onering import resolver
 
-class OneringContext(object):
+class Onering(object):
     def __init__(self):
         self.type_registry = registry.TypeRegistry()
         self.entity_resolver = resolver.EntityResolver("pdsc")
