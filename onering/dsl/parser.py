@@ -9,8 +9,8 @@ from typelib import annotations as tlannotations
 from typelib import enums as tlenums
 from lexer import Token, TokenType
 from onering import errors
-from onering.core import transformers
 from onering.core import derivations
+from onering.core import transformers
 
 class UnexpectedTokenException(Exception):
     def __init__(self, found_token, *expected_tokens):
@@ -745,49 +745,75 @@ def parse_transformer(parser, transformer_group):
     parser.ensure_token(TokenType.OPEN_BRACE)
     while not parser.peeked_token_is(TokenType.CLOSE_BRACE):
         # read a transformer
-        rule = parse_transformer_rule(parser)
-        transformer.add_rule(rule)
+        statement = parse_transformer_rule(parser)
+        transformer.add(statement)
     parser.ensure_token(TokenType.CLOSE_BRACE)
     parser.consume_tokens(TokenType.SEMI_COLON)
     return transformer
 
 def parse_transformer_rule(parser):
     """
-    Parses a single transformer rule declaration
+    Parses a single transformer rule.
 
-        rule_lhs "=>" rule_rhs
+        transformer_rule := let_statment | stream_expr
+
+        let_statement := "let" IDENT "=" expr
+
+        stream_expr := expr ( => expr ) * => expr
     """
     annotations = parse_annotations(parser)
 
-    # Parse LHS - Source values
-    expression = parse_expression(parser)
-
-    parser.ensure_token(TokenType.STREAM)
-    
-    # Parse RHS - Destination
-    # TODO: should abs paths be forbidden - doesnt make sense to go "above" the current scope
-    target = parse_field_path(parser, allow_abs_path = False)
-
-    rule = transformers.Rule(expression, target, annotations = annotations, docs = parser.last_docstring())
+    if parser.next_token_is(TokenType.IDENTIFIER, "let"):
+        parser.ensure_token(TokenType.DOLLAR)
+        if parser.peeked_token_is(TokenType.NUMBER):
+            varname = parser.ensure_token(TokenType.NUMBER)
+        else:
+            varname = parser.ensure_token(TokenType.IDENTIFIER)
+        parser.ensure_token(TokenType.EQUALS)
+        varvalue = parse_expression(parser)
+        stmt = transformers.VariableDeclaration(varname, varvalue)
+    else:
+        stmt = parse_expression(parser)
 
     parser.consume_tokens(TokenType.SEMI_COLON)
-    return rule
+    return stmt
 
 def parse_expression(parser):
     """
     Parse a function call expression or a literal.
 
         expr := literal
-                dot_limited_field_path
+                list_expression
+                dict_expression
+                tuple_expression
+                dot_delimited_field_path
+                stream_expr
                 func_fqn "(" ")"
                 func_fqn "(" expr ( "," expr ) * ")"
     """
-    if parser.peeked_token_is(TokenType.DOLLAR):
-        # Then this is referring to temporary or a "dest" field
-        parser.next_token()
-        source = parse_field_path(parser, allow_abs_path = False, allow_child_selection = False)
+    out = None
+    if parser.peeked_token_is(TokenType.NUMBER):
+        out = transformers.LiteralExpression(parser.next_token())
+    elif parser.peeked_token_is(TokenType.STRING):
+        out = transformers.LiteralExpression(parser.next_token())
+    elif parser.peeked_token_is(TokenType.OPEN_SQUARE):
+        # Read a list
+        out = parse_list_expression(parser)
+    elif parser.peeked_token_is(TokenType.OPEN_BRACE):
+        out = parse_struct_expression(parser)
+    elif parser.peeked_token_is(TokenType.LT):
+        out = parse_tuple_expression(parser)
+    elif parser.next_token_is(TokenType.DOLLAR):
+        # then we MUST have an IDENTIFIER
+        if parser.peeked_token_is(TokenType.NUMBER):
+            source = parser.ensure_token(TokenType.NUMBER)
+        else:
+            source = parse_field_path(parser, allow_abs_path = False, allow_child_selection = False)
+        out = transformers.VariableExpression(source, from_source = False)
     elif parser.peeked_token_is(TokenType.IDENTIFIER):
+        # See if we have a function call or a var or a field path
         source = parse_field_path(parser, allow_abs_path = False, allow_child_selection = False)
+        out = transformers.VariableExpression(source)
 
         func_args = []
         if parser.peeked_token_is(TokenType.OPEN_PAREN):
@@ -807,12 +833,19 @@ def parse_expression(parser):
                     # Right now lack of this check wont break anything but 
                     # will allow "," at the end which is a bit, well rough!
                     pass
-
             parser.ensure_token(TokenType.CLOSE_PAREN)
-        return transformers.Expression(source, func_args)
+            out = transformers.FunctionExpression(source, func_args)
     else:
-        return transformers.Expression(parser.ensure_literal_value())
+        raise UnexpectedTokenException(parser.peek_token(),
+                                       TokenType.STRING, TokenType.NUMBER,
+                                       TokenType.OPEN_BRACE, TokenType.OPEN_SQUARE,
+                                       TokenType.LT)
 
+    # if the next is a "=>" then start streaming!
+    if parser.peeked_token_is(TokenType.STREAM):
+        parser.ensure_token(TokenType.STREAM)
+        out.next = parse_expression(parser)
+    return out
 
 ########################################################################
 ##          Annotation Parsing Rules

@@ -1,6 +1,6 @@
 
 compilation_unit := namespace_declaration ?
-                    (import_declaration | type_declaration) *
+                    ( import_declaration | type_declaration | transformer_declaration | derive_declaration ) *
                     
 namespace_declaration := "namespace" FQN
 
@@ -21,33 +21,139 @@ array_type_decl := "array" "[" any_type_decl "]"
 
 map_type_decl := "map" "[" any_type_decl "," any_type_decl "]"
 
-complex_type_declaration :=  "enum" IDENTIFIER ? enum_type_body
-                        |   "union" IDENTIFIER ? union_type_body
-                        |   "record" record_type_header ? record_type_body
+complex_type_declaration :=  "enum" IDENT ? enum_type_body
+                        |   "union" IDENT ? union_type_body
+                        |   "record" IDENT record_type_body
 
 enum_type_body :=  "{" enum_symbol * "}"
 
-enum_symbol := annotation * IDENTIFIER
+enum_symbol := annotation * IDENT
 
 union_type_body := "{" any_type_decl + "}"
 
-record_type_header := IDENTIFIER ( ":" record_source_decl ( "," record_source_decl * ) ) ?
 
-record_source_decl := FQN ( "as" IDENTIFIER ) ?
+###### Records
 
-record_type_body := "{" field_decl ) * "}"
+record_type_body := "{" record_field_decl * "}"
 
-field_decl :=   multi_field_path 
+record_field_decl := annotations ? IDENT ":" any_type_decl "?" ? ( "=" literal_value ) ?
+
+###### Derivations
+
+derive_declaration := annotations ? "derive" derivation_header derivation_body
+
+derivation_header := IDENT ( ":" record_source_decl ( "," record_source_decl * ) ) ?
+
+derive_source_decl := FQN ( "as" IDENT ) ?
+
+derivation_body := "{" derive_field_decl ) * "}"
+
+derive_field_decl :=   multi_field_path 
             |   field_name_or_path retype_redefine_spec 
             |   field_name_or_path retype_redefine_spec 
 
-retype_redefine_spec := ( "as" IDENTIFIER ) ? 
+retype_redefine_spec := ( "as" IDENT ) ? 
                         ( ":" ( any_type_decl | record_type_body ) ) ?
                         "?" ?
                         ( "=" json_value ) ?
 
 multi_field_path  :=    field_path
                     |   field_path "/" "*"
-                    |   field_path "/" "(" IDENTIFIER ( "," IDENTIFIER ) * ")"
+                    |   field_path "/" "(" IDENT ( "," IDENT ) * ")"
 
-field_name_or_path := ( annotation * ) ( IDENTIFIER | field_path )
+field_name_or_path := ( annotation * ) ( IDENT | field_path )
+
+######
+#   Transformer
+######
+
+transformers_declaration := annotations ? "transformers" transformers_header transformers_body
+
+transformers_header := IDENT
+transformers_body := "{" transformer_decl * "}"
+
+transformer_decl := src_type<FQN> "=>" dest_type<FQN> "{" transformer_rule * "}"
+
+transformer_rule := temp_var_decl | stream_expression
+
+temp_var_decl := "let" varname<IDENT> "=" expression
+
+expression :=   literal_expression
+            |   list_expression
+            |   dict_expression
+            |   tuple_texpression
+            |   dot_delimited_field_path
+            |   stream_expression
+            |   function_expression
+
+literal_expression := STRING | NUMBER | BOOL
+
+list_expression :=  "[" "]"
+                |   "[" expression ( "," expression ) * "]"
+
+tuple_expression := "(" ")"
+                |   "(" expression ( "," expression ) * ")"
+
+dict_expression := "{" "}"
+                |   "{" IDENT ":" expression ( ","  IDENT ":" expression ) * "}"
+
+function_expression :=  func<FQN> tuple_expression
+                    |   func<FQN> "(" ")"
+
+stream_expression := expression "=>" expression
+
+"""
+Every expression should return a value.
+
+transformer rule shoudl always end with either an expression - if it is a "let" statement
+
+and for a stream expression it should end with a field_path or and identifier (and NOT any other expression type).
+
+Will this transformer rule work?
+
+case 1:
+   (a,b,c)                  // Send out 3 fields
+        => third            // Take the 3rd field
+        => hash             // send it through a hash
+        => passwordHash     // send it to passwordHash - since this is the final one it should be a field in the dest record
+
+or:
+    hash(third(a,b,c)) => passwordHash
+
+case 2:
+   func(a,b,c) => destFieldA                // Apply "func" with arguments a, b, c taken from source and save result to destFieldA
+
+case 3:
+
+    array_field[V]          // stream a field that is of array type in the source rec
+        => somefilter       // Filter selective values
+        => hash             // Each entry V goes through hash
+        => array            // collect values as an array
+        => destField        // Save array in dest field
+
+or:
+    map(hash, filter(somefilter, array_field)) => destField
+
+case 4:
+    map_field[K,V]                              // stream a field that is of array type in the source rec
+        => (somefunc(K), someotherfunc(V))      // Transform K and or V and return another tuple
+        => somefilter                           // Filter selective values - should return a tuple
+        => converter                            // A func that takes K,V and returns a record that is of type destField
+        => array
+        => destField        // Save array in dest field
+
+or:
+    map(converter,
+        filter(somefilter,
+            map((k,v) -> (somefunc(k), someotherfunc(v)), map_field)))  => destField
+
+case 5:
+    array_field[V]                              // stream a field that is of array type in the source rec
+        => somefilter                           // Filter selective values - should return a tuple
+        => converter                            // A func that takes V and returns a record that is of type destField (a map entry - SO K,V)
+        => map                          
+        => destField        // Save map in dest field
+
+or:
+        map(converter, filter(somefilter, array_field)) =>  destField
+"""

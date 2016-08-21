@@ -31,6 +31,8 @@ class TokenType(Enum):
     CLOSE_SQUARE        = "]"
     OPEN_BRACE          = "{"
     CLOSE_BRACE         = "}"
+    LT                  = "<"
+    GT                  = ">"
     MINUS               = "-"
     STAR                = "*"
     DOTDOT              = ".."

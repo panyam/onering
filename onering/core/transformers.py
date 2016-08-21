@@ -1,7 +1,6 @@
 
 from onering import errors
 
-
 class TransformerGroup(object):
     """
     A transformer group enables a set of transformers to be logically grouped.  This group and its
@@ -37,48 +36,56 @@ class Transformer(object):
         self.dest_type = dest_type
         self.group = group
         # explicit transformer rules
-        self._rules = []
+        self._statements = []
 
-    def add_rule(self, rule):
-        self._rules.append(rule)
-
-class Rule(object):
-    """
-    A rule for specifying the source to dest field transformation.
-    """
-    def __init__(self, expression, target, temporary = False, annotations = None, docs = ""):
-        self.annotations = annotations or []
-        self.docs = docs or ""
-        # Is the rule setting a temporary var?
-        self.is_temporary = temporary
-
-        # Dest being set
-        self.target = target
-
-        # The source spec (including any transformer method calls)
-        self.expression = expression
-        if type(expression) in (str, unicode, int, long, float, bool, dict, list):
-            self.expression = Expression(None, expression)
-        elif type(expression) is not Expression:
-            raise errors.OneringException("expression must be a literal type or a Expression.  Found: %s" % str(type(expression)))
+    def add(self, stmt):
+        if isinstance(stmt, Expression) and stmt.next is None:
+            # We dont have a stream expression, error
+            raise errors.OneringException("Transformer rule must be a let statement or a stream exception")
+        self._statements.append(stmt)
 
 class Expression(object):
-    """
-    Specifies the expression that will be the source 
+    def __init__(self):
+        # The next expression in a stream if any
+        self.next = None
 
-    The source can be a literal:
+class LiteralExpression(Expression):
+    def __init__(self, value):
+        super(LiteralExpression, self).__init__()
+        self.value = value
 
-        string, int, bool, map, list
+class VariableDeclaration(object):
+    def __init__(self, varname, varvalue):
+        self.varname = varname
+        self.varvalue = varvalue
 
-    or a function:
+class VariableExpression(Expression):
+    def __init__(self, var_or_field_path, from_source = True):
+        super(VariableExpression, self).__init__()
+        self.from_source = from_source
+        self.value = var_or_field_path
 
-        func_fqn + func_args, where func_args = list of SourceValues
+    @property
+    def is_field_path(self):
+        return type(self.value) is FieldPath
 
-    or a field path:
-        a/b/c/d
+class ListExpression(Expression):
+    def __init__(self, value):
+        super(ListExpression, self).__init__()
+        self.value = value
 
-    If source is None, then the arguments form a literal of a tuple type!
-    """ 
-    def __init__(self, source, args = None):
-        self.source = source
-        self.args = args
+class DictExpression(Expression):
+    def __init__(self, value):
+        super(DictExpression, self).__init__()
+        self.value = value
+
+class TupleExpression(Expression):
+    def __init__(self, value):
+        super(TupleExpression, self).__init__()
+        self.value = value
+
+class FunctionExpression(Expression):
+    def __init__(self, func_name, func_args = None):
+        super(FunctionExpression, self).__init__()
+        self.func_name = func_name
+        self.func_args = func_args
