@@ -718,6 +718,7 @@ def parse_transformers_decl(parser, annotations):
         transformer = parse_transformer(parser, transformer_group)
         transformer_group.add_transformer(transformer)
 
+    parser.onering_context.register_transformer_group(transformer_group)
     parser.ensure_token(TokenType.CLOSE_BRACE)
     return transformer_group
 
