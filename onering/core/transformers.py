@@ -1,4 +1,5 @@
 
+import ipdb
 from onering import errors
 
 class TransformerGroup(object):
@@ -45,19 +46,43 @@ class Transformer(object):
         self._statements.append(stmt)
 
 class Expression(object):
+    """
+    Parent of all expressions.  All expressions must have a value.  Expressions only appear in transformers
+    (or in derivations during type streaming but type streaming is "kind of" a transformer anyway.
+    """
     def __init__(self):
         # The next expression in a stream if any
-        self.next = None
+        # Because the stream expression is the top most level expression you could have
+        self._next = None
+
+    @property
+    def next(self):
+        return self._next
+
+    @next.setter
+    def next(self, value):
+        if type(value) is FunctionExpression:
+            ipdb.set_trace()
+            raise errors.OneringException("FunctionExpressions can only be at the start of an expression stream")
+        self._next = value
+
+class CompoundExpression(Expression):
+    """
+    A collection of expressions streams to be run in a particular order and each introducing their own variables or 
+    modifying others.   A compound expression has no type but can be streamed "into" any other expression 
+    whose input types can be anything else.  Similary any expression can stream into a compound expression.
+    """
+    def __init__(self, expressions):
+        super(CompoundExpression, self).__init__()
+        self.expressions = expressions[:]
 
 class LiteralExpression(Expression):
+    """
+    An expression that contains a literal value like a number, string, boolean, array, or map.
+    """
     def __init__(self, value):
         super(LiteralExpression, self).__init__()
         self.value = value
-
-class VariableDeclaration(object):
-    def __init__(self, varname, varvalue):
-        self.varname = varname
-        self.varvalue = varvalue
 
 class VariableExpression(Expression):
     def __init__(self, var_or_field_path, from_source = True):
@@ -85,6 +110,17 @@ class TupleExpression(Expression):
         self.value = value
 
 class FunctionExpression(Expression):
+    """
+    An expression for denoting a function call.  Function calls can only be at the start of a expression stream, eg;
+
+    f(x,y,z) => H => I => J
+
+    but the following is invalid:
+
+    H => f(x,y,z) -> J
+
+    because f(x,y,z) must return an observable and observable returns are not supported (yet).
+    """
     def __init__(self, func_name, func_args = None):
         super(FunctionExpression, self).__init__()
         self.func_name = func_name
