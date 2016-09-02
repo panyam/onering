@@ -194,6 +194,10 @@ class Lexer(object):
                 return make_token(TokenType.OPEN_BRACE)
             elif self.matches_symbol('}'):
                 return make_token(TokenType.CLOSE_BRACE)
+            elif self.matches_symbol('<'):
+                return make_token(TokenType.LT)
+            elif self.matches_symbol('>'):
+                return make_token(TokenType.GT)
             elif self.matches_symbol('('):
                 return make_token(TokenType.OPEN_PAREN)
             elif self.matches_symbol(')'):
