@@ -5,22 +5,39 @@ import json
 import os, sys
 import shlex
 import traceback
-import onering
-from typelib import registry
-from typelib import errors
-from onering import utils
-from onering import resolver
 import default
+
 from utils import logerror
+from typelib import registry 
+from typelib import core as tlcore
+
+from onering import utils as orutils
+from onering import resolver
+from onering import core as orcore
+
+# Create the all important type registry and entity resolver (for loading pegasus models)
+template_aliases = {
+    "java": "onering.backends.java.JavaTargetBackend"
+}
+
+class OneringContext(orcore.Onering):
+    def __init__(self):
+        super(OneringContext, self).__init__()
+        template_loader = None
 
 class OneringConsoleBase(object):
     def __init__(self):
-        self.thering = onering.OneRing()
-        self.entity_resolver = resolver.EntityResolver("pdsc")
-        self.type_registry = self.thering.type_registry
-        self.field_graph = self.thering.field_graph
+        self.thering = OneringContext()
         self.currIndex = 1
         self.prompt = "OneRing :[%03d]> " % self.currIndex
+
+    @property
+    def type_registry(self):
+        return self.thering.type_registry
+
+    @property
+    def entity_resolver(self):
+        return self.thering.entity_resolver
 
     def parse_arguments_and_run(self):
         from optparse import OptionParser
@@ -77,7 +94,6 @@ class OneringConsole(code.InteractiveConsole, OneringConsoleBase):
         self.locals["thering"] = self.thering
         self.locals["entity_resolver"] = self.entity_resolver
         self.locals["type_registry"] = self.type_registry
-        self.locals["field_graph"] = self.field_graph
         self.needs_more_input = False
         self.command_runner = default.DefaultCommandRunner()
 
