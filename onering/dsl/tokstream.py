@@ -1,6 +1,6 @@
 import ipdb
 from lexer import Token, TokenType
-from core import UnexpectedTokenException
+from errors import UnexpectedTokenException
 
 class TokenStream(object):
     """
@@ -10,6 +10,14 @@ class TokenStream(object):
     def __init__(self, lexer):
         self.peeked_tokens = []
         self.lexer = lexer
+
+    @property
+    def line(self):
+        return self.lexer.line
+
+    @property
+    def column(self):
+        return self.lexer.column
 
     def unget_token(self, token):
         self.peeked_tokens.append(token)

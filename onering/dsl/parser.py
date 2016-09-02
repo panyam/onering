@@ -2,7 +2,7 @@
 import ipdb
 import core
 from tokstream import TokenStream
-from core import UnexpectedTokenException
+from errors import SourceException, UnexpectedTokenException
 from typelib import core as tlcore
 from typelib import utils
 from typelib import records
@@ -121,8 +121,15 @@ class Parser(TokenStream):
         return fqn
 
     def parse(self):
-        parse_compilation_unit(self)
-
+        try:
+            parse_compilation_unit(self)
+        except SourceException:
+            raise
+        except errors.OneringException, exc:
+            # Change its message to reflect the line and col
+            raise SourceException(self.line, self.column, exc.message)
+        except:
+            raise
         # Take care of injections!
 
     def process_directive(self, command):
@@ -664,23 +671,25 @@ def parse_transformer_rule(parser):
 
         transformer_rule := let_statment | stream_expr
 
-        let_statement := "let" IDENT "=" expr
+        let_statement := "let" stream_expr
 
         stream_expr := expr ( => expr ) * => expr
     """
     annotations = parse_annotations(parser)
 
     if parser.next_token_is(TokenType.IDENTIFIER, "let"):
-        parser.ensure_token(TokenType.DOLLAR)
-        if parser.peeked_token_is(TokenType.NUMBER):
-            varname = parser.ensure_token(TokenType.NUMBER)
-        else:
-            varname = parser.ensure_token(TokenType.IDENTIFIER)
-        parser.ensure_token(TokenType.EQUALS)
-        varvalue = parse_expression(parser)
-        stmt = transformers.VariableDeclaration(varname, varvalue)
+        stmt = parse_expression(parser)
+        stmt.is_temporary = True
     else:
         stmt = parse_expression(parser)
+
+    # An expression must have more than 1 expression
+    if stmt.next is None:
+        raise errors.OneringException("An exception stream must have more than one expression")
+
+    # ensure last var IS a variable expression
+    if not isinstance(stmt.last, transformers.VariableExpression):
+        raise errors.OneringException("Final target of an expression MUST be a variable")
 
     parser.consume_tokens(TokenType.SEMI_COLON)
     return stmt
@@ -753,6 +762,18 @@ def parse_expression(parser):
         parser.ensure_token(TokenType.STREAM)
         out.next = parse_expression(parser)
     return out
+
+def parse_tuple_expression(parser):
+    parser.ensure_token(TokenType.OPEN_PAREN)
+    exprs = []
+    if not parser.next_token_is(TokenType.CLOSE_PAREN):
+        expr = parse_expression(parser)
+        exprs = [expr]
+        while parser.next_token_is(TokenType.COMMA):
+            expr = parse_expression(parser)
+            exprs.append(expr)
+        parser.ensure_token(TokenType.CLOSE_PAREN)
+    return transformers.TupleExpression(exprs)
 
 ########################################################################
 ##          Annotation Parsing Rules

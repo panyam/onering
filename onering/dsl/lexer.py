@@ -3,6 +3,7 @@ import cStringIO
 import ipdb
 import os
 import shlex
+from errors import SourceException
 from enum import Enum
 
 class TokenType(Enum):
@@ -94,6 +95,14 @@ class Lexer(object):
         self.end_reached = False
         self.comments_enabled = True
 
+    @property
+    def line(self):
+        return self.next_line
+
+    @property
+    def column(self):
+        return self.next_col
+
     def _ensure_buffer(self, size = 1):
         buff_len = len(self.buffer)
         if buff_len < size:
@@ -170,7 +179,7 @@ class Lexer(object):
                 if include:
                     out += delim_str
                 return out
-        raise Exception("EOF Reached.  Expected '%s'" % delim_str)
+        raise SourceException("EOF Reached.  Expected '%s'" % delim_str)
     
     @property
     def has_more(self):
@@ -267,5 +276,5 @@ class Lexer(object):
                 # do nothing
                 pass
             else:
-                raise Exception("Line %d, Column %d: Invalid character encountered: '%s'" % (curr_line, curr_col, self.get_chars(peek = True)[0]))
+                raise SourceException("Line %d, Column %d: Invalid character encountered: '%s'" % (curr_line, curr_col, self.get_chars(peek = True)[0]))
         raise StopIteration 

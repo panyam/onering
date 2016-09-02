@@ -42,7 +42,7 @@ class Transformer(object):
     def add(self, stmt):
         if isinstance(stmt, Expression) and stmt.next is None:
             # We dont have a stream expression, error
-            raise errors.OneringException("Transformer rule must be a let statement or a stream exception")
+            raise errors.OneringException("Transformer rule must be a let statement or a stream exception, Found: %s" % str(type(stmt)))
         self._statements.append(stmt)
 
 class Expression(object):
@@ -54,6 +54,8 @@ class Expression(object):
         # The next expression in a stream if any
         # Because the stream expression is the top most level expression you could have
         self._next = None
+        self._prev = None
+        self.is_temporary = False
 
     @property
     def next(self):
@@ -64,7 +66,22 @@ class Expression(object):
         if type(value) is FunctionExpression:
             ipdb.set_trace()
             raise errors.OneringException("FunctionExpressions can only be at the start of an expression stream")
+
+        if value._prev is not None:
+            value._prev._next = None
+        value._prev = self
         self._next = value
+
+    @property
+    def prev(self):
+        return self._prev
+
+    @property
+    def last(self):
+        temp = self
+        while temp.next is not None:
+            temp = temp.next
+        return temp
 
 class CompoundExpression(Expression):
     """
@@ -105,9 +122,9 @@ class DictExpression(Expression):
         self.value = value
 
 class TupleExpression(Expression):
-    def __init__(self, value):
+    def __init__(self, values):
         super(TupleExpression, self).__init__()
-        self.value = value
+        self.values = values or []
 
 class FunctionExpression(Expression):
     """
