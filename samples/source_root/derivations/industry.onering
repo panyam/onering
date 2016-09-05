@@ -1,8 +1,0 @@
-
-namespace org.example.industry
-
-@template(name = "onering.backends.java.JavaPojoTargetBackend",
-    namespace = "org.example.industry.pegasus")
-derive Industry : org.example.Industry {
-}
-

@@ -18,6 +18,14 @@ class Parser(TokenStream):
     Parses a Onering compilation unit and extracts all records define in it.
     """
     def __init__(self, instream, context):
+        """
+        Creates a parser.
+
+        Params:
+
+            instream    -   The input stream from which onering entities will be parsed and registered.
+            context     -   The onering context into which all loaded entities will be registered into.
+        """
         import lexer
         super(Parser, self).__init__(lexer.Lexer(instream))
         self.document = core.Document()

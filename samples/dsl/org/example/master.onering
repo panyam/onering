@@ -1,0 +1,83 @@
+
+namespace org.example
+
+@version = 2.3    // Annotations are arbitrary
+record Kingdom {
+    @deprecated(doc = "use something else")     // Annotations can be used as single functions
+    name : String
+    ruler : Being
+
+    @another_annotation(a = 1, b = 2)     // Annotations can be used as composite dictionaries  
+    isInWar : bool = false
+
+    capital : City
+    cities : array[City]
+}
+
+// Following is docstring for the "Being" record
+/**
+ * The Being record about an individual in the universe.
+ */
+record Being {
+   name : String
+   race : Race
+   role : Role
+   gender : Gender
+}
+
+enum Gender {
+    Male,
+    Female,
+    Unspecified,
+    Other
+}
+
+record Race {
+    yearAppeared = DateTime
+    raceType : enum {
+        Human
+        Elf
+        Orc
+        Dwarf
+        Goblin
+        Wizard
+        Eagle
+        Dragon
+        Hobbit
+    }
+}
+
+enum Role {
+    Knight
+    General
+    Scout
+    Archer
+    Grunt
+    Wizard
+    Soldier
+    Mage
+    Healer
+}
+
+record City {
+    name : String
+
+    // A city can have "special" structures within it.
+    wonders : Structures
+
+    populationByRace : map[Race, Int]
+}
+
+typeref Structures = array[Structure]
+
+typeref Structure = record {
+    name : String
+    builtBy : Being
+    builtOn : DateTime
+    details : union[
+        Wall,
+        Palace,
+        Mill,
+        Barrack
+    ]
+}

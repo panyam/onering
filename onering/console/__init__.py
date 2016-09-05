@@ -10,10 +10,12 @@ import default
 from utils import logerror
 from typelib import registry 
 from typelib import core as tlcore
+from typelib import errors as tlerrors
 
 from onering import utils as orutils
 from onering import resolver
 from onering import core as orcore
+from onering import errors as orerrors
 
 # Create the all important type registry and entity resolver (for loading pegasus models)
 template_aliases = {
@@ -109,10 +111,12 @@ class OneringConsole(code.InteractiveConsole, OneringConsoleBase):
             if self.command_runner.can_run(cmd):
                 try:
                     self.command_runner.run(self, cmd, rest)
-                except errors.TLException, oe:
-                    logerror(oe.message)
+                except tlerrors.TLException, exc:
+                    logerror(exc.message)
                     traceback.print_exc()
-                    # ipdb.set_trace()
+                except orerrors.OneringException, exc:
+                    logerror(exc.message)
+                    traceback.print_exc()
                 except:
                     traceback.print_exc()
                     raise

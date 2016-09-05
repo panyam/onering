@@ -27,31 +27,20 @@ class CommandRunner(object):
                 prev.append(cmd)
 
                 lexer = shlex.shlex(rest)
-                nextcmd = lexer.next()
-                self.children[cmd].run(console, nextcmd, rest[len(nextcmd):].strip(), prev)
+                try:
+                    nextcmd = lexer.next()
+                    self.children[cmd].run(console, nextcmd, rest[len(nextcmd):].strip(), prev)
+                except StopIteration, si:
+                    self.children[cmd].empty_command(console, prev)
             else:
                 ipdb.set_trace()
                 raise Exception("Command '%s' cannot be handled" % cmd)
 
-    def get_man(self, console, cmd, rest, prev):
+    def empty_command(self, console, prev):
         """
-        Gets the manual for a given list of (comma separted) commands.
-        If this list is not given then the manual for ALL commands is printed.
+        Handles the empty command.
         """
-        out = []
-        if not line:
-            out.append("All OneRing Commands")
-            out.append("--------------------")
-
-        line = [l.strip() for l in line.lower().split(",") if l.strip()]
-        commands = [(x[3:], getattr(self, x)) for x in dir(self) if x.startswith("do_") and (x[3:] in line or not line)]
-        for command, func in commands:
-            out.append(command)
-            out.append("=" * len(command))
-            doc = func.__doc__.split("\n        ")
-            out.extend(doc)
-            out.append("")
-        return out
+        self.do_man(console, None, "", prev)
 
     def do_man(self, console, cmd, rest, prev):
         """
@@ -84,3 +73,4 @@ class CommandRunner(object):
                 doc = command.__doc__.replace("\n    ", "\n")
                 print doc
                 print
+

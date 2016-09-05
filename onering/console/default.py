@@ -2,18 +2,20 @@
 import json
 import shlex
 import ipdb
-import runner, dirs, pegasus, courier
+import runner, dirs, pegasus, courier, orc
 from utils import logerror
 
 class DefaultCommandRunner(runner.CommandRunner):
     @property
     def aliases(self):
         return { "peg": "pegasus" }
+        return { "orc": "onering" }
 
     @property
     def children(self):
         return {
             "pegasus": pegasus.PegasusCommandRunner(),
+            "onering": orc.OneringCommandRunner(),
             "courier": courier.CourierCommandRunner(),
             "dirs": dirs.DirsCommandRunner(),
             "jars": dirs.JarsCommandRunner()

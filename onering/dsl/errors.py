@@ -16,4 +16,4 @@ class UnexpectedTokenException(SourceException):
             message += "Expected: %s" % expected_tokens[0]
         else:
             message += "Expected one of (%s)" % ", ".join(["'%s'" % str(tok) for tok in expected_tokens])
-        super(UnexpectedTokenException, found_token.line, found_token.col, message)
+        super(UnexpectedTokenException, self).__init__(found_token.line, found_token.col, message)
