@@ -258,7 +258,7 @@ class FieldPath(object):
 
 PROJECTION_TYPE_PLAIN       = 0
 PROJECTION_TYPE_RETYPE      = 1
-PROJECTION_TYPE_MUTATION    = 2
+PROJECTION_TYPE_DERIVATION  = 2
 PROJECTION_TYPE_STREAMING   = 3
 
 class Projection(object):
@@ -327,7 +327,7 @@ class Projection(object):
         type is a mutation then the resolved value is the type of the field within the 
         record (from the source).
         """
-        if self.projection_type == PROJECTION_TYPE_MUTATION:
+        if self.projection_type == PROJECTION_TYPE_DERIVATION:
             # Not much you can do with a type mutation as it has no bindings
             pass
         elif self.projection_type == PROJECTION_TYPE_STREAMING:
@@ -499,7 +499,7 @@ class Projection(object):
         final_field_data = self.final_field_data
         parent_entity = self.parent_entity
 
-        if self.projection_type == PROJECTION_TYPE_MUTATION:
+        if self.projection_type == PROJECTION_TYPE_DERIVATION:
             if self.target_type is None:
                 raise errors.OneringException("Record MUST be specified on a mutation")
 

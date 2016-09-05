@@ -434,7 +434,6 @@ def parse_derivation_body(parser, derivation):
     Parses the body of a derivation
 
         derivation_body := "{" ( annotations ? field_projection ) * "}"
-
     """
     parser.ensure_token(TokenType.OPEN_BRACE)
 
@@ -497,23 +496,15 @@ def parse_projection_target(parser, parent_projection,
     # Check if we have a mutation or a type declaration            
     if allow_retyping:
         if parser.next_token_is(TokenType.COLON):
-            if parser.peeked_token_is(TokenType.OPEN_BRACE):
-                # Name not yet known as record possibly not defined
-                derivation = derivations.Derivation(None, parent_projection)
-                target_type = parse_derivation_body(parser, derivation)
-
-                # this is a record mutation so mark it as such
-                projection_type = derivations.PROJECTION_TYPE_MUTATION
-            elif parser.peeked_token_is(TokenType.IDENTIFIER):
+            if parser.peeked_token_is(TokenType.IDENTIFIER):
                 projection_type = derivations.PROJECTION_TYPE_RETYPE
                 target_type = parse_any_type_decl(parser)
                 # TODO: Investigate if and when we should parent record here
             else:
-                raise UnexpectedTokenException(parser.peek_token(), TokenType.IDENTIFIER, TokenType.OPEN_BRACE)
+                raise UnexpectedTokenException(parser.peek_token(), TokenType.IDENTIFIER)
         elif parser.peeked_token_is(TokenType.OPEN_SQUARE) or parser.peeked_token_is(TokenType.STREAM):
             # We have type streaming with bound param names
-            projection_type = derivations.PROJECTION_TYPE_STREAMING
-            target_type = parse_type_stream_decl(parser, parent_projection)
+            projection_type, target_type = parse_type_stream_decl(parser, parent_projection)
 
     # check optionality
     if allow_optionality:
@@ -591,32 +582,40 @@ def parse_type_stream_decl(parser, parent_projection):
         type_stream_decl := ( ( "[" arglist "]" ) ? "=>" ( any_type_decl | record_type_body ) )
     """
     param_names = []
-    if parser.peeked_token_is(TokenType.OPEN_SQUARE):
-        parser.next_token()
+    if parser.next_token_is(TokenType.OPEN_SQUARE):
         param_names = parser.read_ident_list(TokenType.COMMA)
+        parser.ensure_token(TokenType.CLOSE_SQUARE)
 
-    parser.ensure_token(TokenType.CLOSE_SQUARE)
     parser.ensure_token(TokenType.STREAM)
 
-    type_constructor = parser.ensure_fqn()
     projections = []
 
-    parser.ensure_token(TokenType.OPEN_SQUARE)
-    while not parser.peeked_token_is(TokenType.CLOSE_SQUARE):
-        # in a declaration within a type value of a type stream, we wont allow optionality
-        # or default values as it just wont make sense.
-        if parser.peeked_token_is(TokenType.OPEN_BRACE):
-            # Inject a COLON so we can treat it as a projection target
-            parser.unget_token(lexer.Token(TokenType.COLON, -1))
-        projection = parse_projection(parser, parent_entity = parent_projection, allow_renaming = False,
-                                      allow_optionality = False, allow_default_value = False)
-        projections.append(projection)
-        # Consume a comma silently 
-        parser.next_token_if(TokenType.COMMA, consume = True)
+    if param_names:
+        type_constructor = parser.ensure_fqn()
+        parser.ensure_token(TokenType.OPEN_SQUARE)
+        while not parser.peeked_token_is(TokenType.CLOSE_SQUARE):
+            # in a declaration within a type value of a type stream, we wont allow optionality
+            # or default values as it just wont make sense.
+            if parser.peeked_token_is(TokenType.OPEN_BRACE):
+                # Inject a COLON so we can treat it as a projection target
+                parser.unget_token(lexer.Token(TokenType.COLON, -1))
+            projection = parse_projection(parser, parent_entity = parent_projection, allow_renaming = False,
+                                          allow_optionality = False, allow_default_value = False)
+            projections.append(projection)
+            # Consume a comma silently 
+            parser.next_token_if(TokenType.COMMA, consume = True)
+        parser.ensure_token(TokenType.CLOSE_SQUARE)
+        target_type = derivations.TypeStreamDeclaration(type_constructor, param_names, projections)
+        projection_type = derivations.PROJECTION_TYPE_STREAMING
+    else:
+        new_record_name = None
+        if parser.peeked_token_is(TokenType.IDENTIFIER):
+            new_record_name = parser.next_token().value
 
-    parser.ensure_token(TokenType.CLOSE_SQUARE)
-
-    return derivations.TypeStreamDeclaration(type_constructor, param_names, projections)
+        derivation = derivations.Derivation(new_record_name, parent_projection)
+        target_type = parse_derivation_body(parser, derivation)
+        projection_type = derivations.PROJECTION_TYPE_DERIVATION
+    return projection_type, target_type
 
 ########################################################################
 ##          Transformer Parsing Rules

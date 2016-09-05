@@ -45,8 +45,15 @@ derive KingdomSummary5 : Kingdom {
 
 derive OrcLand : Kingdom {
     name                        // Orc kingdoms also needs names
-    capital : OrcCity {         // Capitals also have names and only contain the orc population size
+    capital => OrcCity {        // Capitals also have names and only contain the orc population size
         name
         numberOfOrcs : Int
     }
+}
+
+derive ElvenKingdom : Kingdom {
+    cities[C] => map[
+        C/name,
+        C
+     ]
 }
