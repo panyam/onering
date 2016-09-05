@@ -2,7 +2,7 @@
 import json
 import shlex
 import ipdb
-import runner, dirs, pegasus, courier, orc
+import runner, dirs, pegasus, courier, orc, backend
 from utils import logerror
 
 class DefaultCommandRunner(runner.CommandRunner):
@@ -14,8 +14,9 @@ class DefaultCommandRunner(runner.CommandRunner):
     @property
     def children(self):
         return {
-            "pegasus": pegasus.PegasusCommandRunner(),
             "onering": orc.OneringCommandRunner(),
+            "backend": backend.BackendCommandRunner(),
+            "pegasus": pegasus.PegasusCommandRunner(),
             "courier": courier.CourierCommandRunner(),
             "dirs": dirs.DirsCommandRunner(),
             "jars": dirs.JarsCommandRunner()

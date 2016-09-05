@@ -245,6 +245,11 @@ class Lexer(object):
                 while self.matches_func(str.isdigit):
                     nextch,_,_,_ = self.get_chars()
                     curr_tok_value += nextch
+                if self.matches_symbol("."):
+                    curr_tok_value += "."
+                while self.matches_func(str.isdigit):
+                    nextch,_,_,_ = self.get_chars()
+                    curr_tok_value += nextch
                 return make_token(TokenType.NUMBER, curr_tok_value, len(curr_tok_value))
             elif self.matches_func(lambda x: x == "_" or x.isalpha()):
                 while self.matches_func(lambda x: x == "_" or x.isalnum()):

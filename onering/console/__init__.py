@@ -18,14 +18,14 @@ from onering import core as orcore
 from onering import errors as orerrors
 
 # Create the all important type registry and entity resolver (for loading pegasus models)
-template_aliases = {
-    "java": "onering.backends.java.JavaTargetBackend"
-}
 
 class OneringContext(orcore.Onering):
     def __init__(self):
         super(OneringContext, self).__init__()
         template_loader = None
+        self.backend_aliases = {
+            "java": "onering.backends.java.JavaTargetBackend"
+        }
 
 class OneringConsoleBase(object):
     def __init__(self):

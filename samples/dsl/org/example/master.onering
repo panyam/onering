@@ -33,7 +33,7 @@ enum Gender {
 }
 
 record Race {
-    yearAppeared = DateTime
+    yearAppeared : DateTime
     raceType : enum {
         Human
         Elf
