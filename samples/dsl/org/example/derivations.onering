@@ -6,3 +6,47 @@ derive KingdomSummary : Kingdom {
     ruler
     numberOfCities : Int
 }
+
+derive KingdomSummary2 : Kingdom {
+    // Including "name" but giving it a new name
+    name as kingdomName
+
+    // Including "name" but changing its type
+    name : UnicodeString
+
+    // renaming and retyping
+    name as kingdomName : UnicodeString
+
+    // or renaming, retyping, making it optional and giving it a default value
+    name as kingdomName : UnicodeString ? = ""
+}
+
+
+derive KingdomSummary3 : Kingdom {
+    name
+    capital/name as capitalCityName
+}
+
+derive KingdomSummary4 : Kingdom {
+    // Only include name and ruler fields
+    /(name, ruler)
+
+    // Or to include ALL fields from the parent:
+    /(*)
+}
+
+derive KingdomSummary5 : Kingdom {
+     // Only capital fields included here and nothing else
+    / capital / (*)
+
+    // same as the below (because capital is at the "root" level):
+    capital / (*)
+}
+
+derive OrcLand : Kingdom {
+    name                        // Orc kingdoms also needs names
+    capital : OrcCity {         // Capitals also have names and only contain the orc population size
+        name
+        numberOfOrcs : Int
+    }
+}

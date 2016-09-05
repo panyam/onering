@@ -1,6 +1,7 @@
 
 from typelib import registry 
 from onering import resolver
+from onering import errors
 
 class Onering(object):
     def __init__(self):
@@ -16,7 +17,7 @@ class Onering(object):
 
     def register_derivation(self, derivation):
         if derivation.fqn in self._derivations:
-            raise errors.TLException("Duplicate derivation found: " % derivation.fqn)
+            raise errors.OneringException("Duplicate derivation found: %s" % derivation.fqn)
         self._derivations[derivation.fqn] = derivation
 
     @property
@@ -25,5 +26,5 @@ class Onering(object):
 
     def register_transformer_group(self, transformer_group):
         if transformer_group.fqn in self._transformer_groups:
-            raise errors.TLException("Duplicate transformer_group found: " % transformer_group.fqn)
+            raise errors.OneringException("Duplicate transformer_group found: %s" % transformer_group.fqn)
         self._transformer_groups[transformer_group.fqn] = transformer_group

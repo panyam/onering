@@ -562,16 +562,18 @@ def parse_field_path(parser, allow_abs_path = True, allow_child_selection = True
     selected_children = None
     if allow_child_selection:
         if parser.next_token_is(TokenType.SLASH) or (starts_with_slash and not field_path_parts):
-            # expect "*" or "("
-            if parser.next_token_is(TokenType.STAR):
-                selected_children = "*"
-            elif parser.next_token_is(TokenType.OPEN_PAREN):
+            if parser.next_token_is(TokenType.OPEN_PAREN):
                 selected_children = []
                 while not parser.next_token_is(TokenType.CLOSE_PAREN):
-                    name = parser.ensure_token(TokenType.IDENTIFIER)
-                    selected_children.append(name)
-                    if parser.next_token_is(TokenType.COMMA):
-                        parser.ensure_token(TokenType.IDENTIFIER, peek = True)
+                    if parser.next_token_is(TokenType.STAR):
+                        selected_children = "*"
+                        parser.ensure_token(TokenType.CLOSE_PAREN)
+                        break
+                    else:
+                        name = parser.ensure_token(TokenType.IDENTIFIER)
+                        selected_children.append(name)
+                        if parser.next_token_is(TokenType.COMMA):
+                            parser.ensure_token(TokenType.IDENTIFIER, peek = True)
             else:
                 raise UnexpectedTokenException(parser.peek_token(), TokenType.STAR, TokenType.OPEN_BRACE)
 
