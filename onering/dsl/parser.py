@@ -396,6 +396,11 @@ def parse_field_declaration(parser, parent_record):
 ##          Derivation and Projection Parsing
 ########################################################################
 def parse_derivation(parser, annotations = []):
+    """
+    Parses a derivation
+
+    derivation := "derive" FQN derivation_header derivation_body
+    """
     parser.ensure_token(TokenType.IDENTIFIER, "derive")
 
     n = parser.ensure_token(TokenType.IDENTIFIER)
@@ -413,7 +418,7 @@ def parse_derivation_header(parser, derivation):
     """
     Parses a derivation header:
 
-        derivation_header := ( ":" source_fqn ("as" IDENTIFIER) ? ( "," source_fqn ("as" IDENTIFIER) ) *
+        derivation_header := ":" source_fqn ("as" IDENTIFIER) ? ( "," source_fqn ("as" IDENTIFIER) ) *
     """
     if not parser.next_token_is(TokenType.COLON):
         return 
@@ -433,7 +438,7 @@ def parse_derivation_body(parser, derivation):
     """
     Parses the body of a derivation
 
-        derivation_body := "{" ( annotations ? field_projection ) * "}"
+        derivation_body := "{" projection * "}"
     """
     parser.ensure_token(TokenType.OPEN_BRACE)
 
@@ -598,27 +603,30 @@ def parse_type_stream_decl(parser, parent_projection):
 
     parser.ensure_token(TokenType.STREAM)
 
-    projections = []
+    children = []
 
     # There MUST be a type constructor
     type_constructor = parser.ensure_fqn()
 
     parser.ensure_token(TokenType.OPEN_SQUARE)
 
+    annotations = parse_annotations(parser)
     while not parser.peeked_token_is(TokenType.CLOSE_SQUARE):
-        # in a declaration within a type value of a type stream, we wont allow optionality
-        # or default values as it just wont make sense.
         if parser.peeked_token_is(TokenType.OPEN_BRACE):
-            # Inject a COLON so we can treat it as a projection target
-            parser.unget_token(Token(TokenType.COLON, -1))
-        ipdb.set_trace()
-        projection = parse_projection(parser, parent_entity = parent_projection, allow_renaming = False,
-                                      allow_optionality = False, allow_default_value = False)
-        projections.append(projection)
+            # Then we have a complete derivation body
+            derivation = derivations.Derivation(None, None, annotations = annotations, docs = parser.last_docstring())
+            parse_derivation_body(parser, derivation)
+            children.append(derivation)
+        else:
+            # TODO - Need annotations?
+            projection = parse_projection(parser, parent_entity = parent_projection, allow_renaming = False,
+                                          allow_optionality = False, allow_default_value = False)
+            children.append(projection)
         # Consume a comma silently 
         parser.next_token_if(TokenType.COMMA, consume = True)
+        annotations = parse_annotations(parser)
     parser.ensure_token(TokenType.CLOSE_SQUARE)
-    target_type = derivations.TypeStreamDeclaration(type_constructor, param_names, projections)
+    target_type = derivations.TypeStreamDeclaration(type_constructor, param_names, children)
     projection_type = derivations.PROJECTION_TYPE_STREAMING
     return projection_type, target_type
 

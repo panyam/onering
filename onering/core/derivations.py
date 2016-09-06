@@ -586,10 +586,14 @@ class Projection(object):
 
 
 class TypeStreamDeclaration(object):
-    def __init__(self, constructor_fqn, param_names, projections):
+    def __init__(self, constructor_fqn, param_names, children):
+        """
+        Creates a type stream declaration.
+        The children could be either projections or derivations (which will result in records).
+        """
         self.constructor = constructor_fqn
         self.param_names = param_names or []
-        self.projections = projections
+        self.projections = children
 
 class PathResolver(object):
     """
