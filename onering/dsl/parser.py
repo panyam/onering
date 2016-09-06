@@ -507,7 +507,7 @@ def parse_projection_target(parser, parent_projection,
                 # TODO: Investigate if and when we should parent record here
             else:
                 raise UnexpectedTokenException(parser.peek_token(), TokenType.IDENTIFIER)
-        elif parser.peeked_token_is(TokenType.STREAM):
+        elif parser.next_token_is(TokenType.STREAM):
             # We have an inline derivation
             new_record_name = None
             if parser.peeked_token_is(TokenType.IDENTIFIER):

@@ -1,7 +1,6 @@
 
 namespace org.example
 
-/*
 derive KingdomSummary : Kingdom {
     name
     ruler
@@ -58,8 +57,6 @@ derive ElvenKingdom : Kingdom {
         C
      ]
 }
-
-*/
 
 derive Town : City {
     name
