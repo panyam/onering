@@ -1,6 +1,7 @@
 
 namespace org.example
 
+/*
 derive KingdomSummary : Kingdom {
     name
     ruler
@@ -56,4 +57,16 @@ derive ElvenKingdom : Kingdom {
         C/name,
         C
      ]
+}
+
+*/
+
+derive Town : City {
+    name
+    wonders
+    populationByRace as populations [race, count] => array[ {
+        // Get all fields within the race, flattened to the populations level.
+        race / *
+        count
+    }]
 }

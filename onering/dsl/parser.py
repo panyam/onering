@@ -502,7 +502,16 @@ def parse_projection_target(parser, parent_projection,
                 # TODO: Investigate if and when we should parent record here
             else:
                 raise UnexpectedTokenException(parser.peek_token(), TokenType.IDENTIFIER)
-        elif parser.peeked_token_is(TokenType.OPEN_SQUARE) or parser.peeked_token_is(TokenType.STREAM):
+        elif parser.peeked_token_is(TokenType.STREAM):
+            # We have an inline derivation
+            new_record_name = None
+            if parser.peeked_token_is(TokenType.IDENTIFIER):
+                new_record_name = parser.next_token().value
+
+            derivation = derivations.Derivation(new_record_name, parent_projection)
+            target_type = parse_derivation_body(parser, derivation)
+            projection_type = derivations.PROJECTION_TYPE_DERIVATION
+        elif parser.peeked_token_is(TokenType.OPEN_SQUARE):
             # We have type streaming with bound param names
             projection_type, target_type = parse_type_stream_decl(parser, parent_projection)
 
@@ -579,8 +588,9 @@ def parse_type_stream_decl(parser, parent_projection):
     Parses a type stream declaration:
 
 
-        type_stream_decl := ( ( "[" arglist "]" ) ? "=>" ( any_type_decl | record_type_body ) )
+        type_stream_decl := "[" arglist "]" "=>" TYPE<IDENTIFIER> "[" derivations "]" 
     """
+    # Parse the argument list of what is being streamed
     param_names = []
     if parser.next_token_is(TokenType.OPEN_SQUARE):
         param_names = parser.read_ident_list(TokenType.COMMA)
@@ -590,31 +600,26 @@ def parse_type_stream_decl(parser, parent_projection):
 
     projections = []
 
-    if param_names:
-        type_constructor = parser.ensure_fqn()
-        parser.ensure_token(TokenType.OPEN_SQUARE)
-        while not parser.peeked_token_is(TokenType.CLOSE_SQUARE):
-            # in a declaration within a type value of a type stream, we wont allow optionality
-            # or default values as it just wont make sense.
-            if parser.peeked_token_is(TokenType.OPEN_BRACE):
-                # Inject a COLON so we can treat it as a projection target
-                parser.unget_token(lexer.Token(TokenType.COLON, -1))
-            projection = parse_projection(parser, parent_entity = parent_projection, allow_renaming = False,
-                                          allow_optionality = False, allow_default_value = False)
-            projections.append(projection)
-            # Consume a comma silently 
-            parser.next_token_if(TokenType.COMMA, consume = True)
-        parser.ensure_token(TokenType.CLOSE_SQUARE)
-        target_type = derivations.TypeStreamDeclaration(type_constructor, param_names, projections)
-        projection_type = derivations.PROJECTION_TYPE_STREAMING
-    else:
-        new_record_name = None
-        if parser.peeked_token_is(TokenType.IDENTIFIER):
-            new_record_name = parser.next_token().value
+    # There MUST be a type constructor
+    type_constructor = parser.ensure_fqn()
 
-        derivation = derivations.Derivation(new_record_name, parent_projection)
-        target_type = parse_derivation_body(parser, derivation)
-        projection_type = derivations.PROJECTION_TYPE_DERIVATION
+    parser.ensure_token(TokenType.OPEN_SQUARE)
+
+    while not parser.peeked_token_is(TokenType.CLOSE_SQUARE):
+        # in a declaration within a type value of a type stream, we wont allow optionality
+        # or default values as it just wont make sense.
+        if parser.peeked_token_is(TokenType.OPEN_BRACE):
+            # Inject a COLON so we can treat it as a projection target
+            parser.unget_token(Token(TokenType.COLON, -1))
+        ipdb.set_trace()
+        projection = parse_projection(parser, parent_entity = parent_projection, allow_renaming = False,
+                                      allow_optionality = False, allow_default_value = False)
+        projections.append(projection)
+        # Consume a comma silently 
+        parser.next_token_if(TokenType.COMMA, consume = True)
+    parser.ensure_token(TokenType.CLOSE_SQUARE)
+    target_type = derivations.TypeStreamDeclaration(type_constructor, param_names, projections)
+    projection_type = derivations.PROJECTION_TYPE_STREAMING
     return projection_type, target_type
 
 ########################################################################
