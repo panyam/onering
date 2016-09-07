@@ -47,6 +47,8 @@ def parse_transformer(parser, transformer_group):
     src_type = parser.get_type(src_fqn)
     dest_type = parser.get_type(dest_fqn)
 
+    print "Parsing new transformer: %s -> %s" % (src_fqn, dest_fqn)
+
     transformer = transformers.Transformer(fqn = None,
                                            src_type = src_type,
                                            dest_type = dest_type,
