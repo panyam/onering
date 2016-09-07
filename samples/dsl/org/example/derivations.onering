@@ -67,3 +67,10 @@ derive Town : City {
         count
     }]
 }
+
+derive Village : City {
+    name as cityName
+
+    populationByRace as populationCounts [ignore,count] => array[ count ]
+    populationByRace as populationRaces [race,ignore] => array[ race ]
+}

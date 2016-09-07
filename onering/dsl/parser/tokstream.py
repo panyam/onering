@@ -1,6 +1,6 @@
 import ipdb
-from lexer import Token, TokenType
-from errors import UnexpectedTokenException
+from onering.dsl.lexer import Token, TokenType
+from onering.dsl.errors import UnexpectedTokenException
 
 class TokenStream(object):
     """
