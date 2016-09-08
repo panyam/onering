@@ -242,5 +242,4 @@ def parse_type_stream_decl(parser, parent_projection):
         annotations = parse_annotations(parser)
     parser.ensure_token(TokenType.CLOSE_SQUARE)
     target_type = derivations.TypeStreamDeclaration(type_constructor, param_names, children)
-    projection_type = derivations.PROJECTION_TYPE_STREAMING
-    return projection_type, target_type
+    return derivations.PROJECTION_TYPE_STREAMING, target_type

@@ -3,8 +3,61 @@ import ipdb
 from typelib import core
 from typelib import errors as tlerrors
 from typelib import records
-from onering import utils
 from onering import errors
+from onering.utils import normalize_name_and_ns
+from utils import FieldPath
+
+class Derivation(object):
+    """
+    A derivation that results in a new complex type being created from a source type.
+    """
+    class SourceTypedRef(object):
+        def __init__(self, source_fqn, source_type, alias):
+            self.source_fqn = source_fqn
+            self.alias = alias
+            self.source_type = source_type
+
+        def __repr__(self):
+            return str(self)
+
+        def __str__(self):
+            return "<ID: 0x%x, %s as %s>" % (id(self), self.source_fqn, self.alias)
+
+    def __init__(self, fqn, parent_entity, annotations = None, docs = ""):
+        """Creates a new Record declaration.
+        Arguments:
+            fqn                     --  Fully qualified name of the record.  Records should have names.
+            parent_entity           --  The parent record or projection inside which this record is declared 
+                                        (as an inner declaration)
+                                        If this is not provided then this record is being defined independantly 
+                                        at the top level.
+            field_projections       --  List of projections that describe field declarations.
+        """
+        self.annotations = annotations or []
+        self.docs = docs or ""
+        self.field_projections = []
+        self.source_records = []
+        self._resolved = True
+        self._parent_entity = parent_entity
+        self.fqn = fqn
+
+    @property
+    def name(self):
+        return normalize_name_and_ns(self.fqn, "")[0]
+
+    @property
+    def namespace(self):
+        return normalize_name_and_ns(self.fqn, "")[1]
+    
+    @property
+    def fqn(self):
+        return self._fqn
+    
+    @fqn.setter
+    def fqn(self, value):
+        self._fqn = value
+        self._resolved_type = records.RecordType(None, self.annotations, self.docs)
+        self._resolved_type.type_data.fqn = value
 
 def is_derivation(obj):
     return type(obj) is Derivation
@@ -42,11 +95,11 @@ class Derivation(object):
 
     @property
     def name(self):
-        return utils.normalize_name_and_ns(self.fqn, "")[0]
+        return normalize_name_and_ns(self.fqn, "")[0]
 
     @property
     def namespace(self):
-        return utils.normalize_name_and_ns(self.fqn, "")[1]
+        return normalize_name_and_ns(self.fqn, "")[1]
     
     @property
     def fqn(self):
@@ -94,7 +147,7 @@ class Derivation(object):
         """
         Add a new source record that this record derives from.
         """
-        n,ns,fqn = utils.normalize_name_and_ns(source_fqn, None)
+        n,ns,fqn = normalize_name_and_ns(source_fqn, None)
         alias = alias or n
         if self.find_source(alias) is not None:
             raise errors.OneringException("A source by name '%s' already exists" % n)
@@ -133,15 +186,16 @@ class Derivation(object):
 
             1. First check if registry has all the sources.  If any of the sources are missing 
                an UnresolvedType exception is thrown.
-            2. 
         """
-        # Step 1: Check if source records are resolved and if they are then throw unresolved types exception if sources are missing
-        self._resolve_sources(registry)
+        if not self._resolved:
+            print "Resolving Derivation: ", self.fqn
+            # Step 1: Check if source records are resolved and if they are then throw unresolved types exception if sources are missing
+            self._resolve_sources(registry)
 
-        # Step 2: Now go through declarations and resolve into fields
-        self._resolve_projections(registry)
+            # Step 2: Now go through declarations and resolve into fields
+            self._resolve_projections(registry)
 
-        registry.register_type(self.fqn, self.resolved_type)
+            registry.register_type(self.fqn, self.resolved_type)
 
         self._resolved = True
         return True
@@ -182,79 +236,15 @@ class Derivation(object):
                                              records.FieldData(field.field_name, self.resolved_type,
                                                                field.is_optional, field.default_value))
 
-
-class FieldPath(object):
-    def __init__(self, parts, selected_children = None):
+class TypeStreamDeclaration(object):
+    def __init__(self, constructor_fqn, param_names, children):
         """
-        Arguments:
-        parts               --  The list of components denoting the field path.   If the first value is an empty 
-                                string, then the field path indicates an absolute path.
-        selected_children   --  The list of child fields that are selected in a single sweep.  If this field is 
-                                specified then is_optional, default_value, target_name, and target_type are ignored 
-                                and MUST NOT be specified.  If this value is the string "*" then ALL children all
-                                selected.  When this is specified, the source field MUST be of a record type.
+        Creates a type stream declaration.
+        The children could be either projections or derivations (which will result in records).
         """
-        self.inverted = False
-        parts = parts or []
-        if type(parts) in (str, unicode):
-            parts = parts.strip()
-            parts = parts.split("/")
-        self._parts = parts
-        self.selected_children = selected_children or None
-
-    def __repr__(self): 
-        return str(self)
-
-    def __str__(self):
-        if self.all_fields_selected:
-            return "%s/*" % "/".join(self._parts)
-        elif self.has_children:
-            return "%s/(%s)" % ("/".join(self._parts), ", ".join(self.selected_children))
-        else:
-            return "/".join(self._parts)
-
-    @property
-    def length(self):
-        if self.is_absolute:
-            return len(self._parts) - 1
-        else:
-            return len(self._parts)
-
-    def get(self, index):
-        """
-        Gets the field path part at a given index taking into account whether the path is absolute or not.
-        """
-        if self.is_absolute:
-            index += 1
-        return self._parts[index]
-
-    @property
-    def is_blank(self):
-        return len(self._parts) == 0
-
-    @property
-    def is_absolute(self):
-        if len(self._parts) == 0:
-            ipdb.set_trace()
-        return self._parts[0] == ""
-
-    @property
-    def has_children(self):
-        return self.selected_children is not None
-
-    @property
-    def all_fields_selected(self):
-        return self.selected_children == "*"
-
-    def get_selected_fields(self, starting_record):
-        """
-        Given a source field, return all child fields as per the selected_fields spec.
-        """
-        if self.all_fields_selected:
-            return starting_record.child_names
-        else:
-            return [n for n in starting_record.child_names if n in self.selected_children]
-
+        self.constructor = constructor_fqn
+        self.param_names = param_names or []
+        self.projections = children
 
 PROJECTION_TYPE_PLAIN       = 0
 PROJECTION_TYPE_RETYPE      = 1
@@ -398,7 +388,6 @@ class Projection(object):
             for resolved_field in self.resolved_fields:
                 resolved_field.field_type.resolve(registry)
                 if not resolved_field.field_type.is_resolved:
-                    ipdb.set_trace()
                     raise errors.OneringException("Unable to resolve type of field: %s.%s" % (resolved_field.record.fqn, resolved_field.field_name))
 
             final_field_data = self.final_field_data
@@ -448,7 +437,7 @@ class Projection(object):
                 if target_type and target_type.fqn is None and target_type.constructor == "record":
                     parent_fqn = self.parent_entity.fqn
                     field_name = self.final_field_data.field_name
-                    parent_name,ns,parent_fqn = utils.normalize_name_and_ns(parent_fqn, None)
+                    parent_name,ns,parent_fqn = normalize_name_and_ns(parent_fqn, None)
                     self.target_type.type_data.fqn = parent_fqn + "_" + field_name
                     assert self.target_type.type_data.parent_entity is not None
                     if final_field_data:
@@ -540,7 +529,7 @@ class Projection(object):
 
             if is_derivation(self.target_type) and self.target_type.fqn is None:
                 # Should we ever be here?
-                parent_name,ns,parent_fqn = utils.normalize_name_and_ns(parent_fqn, None)
+                parent_name,ns,parent_fqn = normalize_name_and_ns(parent_fqn, None)
                 self.target_type.fqn = parent_fqn + "_" + field_name
                 assert self.target_type.parent_entity is not None
                 if final_field_data:
@@ -557,7 +546,6 @@ class Projection(object):
             # TODO: Investigate what "hints" can be added to this projection that directly refers to child entries
             #       that can be used to do getters/setters
             for index,proj in enumerate(self.target_type.projections):
-                # if index == 0: ipdb.set_trace()
                 proj.resolve(registry)
             child_types = [ proj.resolved_type for proj in self.target_type.projections ]
 
@@ -584,16 +572,6 @@ class Projection(object):
                              starting_record.annotations_for(field_name))
             self._add_field(newfield)
 
-
-class TypeStreamDeclaration(object):
-    def __init__(self, constructor_fqn, param_names, children):
-        """
-        Creates a type stream declaration.
-        The children could be either projections or derivations (which will result in records).
-        """
-        self.constructor = constructor_fqn
-        self.param_names = param_names or []
-        self.projections = children
 
 class PathResolver(object):
     """

@@ -4,7 +4,7 @@ namespace org.example
 @version = 2.3    // Annotations are arbitrary
 record Kingdom {
     @deprecated(doc = "use something else")     // Annotations can be used as single functions
-    name : String
+    name : string
     ruler : Being
 
     @another_annotation(a = 1, b = 2)     // Annotations can be used as composite dictionaries  
@@ -19,7 +19,7 @@ record Kingdom {
  * The Being record about an individual in the universe.
  */
 record Being {
-   name : String
+   name : string
    race : Race
    role : Role
    gender : Gender
@@ -60,7 +60,7 @@ enum Role {
 }
 
 record City {
-    name : String
+    name : string
 
     // A city can have "special" structures within it.
     wonders : Structures
@@ -71,7 +71,7 @@ record City {
 typeref Structures = array[Structure]
 
 typeref Structure = record {
-    name : String
+    name : string
     builtBy : Being
     builtOn : DateTime
     details : union[

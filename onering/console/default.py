@@ -1,6 +1,7 @@
 
 import json
 import shlex
+import fnmatch
 import ipdb
 import runner, dirs, pegasus, courier, orc, backend
 from utils import logerror
@@ -8,8 +9,8 @@ from utils import logerror
 class DefaultCommandRunner(runner.CommandRunner):
     @property
     def aliases(self):
-        return { "peg": "pegasus" }
-        return { "orc": "onering" }
+        return { "peg": "pegasus",
+                 "orc": "onering" }
 
     @property
     def children(self):
@@ -134,24 +135,42 @@ class DefaultCommandRunner(runner.CommandRunner):
 
     def do_gen(self, console, cmd, rest, prev):
         """
-        Generate the code for an instance transformer.
+        Generate code or schemas for given types, derivations or transformers.
 
-        Options:
+        Usage:
+            gen     <types>
+            gen     <types>      with    <backend>
 
-            fqn   <optional_path>       Print the schema pointed by the FQN.   If the entry exists in multiple schema classes then all of them are printed.
-        lexer = shlex.shlex(rest)
+            <types>     Is a list of wild cards
+            <backend>   If a backend is specified then the generated output is based on the particular backend.  
+                        If a backend is not specified then the default backend is used.
+                        See the backend command on how to register backends and templates.
         """
-        """
-        cmd = lexer.next()
-        if cmd == "all" or cmd == "types":
-            for key,value in self.schema_registry.type_cache.iteritems():
-                print "%s -> " % key, json.dumps(value.to_json(), indent = 4, sort_keys = True)
-                print
 
-        if cmd == "all" or cmd == "fields":
-            console.thering.field_graph.print_graph()
-        """
-        pass
+        # Couple of more things to do here!
+        # First, this should also pick up all derivations
+
+        type_wildcards = [[ r2.strip() 
+                    for r2 in r.strip().split(" ") if r2.strip()]
+                        for r in rest.split(",") if r.strip()]
+        type_wildcards = reduce(lambda x,y:x+y, type_wildcards)
+
+        source_types = set()
+        source_derivations = set()
+
+        for tw in type_wildcards:
+            # First go through all resolved types
+            for (fqn,t) in console.thering.type_registry.resolved_types:
+                if fnmatch.fnmatch(fqn, tw):
+                    source_types.add(fqn)
+
+            # Now resolve all derivations
+            for derivation in console.thering.all_derivations:
+                if fnmatch.fnmatch(derivation.fqn, tw):
+                    derivation.resolve(console.type_registry)
+                    source_derivations.add(derivation.fqn)
+
+        ipdb.set_trace()
 
     def do_resolve(self, console, cmd, rest, prev):
         """

@@ -18,7 +18,7 @@ class CommandRunner(object):
         prev = prev or []
         rest = (rest or "").strip()
         if cmd in self.aliases:
-            self.run(self, console, self.aliases[cmd], rest, prev)
+            self.run(console, self.aliases[cmd], rest, prev)
         else:
             funcname = "do_" + cmd
             if hasattr(self, funcname):

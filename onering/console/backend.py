@@ -30,3 +30,16 @@ class BackendCommandRunner(runner.CommandRunner):
         print "----------------"
         for a,v in console.thering.backend_aliases.iteritems():
             print "%10s   ->    %s" % (a,v)
+
+    def do_default(self, console, cmd, rest, prev):
+        """
+        Sets the default backend
+        """
+        rest = rest.strip()
+        if rest:
+            aliases = console.thering.backend_aliases
+            if rest not in aliases:
+                print "Invalid Backend.  Must be one of: [%s]" % ", ".join(aliases.keys())
+            else:
+                console.thering.default_backend = rest
+        print "Default Backend: ", console.thering.default_backend or "<Not Set>"
