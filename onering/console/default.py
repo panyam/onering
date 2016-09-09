@@ -167,7 +167,7 @@ class DefaultCommandRunner(runner.CommandRunner):
             # Now resolve all derivations
             for derivation in console.thering.all_derivations:
                 if fnmatch.fnmatch(derivation.fqn, tw):
-                    derivation.resolve(console.type_registry)
+                    derivation.resolve(console.type_registry, None)
                     source_derivations.add(derivation.fqn)
 
         ipdb.set_trace()

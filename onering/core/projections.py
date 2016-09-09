@@ -1,4 +1,5 @@
 
+import ipdb
 from onering import errors
 from typelib import errors as tlerrors
 from typelib import core as tlcore
@@ -10,11 +11,13 @@ class PathResolver(object):
     """
     An interface that helps in the resolution of a field path.  This is hierarchical in nature.
     """
-    def __init__(self, parent_bindings = None):
-        self.parent_bindings = parent_bindings
+    def __init__(self, parent_resolver = None):
+        self.parent_resolver = parent_resolver
 
     def resolve_path(self, field_path):
-        pass
+        if field_path.is_absolute:
+            # resolve it with reference to this level if we have no other parent
+            pass
 
 class ResolutionStatus(object):
     def __init__(self):
@@ -59,9 +62,9 @@ class Projection(object):
         self.resolution = ResolutionStatus()
 
     def resolve(self, type_registry, resolver):
-        def resolver():
+        def resolver_method():
             self._resolve(type_registry, resolver)
-        resolution.perform_once(resolver)
+        self.resolution.perform_once(resolver_method)
 
 
 class RecordDerivation(Projection):
@@ -149,7 +152,7 @@ class RecordDerivation(Projection):
             3. Resolving all field projections with the new resolver
         """
         # Step 1
-        self.resolve_sources(type_registry)
+        self._resolve_sources(type_registry)
 
         # Step 2: TODO - Create the Resolver to take into account this derivation's source record(s) if any (eg in a type stream, the derivation wont have sources)
         if self.source_aliases:
@@ -240,6 +243,25 @@ class FieldProjection(Projection):
         """
         self._starting_record, self._final_field_data, self._final_field_path = resolver.resolve_path(self.source_field_path)
 
+        # Let child classes handle this
+        if not self._final_field_data:
+            self._final_field_data_not_found()
+        else:
+            self._final_field_data_found()
+
+    def _final_field_data_not_found(self):
+        """
+        Called after the intial field path resolution and if final field data was not found.
+        """
+        raise errors.OneringException("Final data was not found for field path (%s).  Possible new field" % self.source_field_path)
+
+
+    def _final_field_data_found(self):
+        """
+        Called after the intial field path resolution and if final field data was found.
+        """
+        raise errors.OneringException("Not implemented")
+
 
     def _add_field(self, newfield):
         """
@@ -293,47 +315,48 @@ class SimpleFieldProjection(SingleFieldProjection):
     def projected_type(self):
         return self._projected_type
 
-    def _resolve(self, registry, resolver):
+    def _final_field_data_not_found(self):
         """
-        Resolves this single field projection and generates
-        the necessary fields.
+        Called after the intial field path resolution and if final field data was not found.
         """
-        super(SimpleFieldProjection, self)._resolve(registry, resolver)
-
-        if not self._final_field_data:
-            # Means we are creating a "new" field so there
-            # must not be a projected name and there MUST be a type
-            if self.projected_name is not None:
-                raise errors.OneringException("New Field '%s' in '%s' should not have a target_name" % (self.source_field_path, self.parent_derivation.type_data.fqn))
-            elif self.projected_type is None:
-                raise errors.OneringException("New Field '%s' in '%s' does not have a target_type" % (self.source_field_path, self.parent_derivation.type_data.fqn))
-            elif self.source_field_path.length > 1:
-                raise errors.OneringException("New Field '%s' in '%s' must not be a field path" % (self.source_field_path, self.parent_derivation.type_data.fqn))
-            else:
-                newfield = Field(self.source_field_path.get(0),
-                                 self.projected_type,
-                                 self.parent_derivation,
-                                 self.is_optional,
-                                 self.default_value,
-                                 "",
-                                 self.annotations)
-                self._add_field(newfield)
+        # Means we are creating a "new" field so there
+        # must not be a projected name and there MUST be a type
+        if self.projected_name is not None:
+            raise errors.OneringException("New Field '%s' in '%s' should not have a target_name" % (self.source_field_path, self.parent_derivation.type_data.fqn))
+        elif self.projected_type is None:
+            raise errors.OneringException("New Field '%s' in '%s' does not have a target_type" % (self.source_field_path, self.parent_derivation.type_data.fqn))
+        elif self.source_field_path.length > 1:
+            raise errors.OneringException("New Field '%s' in '%s' must not be a field path" % (self.source_field_path, self.parent_derivation.type_data.fqn))
         else:
-            final_field_data = self._final_field_data
-            projected_type = self.projected_type or final_field_data.field_type
-
-            # Assign target_type name from parent and field name if it is missing
-            _auto_generate_projected_type_name(registry, projected_type,
-                                               parent_derivation, final_field_data)
-
-            newfield = Field(self.projected_name or final_field_data.field_name,
-                             projected_type,
-                             self.parent_entity,
-                             self.projected_is_optional,
-                             self.projected_default_value,
-                             final_field_data.docs,
-                             self.annotations or final_field_data.annotations)
+            newfield = Field(self.source_field_path.get(0),
+                             self.projected_type,
+                             self.parent_derivation,
+                             self.is_optional,
+                             self.default_value,
+                             "",
+                             self.annotations)
             self._add_field(newfield)
+
+
+    def _final_field_data_found(self):
+        """
+        Called after the intial field path resolution and if final field data was found.
+        """
+        final_field_data = self._final_field_data
+        projected_type = self.projected_type or final_field_data.field_type
+
+        # Assign target_type name from parent and field name if it is missing
+        _auto_generate_projected_type_name(registry, projected_type,
+                                           parent_derivation, final_field_data)
+
+        newfield = Field(self.projected_name or final_field_data.field_name,
+                         projected_type,
+                         self.parent_entity,
+                         self.projected_is_optional,
+                         self.projected_default_value,
+                         final_field_data.docs,
+                         self.annotations or final_field_data.annotations)
+        self._add_field(newfield)
 
 
 class InlineDerivation(SingleFieldProjection):
@@ -346,16 +369,11 @@ class InlineDerivation(SingleFieldProjection):
         if derivation is None or not isinstance(derivation, RecordDerivation):
             raise errors.OneringException("derivation must be of type Derivation")
 
-    def _resolve(self, registry, resolver):
-        """
-        Resolves this inline derivation projection and generates
-        the necessary fields.
-        """
-        super(InlineDerivation, self)._resolve(registry, resolver)
 
-        if not self._final_field_data:
-            raise errors.OneringException("Inline derivation can only be done on an existing field")
-
+    def _final_field_data_found(self):
+        """
+        Called after the intial field path resolution and if final field data was found.
+        """
         final_field_data = self._final_field_data
         projected_type = self.projected_type or final_field_data.field_type
 
@@ -372,9 +390,6 @@ class InlineDerivation(SingleFieldProjection):
         self._add_field(newfield)
         
 
-
-
-
 class TypeStream(SingleFieldProjection):
     """
     A type of field projection that results in container types being created.
@@ -390,6 +405,12 @@ class TypeStream(SingleFieldProjection):
         self.projections = children
 
 
+    def _final_field_data_found(self):
+        """
+        Called after the intial field path resolution and if final field data was found.
+        """
+        raise errors.OneringException("Not implemented")
+
 
 class MultiFieldProjection(FieldProjection):
     """
@@ -397,22 +418,25 @@ class MultiFieldProjection(FieldProjection):
     """
     def __init__(self, parent_derivation, source_field_path):
         super(MultiFieldProjection, self).__init__(parent_derivation, source_field_path)
+        if not source_field_path.has_children:
+            raise errors.OneringException("Field path must have children for a multi field projection.  Use a SingleFieldProject derivative instead.")
 
-    def _resolve(self, registry, resolver):
-        super(MultiFieldProjection, self)._resolve(registry, resolver)
-
-        if not self.source_field_path.has_children:
-            raise errors.OneringException("Field path must have children for a multi field projection")
-
-        # TODO: get the children of these
-        if self._final_field_data:
-            self._include_child_fields(self._final_field_data.field_type)
-        elif self.field_path.length == 0 and starting_record != None:
+    def _final_field_data_not_found(self):
+        """
+        Called after the intial field path resolution and if final field data was not found.
+        """
+        if self.field_path.length == 0 and self._starting_record != None:
             # then we are starting from the root itself of the starting record 
             # as "multiple" entries
             self._include_child_fields(self._starting_record)
         else:
             raise errors.OneringException("New Field '%s' must not have child selections" % self.source_field_path)
+
+    def _final_field_data_found(self):
+        """
+        Called after the intial field path resolution and if final field data was not found.
+        """
+        self._include_child_fields(self._final_field_data.field_type)
 
     def _include_child_fields(self, starting_record):
         """

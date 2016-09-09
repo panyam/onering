@@ -81,7 +81,7 @@ def parse_projection(parser, parent_derivation,
     #                   |   field_path ( "as" IDENTIFIER ) ? 
     field_path = parse_field_path(parser)
     if field_path.has_children:
-        return projections.MultiFieldProjection(field_path, parent_derivation)
+        return projections.MultiFieldProjection(parent_derivation, field_path)
 
     # We are onto single field projections now
     projected_name = None
