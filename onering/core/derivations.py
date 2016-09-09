@@ -7,58 +7,6 @@ from onering import errors
 from onering.utils import normalize_name_and_ns
 from utils import FieldPath
 
-class Derivation(object):
-    """
-    A derivation that results in a new complex type being created from a source type.
-    """
-    class SourceTypedRef(object):
-        def __init__(self, source_fqn, source_type, alias):
-            self.source_fqn = source_fqn
-            self.alias = alias
-            self.source_type = source_type
-
-        def __repr__(self):
-            return str(self)
-
-        def __str__(self):
-            return "<ID: 0x%x, %s as %s>" % (id(self), self.source_fqn, self.alias)
-
-    def __init__(self, fqn, parent_entity, annotations = None, docs = ""):
-        """Creates a new Record declaration.
-        Arguments:
-            fqn                     --  Fully qualified name of the record.  Records should have names.
-            parent_entity           --  The parent record or projection inside which this record is declared 
-                                        (as an inner declaration)
-                                        If this is not provided then this record is being defined independantly 
-                                        at the top level.
-            field_projections       --  List of projections that describe field declarations.
-        """
-        self.annotations = annotations or []
-        self.docs = docs or ""
-        self.field_projections = []
-        self.source_records = []
-        self._resolved = True
-        self._parent_entity = parent_entity
-        self.fqn = fqn
-
-    @property
-    def name(self):
-        return normalize_name_and_ns(self.fqn, "")[0]
-
-    @property
-    def namespace(self):
-        return normalize_name_and_ns(self.fqn, "")[1]
-    
-    @property
-    def fqn(self):
-        return self._fqn
-    
-    @fqn.setter
-    def fqn(self, value):
-        self._fqn = value
-        self._resolved_type = records.RecordType(None, self.annotations, self.docs)
-        self._resolved_type.type_data.fqn = value
-
 def is_derivation(obj):
     return type(obj) is Derivation
 
@@ -581,7 +529,7 @@ class PathResolver(object):
         1. The starting record from which the field path is a valid path.
         2. The source field nested (at some arbitrary depth) from the starting record
            that corresponds to the provided field path.
-        3. The final field path that is RELATIVE to the starting record.  Concpetually:
+        3. The final field path that is RELATIVE to the starting record.  Conceptually:
               starting_record + final_field_path = current_context + input_field_path
     """
     def __init__(self, parent_entity):
