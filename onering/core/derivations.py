@@ -611,12 +611,8 @@ class Field(object):
         self.errors = []
         self.annotations = annotations or []
 
-    def to_json(self):
-        out = {
-            "name": self.field_name,
-            "type": self.field_type
-        }
-        return out
+    def __repr__(self): return str(self)
+    def __str__(self): return self.fqn
 
     @property
     def fqn(self):
@@ -624,34 +620,3 @@ class Field(object):
             return self.record.type_data.fqn + "." + self.field_name
         else:
             return self.field_name
-
-    def __hash__(self):
-        return hash(self.fqn)
-
-    def __cmp__(self, other):
-        result = cmp(self.record, other.record)
-        if result == 0:
-            result = cmp(self.field_name, other.field_name)
-        return result
-
-    def copy(self):
-        out = Field(self.field_name, self.field_type, self.record, self.is_optional, self.default_value, self.docs, self.annotations)
-        out.errors = self.errors 
-        return out
-
-    def copyfrom(self, another):
-        self.field_name = another.field_name
-        self.field_type = another.field_type
-        self.record = another.record
-        self.is_optional = another.is_optional
-        self.default_value = another.default_value
-        self.docs = another.docs
-        self.errors = another.errors
-        self.annotations = another.annotations
-
-    def has_errors(self):
-        return len(self.errors) > 0
-
-    def __repr__(self): return str(self)
-    def __str__(self):
-        return self.fqn

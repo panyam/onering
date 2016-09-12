@@ -37,6 +37,16 @@ class FieldPath(object):
         else:
             return len(self._parts)
 
+    @property
+    def last(self):
+        """
+        Gets the last component of a field path.
+        """
+        return self._parts[-1]
+
+    def pop(self):
+        return self._parts[0], FieldPath(self._parts[1:], self.selected_children)
+
     def get(self, index):
         """
         Gets the field path part at a given index taking into account whether the path is absolute or not.

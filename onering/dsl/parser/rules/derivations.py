@@ -227,4 +227,4 @@ def parse_type_stream_decl(parser, parent_projection, field_path):
         parser.next_token_if(TokenType.COMMA, consume = True)
         annotations = parse_annotations(parser)
     parser.ensure_token(TokenType.CLOSE_SQUARE)
-    return projections.TypeStream(parent_projection, field_path, type_constructor, param_names, children)
+    return projections.TypeStream(parent_projection, field_path, param_names, type_constructor, children)

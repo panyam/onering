@@ -65,7 +65,7 @@ record City {
     // A city can have "special" structures within it.
     wonders : Structures
 
-    populationByRace : map[Race, Int]
+    populationByRace : map[Race, int]
 }
 
 typeref Structures = array[Structure]

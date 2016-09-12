@@ -4,7 +4,7 @@ namespace org.example
 derive KingdomSummary : Kingdom {
     name
     ruler
-    numberOfCities : Int
+    numberOfCities : int
 }
 
 derive KingdomSummary2 : Kingdom {
@@ -47,7 +47,7 @@ derive OrcLand : Kingdom {
     name                        // Orc kingdoms also needs names
     capital => OrcCity {        // Capitals also have names and only contain the orc population size
         name
-        numberOfOrcs : Int
+        numberOfOrcs : int
     }
 }
 
