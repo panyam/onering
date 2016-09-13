@@ -3,7 +3,7 @@ import json
 import shlex
 import fnmatch
 import ipdb
-import runner, dirs, pegasus, courier, orc, backend
+import runner, dirs, pegasus, courier, orc, platform
 from utils import logerror
 
 class DefaultCommandRunner(runner.CommandRunner):
@@ -16,7 +16,7 @@ class DefaultCommandRunner(runner.CommandRunner):
     def children(self):
         return {
             "onering": orc.OneringCommandRunner(),
-            "backend": backend.BackendCommandRunner(),
+            "platform": platform.PlatformCommandRunner(),
             "pegasus": pegasus.PegasusCommandRunner(),
             "courier": courier.CourierCommandRunner(),
             "dirs": dirs.DirsCommandRunner(),
@@ -139,29 +139,37 @@ class DefaultCommandRunner(runner.CommandRunner):
 
         Usage:
             gen     <types>
-            gen     <types>      with    <backend>
+            gen     <types>      with    <platforms>
 
-            <types>     Is a list of wild cards
-            <backend>   If a backend is specified then the generated output is based on the particular backend.  
-                        If a backend is not specified then the default backend is used.
-                        See the backend command on how to register backends and templates.
+            <types>     Is a list of (space seperated) wild cards
+            <platforms> If a list of (space seperated) platforms are specified then the generated output is 
+                        based on the particular platform.  
+                        If platforms are not specified then the default platform is used.
+                        See the platform command on how to register platforms and templates.
         """
 
         # Couple of more things to do here!
         # First, this should also pick up all derivations
 
-        type_wildcards = [[ r2.strip() 
-                    for r2 in r.strip().split(" ") if r2.strip()]
-                        for r in rest.split(",") if r.strip()]
-        type_wildcards = reduce(lambda x,y:x+y, type_wildcards)
+        wildcards = [r.split(",") for r in rest.split(" ")]
+        wildcards = filter(lambda x:x, reduce(lambda x,y:x+y, wildcards))
+        target_platforms = []
+        if "with" in wildcards:
+            ind = rest.index("with")
+            wildcards, target_platforms = wildcards[:ind], windcards[ind+1]
+
+        if not target_platforms:
+            if console.thering.default_platform:
+                target_platforms = [ console.thering.default_platform ]
+            else:
+                return logerror("Please specify a platform or set a default platform")
 
         source_types = set()
         source_derivations = set()
 
-        for tw in type_wildcards:
+        for tw in wildcards:
             # First go through all resolved types
             for (fqn,t) in console.thering.type_registry.resolved_types:
-                print "TW, FQN: ", tw, fqn
                 if fnmatch.fnmatch(fqn, tw):
                     source_types.add(fqn)
 
@@ -171,6 +179,10 @@ class DefaultCommandRunner(runner.CommandRunner):
                     derivation.resolve(console.type_registry, None)
                     source_derivations.add(derivation.fqn)
 
+        # Awwwwright resolutions succeeded so now generate them!
+        template_name = 
+        for platform in target_platforms:
+            print "Generating types for platform: %s" % tbend
         ipdb.set_trace()
 
     def do_resolve(self, console, cmd, rest, prev):

@@ -93,7 +93,7 @@ class PathResolver(object):
                 if self.parent_resolver:
                     return self.parent_resolver.resolve_path(field_path)
             return resolution_result
-            
+
 
     def _resolve_relative_path(self, field_path):
         """
