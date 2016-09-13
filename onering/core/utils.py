@@ -1,4 +1,5 @@
 
+import ipdb
 
 class FieldPath(object):
     def __init__(self, parts, selected_children = None):
@@ -16,6 +17,8 @@ class FieldPath(object):
         if type(parts) in (str, unicode):
             parts = parts.strip()
             parts = parts.split("/")
+        if len(parts) == 0:
+            ipdb.set_trace()
         self._parts = parts
         self.selected_children = selected_children or None
 
@@ -61,6 +64,8 @@ class FieldPath(object):
 
     @property
     def is_absolute(self):
+        if len(self._parts) == 0:
+            ipdb.set_trace()
         return self._parts[0] == ""
 
     @property

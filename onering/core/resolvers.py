@@ -7,7 +7,8 @@ def resolve_path_from_record(starting_record, field_path, registry, resolver):
     parent_record = starting_record
     final_record = starting_record
     child_type_key = None
-    for i,part in enumerate(field_path._parts):
+    for i in xrange(field_path.length):
+        part = field_path.get(i)
         if final_record.constructor != "record":
             # TODO - Throw a "bad type" exception?
             break
@@ -80,12 +81,14 @@ class PathResolver(object):
                 # TODO - Should there be a "root" property to go directly to the root instead
                 # of repeatedly calling parent until we hit the root?
                 return self.parent_resolver.resolve_path(field_path)
-            else:
+            elif field_path.length > 0:
                 _, tail_field_path = field_path.pop()
                 return self.resolve_path(tail_field_path)
+            else:
+                return self._resolve_relative_path(field_path)
         else:
             resolution_result = self._resolve_relative_path(field_path)
-            if not resolution_result.is_valid:
+            if resolution_result is None or not resolution_result.is_valid:
                 # Implementation could not resolve so delegate to parent resolve if one exists
                 if self.parent_resolver:
                     return self.parent_resolver.resolve_path(field_path)
@@ -96,6 +99,7 @@ class PathResolver(object):
         """
         This when implemented by derived resolvers will handle projection/context specific resolution of field paths.
         """
+        pass
 
 
 class DerivationPathResolver(PathResolver):

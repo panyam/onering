@@ -161,6 +161,7 @@ class DefaultCommandRunner(runner.CommandRunner):
         for tw in type_wildcards:
             # First go through all resolved types
             for (fqn,t) in console.thering.type_registry.resolved_types:
+                print "TW, FQN: ", tw, fqn
                 if fnmatch.fnmatch(fqn, tw):
                     source_types.add(fqn)
 

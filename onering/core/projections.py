@@ -123,7 +123,7 @@ class RecordDerivation(Projection):
             from resolvers import DerivationPathResolver
             resolver = DerivationPathResolver(resolver, self, type_registry)
         else:
-            ipdb.set_trace()
+            pass
 
         # Step 3: Resolve field projections
         self._resolve_projections(type_registry, resolver)
@@ -188,7 +188,6 @@ class FieldProjection(Projection):
         self._parent_derivation = parent_derivation
 
         self._resolved_fields = []
-        self._starting_type = None
         self.field_path_resolution = None
 
     @property
@@ -279,9 +278,9 @@ class FieldProjection(Projection):
 def _auto_generate_projected_type_name(registry, projected_type, parent_derivation, field_path_resolution):
     if projected_type and projected_type.fqn is None and parent_derivation:
         parent_fqn = parent_derivation.fqn
-        ipdb.set_trace()
-        field_name = final_field_data.field_name
+        field_name = field_path_resolution.field_name
         parent_name,ns,parent_fqn = normalize_name_and_ns(parent_fqn, None)
+        ipdb.set_trace()
         projected_type.type_data.fqn = parent_fqn + "_" + field_name
         assert projected_type.type_data.parent_entity is not None
         if final_field_data:
@@ -384,6 +383,14 @@ class SimpleFieldProjection(SingleFieldProjection):
         """
         Called after the intial field path resolution and if final field data was found.
         """
+        if self.projected_type and self.projected_type.is_unresolved:
+            self.projected_type.resolve(registry)
+            if self.projected_type.is_unresolved:
+                # TODO: Dont do anything here as even though the projected type is unresolved
+                # It is only being referenced and not dereferenced.  Only fail on an unresolved
+                # type if it is being unpacked for its fields.
+                print "Unresolved Type: ", self.projected_type
+
         projected_type = self.projected_type or self.field_path_resolution.resolved_type
 
         # Assign target_type name from parent and field name if it is missing
@@ -463,7 +470,15 @@ class TypeStream(SingleFieldProjection):
         # TODO: Check if the source type can actually be streamed?
         # Hacky way is to see if it is a map or array or set (or a specific monadic type)
         # But this needs to be generalized so we dont end up checking every type
-        for proj in self.child_projections:
+
+        parent_fqn = self.parent_derivation.fqn
+        field_name = self.projected_name or self.field_path_resolution.field_name
+        for index,proj in enumerate(self.child_projections):
+            if type(proj) is RecordDerivation and not proj.fqn:
+                # If we have a derivation as a child then it will have to be provided a name.
+                # A way to get a unique name deterministically is by:
+                # parent_record + projected_field_name + param_index
+                proj.fqn = "%s_%s_%d" % (parent_fqn, field_name, index)
             proj.resolve(registry, resolver)
             # each resolution should have exactly 1 resolved field
             if len(proj.resolved_types) != 1:
@@ -495,10 +510,10 @@ class MultiFieldProjection(FieldProjection):
         """
         Called after the intial field path resolution and if final field data was not found.
         """
-        if self.field_path.length == 0 and self._starting_type != None:
+        if self.source_field_path.length == 0 and self.field_path_resolution.parent_type != None:
             # then we are starting from the root itself of the starting record 
             # as "multiple" entries
-            self._include_child_fields(self._starting_type, self.field_path)
+            self._include_child_fields(self.field_path_resolution.parent_type, self.source_field_path)
         else:
             raise errors.OneringException("New Field '%s' must not have child selections" % self.source_field_path)
 
