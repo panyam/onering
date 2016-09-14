@@ -49,21 +49,6 @@ class DefaultCommandRunner(runner.CommandRunner):
             return logerror("load command requires a script file to be loaded and executed")
         console.load_script(script)
 
-    def do_loadt(self, console, cmd, rest, prev):
-        """
-        Loads an instance transformer given either its name (to be resolved by the schema resolver) or by an 
-        absolute path.
-
-        If the parameter has %s in it then the parameter is treated as a (absolute or relative) path, otherwise 
-        it is treated as a fully qualified name(fqn).  Once loaded the instance transformer is registered with the 
-        name specified in the model schema.
-
-        Usage:
-
-            loadit fqn_or_path
-        """
-        console.thering.load_instance_transformer(rest.strip())
-
     def do_set(self, console, cmd, rest, prev):
         """
         Set the value of particular configuration variables.
@@ -92,50 +77,6 @@ class DefaultCommandRunner(runner.CommandRunner):
         print 
         print self.curdir()
         print 
-
-    def do_dumpf(self, console, cmd, rest, prev):
-        """
-        Dumps out one or more fields in the field graph to standard output.   If not names are provided then all fields are printed.
-
-        Options:
-            <field1> <field2> <field3>  Print the field dependencies in field graph for the given fields.
-                                        If no fields are provided then all fields are printed.
-        """
-        print 
-        print 
-        print 
-        print "=" * 80
-        print 
-        print 
-        print 
-        lexer = shlex.shlex(rest)
-        try:
-            lexer.quotes = "."
-            names = list(lexer)
-            console.thering.field_graph.print_graph(names)
-        except StopIteration, si:
-            pass
-
-    def do_dumps(self, console, cmd, rest, prev):
-        """
-        Dumps out one or more schemas to standard output.   If not names are provided then all schemas are printed.
-
-        Options:
-            <name1> <name2> <namen>     Print the given schemas with the given fully qualified names.  
-                                        If no schemas provided then all schemas are printed.
-        """
-        lexer = shlex.shlex(rest)
-        lexer.quotes = "."
-        names = list(lexer)
-        print 
-        print 
-        print 
-        print "=" * 80
-        print 
-        print 
-        print 
-        ipdb.set_trace()
-        console.type_registry.print_types(names)
 
     def do_gen(self, console, cmd, rest, prev):
         """
@@ -173,14 +114,6 @@ class DefaultCommandRunner(runner.CommandRunner):
         for deriv in source_derivations:
             source_type = console.type_registry.get_type(deriv)
             self.generate_sources(source_type, console, target_platform, target_template)
-
-    def do_resolve(self, console, cmd, rest, prev):
-        """
-        Usage: resolve
-
-        Resolves field and type dependencies with the currently available types.
-        """
-        console.type_registry.resolve_types()
 
     def get_for_wildcards(self, console, wildcards):
         for tw in wildcards:
