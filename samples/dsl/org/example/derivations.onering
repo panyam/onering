@@ -4,7 +4,7 @@ namespace org.example
 derive KingdomSummary : Kingdom {
     name
     ruler
-    numberOfCities : Int
+    numberOfCities : int
 }
 
 derive KingdomSummary2 : Kingdom {
@@ -15,10 +15,10 @@ derive KingdomSummary2 : Kingdom {
     name : UnicodeString
 
     // renaming and retyping
-    name as kingdomName : UnicodeString
+    name as unicodeKingdomName : UnicodeString
 
     // or renaming, retyping, making it optional and giving it a default value
-    name as kingdomName : UnicodeString ? = ""
+    name as optionalKingdomName : UnicodeString ? = ""
 }
 
 
@@ -27,18 +27,22 @@ derive KingdomSummary3 : Kingdom {
     capital/name as capitalCityName
 }
 
-derive KingdomSummary4 : Kingdom {
+derive KingdomSummaryWithNameAndRuler : Kingdom {
     // Only include name and ruler fields
     /(name, ruler)
+}
 
+derive KingdomSummaryWithAllFields : Kingdom {
     // Or to include ALL fields from the parent:
     /(*)
 }
 
-derive KingdomSummary5 : Kingdom {
+derive KingdomSummaryWithCapital : Kingdom {
      // Only capital fields included here and nothing else
     / capital / (*)
+}
 
+derive KingdomSummaryWithCapital2 : Kingdom {
     // same as the below (because capital is at the "root" level):
     capital / (*)
 }
@@ -47,7 +51,7 @@ derive OrcLand : Kingdom {
     name                        // Orc kingdoms also needs names
     capital => OrcCity {        // Capitals also have names and only contain the orc population size
         name
-        numberOfOrcs : Int
+        numberOfOrcs : int
     }
 }
 
@@ -65,7 +69,9 @@ derive Town : City {
         // Get all fields within the race, flattened to the populations level.
         race / (*)
         count
-    }]
+        createdTime : DateTime
+        anEnum : enum { A, B, C }
+    } ]
 }
 
 derive Village : City {

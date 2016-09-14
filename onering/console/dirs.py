@@ -98,3 +98,38 @@ class DirsCommandRunner(runner.CommandRunner):
         entry = (rest or "").strip()
         for resolver in DirsCommandRunner.collector(entry):
             console.entity_resolver.remove_resolver(resolver)
+
+class TemplatesCommandRunner(runner.CommandRunner):
+    """
+    Manage directories in which templates are searched for.
+
+    Usage:
+        list                List the directories from templates will be searched.
+        add         <dir>   Add one or more space seperated template directories
+        remove/rm   <dir>   Remove one or more space seperated template directories.
+    """
+    @property
+    def aliases(self):
+        return { "ls": "list", "rm": "remove" }
+
+    def do_list(self, console, cmd, rest, prev = None):
+        """
+        List the folders that will be searched when resolving/loading templates.
+        """
+        print "\n".join(console.thering.template_dirs)
+
+    def do_add(self, console, cmd, rest, prev = None):
+        """
+        Add a directory containing schemas (structured in a hierarchy reflecting the fully qualified names).
+        """
+        entry = (rest or "").strip()
+        if entry not in console.thering.template_dirs:
+            console.thering.template_dirs.append(entry)
+
+    def do_remove(self, console, cmd, rest, prev = None):
+        """
+        Remove a directory containing schemas (structured in a hierarchy reflecting the fully qualified names).
+        """
+        entry = (rest or "").strip()
+        if entry in console.thering.template_dirs:
+            del console.thering.template_dirs[console.thering.template_dirs.index(entry)]

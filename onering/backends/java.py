@@ -82,13 +82,13 @@ class InvokeGetterExtension(Extension):
         pass
     
 def get_type_signature(thetype):
-    if thetype.constructor == "record":
+    if thetype.constructor in ("record", "union"):
         return thetype.fqn
     if thetype.constructor == "string":
         return "String"
     if thetype.constructor == "double":
         return "Double"
-    if thetype.constructor == "list":
+    if thetype.constructor in ("list", "array"):
         value_type = get_type_signature(thetype.child_type_at(0))
         if value_type is None:
             ipdb.set_trace()
@@ -106,5 +106,6 @@ def get_type_signature(thetype):
         return "Set<" + value_type + ">" 
     if len(thetype.children) == 0:
         return thetype.fqn
+    ipdb.set_trace()
     assert False
 

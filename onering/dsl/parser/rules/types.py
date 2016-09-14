@@ -42,22 +42,22 @@ def parse_typeref_decl(parser, annotations):
     docstring = parser.last_docstring()
     parser.ensure_token(TokenType.IDENTIFIER, "typeref")
     name = parser.ensure_token(TokenType.IDENTIFIER)
-    parser.ensure_token(TokenType.EQUALS)
-    target_type = parse_any_type_decl(parser)
-
-    # What should the type decl be here?
     name, namespace, fqn = utils.normalize_name_and_ns(name, parser.document.namespace)
+
+    parser.ensure_token(TokenType.EQUALS)
+    target_type = parse_any_type_decl(parser, typereffed_fqn = fqn)
+
     parser.register_type(fqn, target_type)
     return fqn
 
-def parse_any_type_decl(parser, annotations = []):
+def parse_any_type_decl(parser, annotations = [], typereffed_fqn = None):
     next_token = parser.ensure_token(TokenType.IDENTIFIER, peek = True)
     if next_token == "array":
         return parse_array_type_decl(parser, annotations)
     elif next_token == "map":
         return parse_map_type_decl(parser, annotations)
     elif next_token in [ "record", "enum", "union" ]:
-        return parse_complex_type_decl(parser, annotations)
+        return parse_complex_type_decl(parser, annotations, typereffed_fqn)
     else:
         return parse_primitive_type(parser, annotations)
 
@@ -84,12 +84,13 @@ def parse_map_type_decl(parser, annotations = []):
     parser.ensure_token(TokenType.CLOSE_SQUARE)
     return tlcore.MapType(key_type, value_type, annotations = annotations, docs = parser.last_docstring())
 
-def parse_complex_type_decl(parser, annotations = []):
+def parse_complex_type_decl(parser, annotations = [], typereffed_fqn = None):
     type_class = parser.ensure_token(TokenType.IDENTIFIER)
     if type_class not in ["union", "enum", "record"]:
         raise UnexpectedTokenException(parser.peek_token(), "union", "enum", "record")
 
-    newtype = fqn = None
+    newtype = None
+    fqn = typereffed_fqn
     if parser.peeked_token_is(TokenType.IDENTIFIER):
         # we have a name
         n = parser.ensure_token(TokenType.IDENTIFIER)
