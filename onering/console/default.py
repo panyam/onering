@@ -1,9 +1,12 @@
 
 import json
 import shlex
+import importlib
 import fnmatch
 import ipdb
+from typelib import annotations as tlannotations
 import runner, dirs, pegasus, courier, orc, platform
+from onering.utils import split_list_at, parse_line_dict
 from utils import logerror
 
 class DefaultCommandRunner(runner.CommandRunner):
@@ -20,6 +23,7 @@ class DefaultCommandRunner(runner.CommandRunner):
             "pegasus": pegasus.PegasusCommandRunner(),
             "courier": courier.CourierCommandRunner(),
             "dirs": dirs.DirsCommandRunner(),
+            "dirs": dirs.TemplatesCommandRunner(),
             "jars": dirs.JarsCommandRunner()
         }
 
@@ -139,34 +143,54 @@ class DefaultCommandRunner(runner.CommandRunner):
 
         Usage:
             gen     <types>
-            gen     <types>      with    <platforms>
+            gen     <types>      with    <platform> <template>
 
             <types>     Is a list of (space seperated) wild cards
-            <platforms> If a list of (space seperated) platforms are specified then the generated output is 
-                        based on the particular platform.  
-                        If platforms are not specified then the default platform is used.
-                        See the platform command on how to register platforms and templates.
+            <platform>  If a platform is specified then the generated output is for the particular platform.
+                        If the platform is not specified then the platform specified in the type's 
+                        "onering.backend" annotation is used.
+                        If this annotation is not specified then the default platform is used. Otherwise
+                        an error is thrown.
+            <template>  Same for templates, specifed -> annotation -> default
         """
-
         # Couple of more things to do here!
         # First, this should also pick up all derivations
 
+        wildcards = []
         wildcards = [r.split(",") for r in rest.split(" ")]
         wildcards = filter(lambda x:x, reduce(lambda x,y:x+y, wildcards))
-        target_platforms = []
-        if "with" in wildcards:
-            ind = rest.index("with")
-            wildcards, target_platforms = wildcards[:ind], windcards[ind+1]
+        wildcards, _, param_args = split_list_at(lambda x:x == "wild", wildcards)
+        target_platform = param_args[0] if len(param_args) > 0 else None
+        target_template = param_args[1] if len(param_args) > 1 else None
 
-        if not target_platforms:
-            if console.thering.default_platform:
-                target_platforms = [ console.thering.default_platform ]
-            else:
-                return logerror("Please specify a platform or set a default platform")
+        source_types, source_derivations = self.get_for_wildcards(console, wildcards)
+
+        # Awwwwright resolutions succeeded so now generate them!
+        for source_fqn in source_types:
+            source_type = console.type_registry.get_type(source_fqn)
+            self.generate_sources(source_type, console, target_platform, target_template)
+
+        for deriv in source_derivations:
+            source_type = console.type_registry.get_type(deriv)
+            self.generate_sources(source_type, console, target_platform, target_template)
+
+    def do_resolve(self, console, cmd, rest, prev):
+        """
+        Usage: resolve
+
+        Resolves field and type dependencies with the currently available types.
+        """
+        console.type_registry.resolve_types()
+
+    def get_for_wildcards(self, console, wildcards):
+        for tw in wildcards:
+            # Now resolve all derivations
+            for derivation in console.thering.all_derivations:
+                if fnmatch.fnmatch(derivation.fqn, tw):
+                    derivation.resolve(console.type_registry, None)
 
         source_types = set()
         source_derivations = set()
-
         for tw in wildcards:
             # First go through all resolved types
             for (fqn,t) in console.thering.type_registry.resolved_types:
@@ -176,19 +200,36 @@ class DefaultCommandRunner(runner.CommandRunner):
             # Now resolve all derivations
             for derivation in console.thering.all_derivations:
                 if fnmatch.fnmatch(derivation.fqn, tw):
-                    derivation.resolve(console.type_registry, None)
                     source_derivations.add(derivation.fqn)
 
-        # Awwwwright resolutions succeeded so now generate them!
-        template_name = 
-        for platform in target_platforms:
-            print "Generating types for platform: %s" % tbend
-        ipdb.set_trace()
+        return source_types, source_derivations
 
-    def do_resolve(self, console, cmd, rest, prev):
-        """
-        Usage: resolve
+    def generate_sources(self, source_type, console, target_platform, target_template):
+        # see if the source_type has a backend annotation
+        if source_type.constructor != "record":
+            return
 
-        Resolves field and type dependencies with the currently available types.
-        """
-        console.type_registry.resolve_types()
+        backend_annotations = []
+        if console.thering.default_platform:
+            backend_annotations = [tlannotations.Annotation("onering.backend", None, 
+                                        {"platform": console.thering.default_platform})]
+        if source_type.has_annotation("onering.backend"):
+            backend_annotations = source_type.get_annotations("onering.backend")
+
+        if target_platform:
+            backend_annotations = [tlannotations.Annotation("onering.backend", None, 
+                                    {"platform": target_platform, "template": target_template})]
+
+        if not backend_annotations:
+            return logerror("Please specify a platform or set a default platform for record: %s" % source_type.fqn)
+
+        for backend_annotation in backend_annotations:
+            platform_name = backend_annotation.first_value_of("platform")
+            if platform_name not in console.thering.platform_aliases:
+                logerror("Invalid platform: %s" % platform_name)
+            platform = console.thering.platform_aliases[platform_name]
+            platform_module = importlib.import_module(".".join(platform.split(".")[:-1]))
+            platform_class = getattr(platform_module, platform.split(".")[-1])
+            platform_class().generate(source_type.fqn, source_type, console.type_registry,
+                                      console.thering.output_dir, console.thering.template_loader,
+                                      backend_annotation)

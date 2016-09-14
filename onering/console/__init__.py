@@ -23,10 +23,12 @@ class OneringContext(orcore.Onering):
     def __init__(self):
         super(OneringContext, self).__init__()
         self.output_dir = "./gen"
-        template_loader = None
-        self.backend_aliases = {
+        self.platform_aliases = {
             "java": "onering.backends.java.JavaTargetBackend"
         }
+        self.template_dirs = []
+        from onering.templates import loader as tplloader
+        self.template_loader = tplloader.TemplateLoader(self.template_dirs)
 
 class OneringConsoleBase(object):
     def __init__(self):
