@@ -365,7 +365,6 @@ class SimpleFieldProjection(SingleFieldProjection):
         if self.projected_name is not None:
             raise errors.OneringException("New Field '%s' in '%s' should not have a target_name" % (self.source_field_path, self.parent_derivation.type_data.fqn))
         elif self.projected_type is None:
-            ipdb.set_trace()
             raise errors.OneringException("New Field '%s' in '%s' does not have a target_type" % (self.source_field_path, self.parent_derivation.type_data.fqn))
         elif self.source_field_path.length > 1:
             raise errors.OneringException("New Field '%s' in '%s' must not be a field path" % (self.source_field_path, self.parent_derivation.type_data.fqn))
