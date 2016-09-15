@@ -19,10 +19,14 @@ class OneringCommandRunner(runner.CommandRunner):
         import onering.dsl as dsl
         path = rest
         context = console.thering
-        if os.path.isfile(path):
-            dsl.parser.Parser(open(path), context).parse()
-        elif os.path.isfile(path + ".onering"):
-            dsl.parser.Parser(open(path + ".onering"), context).parse()
-        else:
-            for f in orutils.collect_files_by_extension(path, "onering"):
+        abspath = console.abspath(path)
+
+        if console.isfile(path):
+            dsl.parser.Parser(open(abspath), context).parse()
+        elif console.isfile(path + ".onering"):
+            dsl.parser.Parser(open(abspath + ".onering"), context).parse()
+        elif console.isdir(path):
+            for f in orutils.collect_files_by_extension(abspath, "onering"):
                 dsl.parser.Parser(open(f), context).parse()
+        else:
+            logerror("Invalid path: %s" % abspath)

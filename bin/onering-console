@@ -11,5 +11,5 @@ if __name__ == "__main__":
 
     import onering
     from onering import console as orconsole
-    thecmd = orconsole.OneringConsole()
-    thecmd.parse_arguments_and_run()
+    theconsole = orconsole.OneringConsole()
+    theconsole.parse_arguments_and_run()

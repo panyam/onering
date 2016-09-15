@@ -2,7 +2,7 @@ import cmd
 import code
 import ipdb
 import json
-import os, sys
+import sys
 import shlex
 import traceback
 import default
@@ -13,12 +13,14 @@ from typelib import core as tlcore
 from typelib import errors as tlerrors
 
 from onering import utils as orutils
+from onering import dirutils
 from onering import resolver
 from onering import context as orcontext
 from onering import errors as orerrors
 
-class OneringConsoleBase(object):
+class OneringConsoleBase(dirutils.DirPointer):
     def __init__(self):
+        super(OneringConsoleBase, self).__init__()
         self.thering = orcontext.OneringContext()
         self.currIndex = 1
         self.prompt = "OneRing :[%03d]> " % self.currIndex
@@ -56,22 +58,43 @@ class OneringConsoleBase(object):
     def reset(self):
         self.thering.reset()
 
-    def curdir(self):
-        return os.path.abspath(os.curdir)
-
     def load_script(self, script_path):
-        if not os.path.isfile(script_path):
-            logerror("Invalid script file: %s, from path: %s" % (script_path, self.curdir()))
+        if not self.isfile(script_path):
+            logerror("Invalid script file: %s, from path: %s" % (script_path, self.curdir))
             return
-        else:
-            print "Loading script: ", script_path
-            with open(script_path) as script_file:
-                prevdir = self.curdir()
-                os.chdir(os.path.abspath(os.path.dirname(script_path)))
-                lines = [ l.strip() for l in script_file.read().split("\n") if l.strip() and not l.strip().startswith("#")]
-                for line in lines:
-                    self.onecmd(line)
-                os.chdir(prevdir)
+
+        print "Loading script: ", script_path
+        with self.read_file(script_path) as script_file_data:
+            lines = [ l.strip() for l in script_file_data.split("\n") if l.strip() and not l.strip().startswith("#")]
+            for line in lines:
+                self.onecmd(line)
+
+    def read_file(self, file_path):
+        class FileReadData(object):
+            def __init__(self, console, file_path):
+                self.console = console
+                self.file_path = file_path
+
+            def __enter__(self):
+                # When a file is being read we want the file's parent folder to be 
+                # the current folder
+                import os
+                dirname = os.path.dirname(file_path)
+                abspath = self.console.abspath(self.file_path)
+                file_obj = open(abspath)
+                data = file_obj.read()
+                file_obj.close()
+
+                self.console.pushdir()
+                self.console.curdir = dirname
+                print "Entering Dir: ", self.console.curdir
+                return data
+
+            def __exit__(self, type, value, traceback):
+                self.console.popdir()
+                print "Entering Dir: ", self.console.curdir
+
+        return FileReadData(self, file_path)
 
     def on_exit(self):
         """

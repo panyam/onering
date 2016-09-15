@@ -21,11 +21,11 @@ class JarsCommandRunner(runner.CommandRunner):
         return { "ls": "list", "rm": "remove" }
 
     @classmethod
-    def collector(cls, path):
-        if os.path.isdir(path):
-            return [resolver.ZipFilePathEntityResolver(jar_file, "pegasus") for jar_file in orutils.collect_jars(path)]
-        elif os.path.isfile(path):
-            return [ resolver.ZipFilePathEntityResolver(path, "pegasus") ]
+    def collector(cls, console, path):
+        if console.isdir(path):
+            return [resolver.ZipFilePathEntityResolver(jar_file, "pegasus") for jar_file in orutils.collect_jars(console.abspath(path))]
+        elif console.isfile(path):
+            return [ resolver.ZipFilePathEntityResolver(console.abspath(path), "pegasus") ]
         else:
             logerror("Invalid jar path: %s" % path)
 
@@ -41,7 +41,7 @@ class JarsCommandRunner(runner.CommandRunner):
         Add a jar file or directory contain jars that contain schemas (structured in a hierarchy reflecting the fully qualified names).
         """
         entry = (rest or "").strip()
-        for resolver in JarsCommandRunner.collector(entry):
+        for resolver in JarsCommandRunner.collector(console, entry):
             console.entity_resolver.add_resolver(resolver)
 
     def do_remove(self, console, cmd, rest, prev = None):
@@ -49,7 +49,7 @@ class JarsCommandRunner(runner.CommandRunner):
         Remove a jar file or directory contain jars that contain schemas (structured in a hierarchy reflecting the fully qualified names).
         """
         entry = (rest or "").strip()
-        for resolver in JarsCommandRunner.collector(entry):
+        for resolver in JarsCommandRunner.collector(console, entry):
             console.entity_resolver.remove_resolver(resolver)
 
 
@@ -67,10 +67,10 @@ class DirsCommandRunner(runner.CommandRunner):
         return { "ls": "list", "rm": "remove" }
 
     @classmethod
-    def collector(cls, path):
-        if os.path.isdir(path):
-            return [resolver.FilePathEntityResolver(path)]
-        elif os.path.isfile(path):
+    def collector(cls, console, path):
+        if console.isdir(path):
+            return [resolver.FilePathEntityResolver(console.abspath(path))]
+        elif console.isfile(path):
             logerror("Cannot add a single file as a schema path")
         else:
             logerror("Invalid path: %s" % path)
@@ -88,7 +88,7 @@ class DirsCommandRunner(runner.CommandRunner):
         Add a directory containing schemas (structured in a hierarchy reflecting the fully qualified names).
         """
         entry = (rest or "").strip()
-        for resolver in DirsCommandRunner.collector(entry):
+        for resolver in DirsCommandRunner.collector(console, entry):
             console.entity_resolver.add_resolver(resolver)
 
     def do_remove(self, console, cmd, rest, prev = None):
@@ -96,7 +96,7 @@ class DirsCommandRunner(runner.CommandRunner):
         Remove a directory containing schemas (structured in a hierarchy reflecting the fully qualified names).
         """
         entry = (rest or "").strip()
-        for resolver in DirsCommandRunner.collector(entry):
+        for resolver in DirsCommandRunner.collector(console, entry):
             console.entity_resolver.remove_resolver(resolver)
 
 class TemplatesCommandRunner(runner.CommandRunner):

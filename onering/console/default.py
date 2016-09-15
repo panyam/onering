@@ -70,7 +70,8 @@ class DefaultCommandRunner(runner.CommandRunner):
         Changes the current working directory to a given directory.  This is useful to set the base path
         when specifying relative paths in loading schemas/transformers/scripts.
         """
-        os.chdir(os.path.abspath(rest.strip()))
+        console.curdir = rest.strip()
+        print "Dir: ", os.curdir
 
     def do_pwd(self, console, cmd, rest, prev):
         """
@@ -164,7 +165,6 @@ class DefaultCommandRunner(runner.CommandRunner):
                 logerror("Invalid platform: %s" % platform_name)
             platform = console.thering.platform_aliases[platform_name]
             module_name = ".".join(platform.split(".")[:-1])
-            ipdb.set_trace()
             platform_module = importlib.import_module(module_name)
             platform_class = getattr(platform_module, platform.split(".")[-1])
             platform_class().generate(source_type.fqn, source_type, console.type_registry,
