@@ -1,5 +1,6 @@
 
 dist
+gen
 *.swp
 *.pyc
 .project
