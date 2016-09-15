@@ -1,10 +1,13 @@
 
+from __future__ import absolute_import 
+
+import ipdb
 from typelib import records
 from typelib import core as tlcore
 from typelib import enums as tlenums
 from onering import utils
 from onering.dsl.lexer import Token, TokenType
-from annotations import parse_annotations
+from onering.dsl.parser.rules.annotations import parse_annotations
 
 ########################################################################
 ##          Type declaration parsing rules
@@ -21,14 +24,14 @@ def parse_type_decl(parser):
     if type_class == "typeref":
         return parse_typeref_decl(parser, annotations)
     elif type_class == "derive":
-        from derivations import parse_derivation
+        from onering.dsl.parser.rules.derivations import parse_derivation
         return parse_derivation(parser, annotations)
     elif type_class == "transformer":
         parser.next_token()     # consume it
-        from transformers import parse_transformer
+        from onering.dsl.parser.rules.transformers import parse_transformer
         parse_transformer(parser, annotations)
     elif type_class == "transformers":
-        from transformers import parse_transformer_group
+        from onering.dsl.parser.rules.transformers import parse_transformer_group
         parse_transformer_group(parser, annotations)
     else:
         return parse_complex_type_decl(parser, annotations)

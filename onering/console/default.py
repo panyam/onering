@@ -1,13 +1,15 @@
 
+from __future__ import absolute_import
+import os
 import json
 import shlex
 import importlib
 import fnmatch
 import ipdb
 from typelib import annotations as tlannotations
-import runner, dirs, pegasus, courier, orc, platform
+from onering.console import runner, dirs, pegasus, courier, orc, platform
 from onering.utils import split_list_at, parse_line_dict
-from utils import logerror
+from onering.console.utils import logerror
 
 class DefaultCommandRunner(runner.CommandRunner):
     @property
@@ -161,7 +163,9 @@ class DefaultCommandRunner(runner.CommandRunner):
             if platform_name not in console.thering.platform_aliases:
                 logerror("Invalid platform: %s" % platform_name)
             platform = console.thering.platform_aliases[platform_name]
-            platform_module = importlib.import_module(".".join(platform.split(".")[:-1]))
+            module_name = ".".join(platform.split(".")[:-1])
+            ipdb.set_trace()
+            platform_module = importlib.import_module(module_name)
             platform_class = getattr(platform_module, platform.split(".")[-1])
             platform_class().generate(source_type.fqn, source_type, console.type_registry,
                                       console.thering.output_dir, console.thering.template_loader,

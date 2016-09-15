@@ -14,25 +14,12 @@ from typelib import errors as tlerrors
 
 from onering import utils as orutils
 from onering import resolver
-from onering import core as orcore
+from onering import context as orcontext
 from onering import errors as orerrors
-
-# Create the all important type registry and entity resolver (for loading pegasus models)
-
-class OneringContext(orcore.Onering):
-    def __init__(self):
-        super(OneringContext, self).__init__()
-        self.output_dir = "./gen"
-        self.platform_aliases = {
-            "java": "onering.backends.java.JavaTargetBackend"
-        }
-        self.template_dirs = []
-        from onering.templates import loader as tplloader
-        self.template_loader = tplloader.TemplateLoader(self.template_dirs)
 
 class OneringConsoleBase(object):
     def __init__(self):
-        self.thering = OneringContext()
+        self.thering = orcontext.OneringContext()
         self.currIndex = 1
         self.prompt = "OneRing :[%03d]> " % self.currIndex
 

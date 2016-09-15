@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 from onering.dsl.lexer import Token, TokenType
 from typelib import annotations as tlannotations
 

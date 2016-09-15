@@ -1,11 +1,12 @@
 
+from __future__ import absolute_import
 import ipdb
 from onering import errors
 from typelib import errors as tlerrors
 from typelib import core as tlcore
 from typelib import records
 from onering.utils import normalize_name_and_ns, ResolutionStatus
-from utils import FieldPath
+from onering.core.utils import FieldPath
 
 class Projection(object):
     """
@@ -120,7 +121,7 @@ class RecordDerivation(Projection):
         # Step 2: TODO - Create the Resolver to take into account this derivation's source record(s) if any (eg in a type stream, the derivation wont have sources)
         if self.source_aliases:
             # TODO - create new resolver
-            from resolvers import DerivationPathResolver
+            from onering.core.resolvers import DerivationPathResolver
             resolver = DerivationPathResolver(resolver, self, type_registry)
         else:
             pass
@@ -461,7 +462,7 @@ class TypeStream(SingleFieldProjection):
         Called after the intial field path resolution and if final field data was found.
         """
         if self.param_names:
-            from resolvers import TypeStreamPathResolver
+            from onering.core.resolvers import TypeStreamPathResolver
             resolver = TypeStreamPathResolver(resolver, self, registry)
         else:
             ipdb.set_trace()

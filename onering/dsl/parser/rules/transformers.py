@@ -1,10 +1,11 @@
 
+from __future__ import absolute_import
 import ipdb
 from onering import utils
 from onering.dsl.errors import SourceException, UnexpectedTokenException
 from onering.dsl.lexer import Token, TokenType
 from onering.core import transformers
-from annotations import parse_annotations
+from onering.dsl.parser.rules.annotations import parse_annotations
 
 ########################################################################
 ##          Transformer Parsing Rules

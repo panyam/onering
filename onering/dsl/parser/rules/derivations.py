@@ -1,10 +1,11 @@
 
+from __future__ import absolute_import 
+
 from onering import utils
 from onering.dsl.lexer import Token, TokenType
 from onering.core import projections
 
-from annotations import parse_annotations
-from types import parse_any_type_decl
+from onering.dsl.parser.rules.annotations import parse_annotations
 
 ########################################################################
 ##          Derivation and Projection Parsing
@@ -117,6 +118,7 @@ def parse_projection_target(parser, parent_derivation, field_path):
     # Check if we have a mutation or a type declaration            
     if parser.next_token_is(TokenType.COLON):
         if parser.peeked_token_is(TokenType.IDENTIFIER):
+            from onering.dsl.parser.rules.types import parse_any_type_decl
             projected_type = parse_any_type_decl(parser)
             return projections.SimpleFieldProjection(parent_derivation, field_path, projected_type = projected_type)
         else:

@@ -1,6 +1,7 @@
 
+from __future__ import absolute_import
 import ipdb
-from utils import FieldPath
+from onering.core.utils import FieldPath
 
 def resolve_path_from_record(starting_record, field_path, registry, resolver):
     root_record = starting_record

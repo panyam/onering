@@ -1,17 +1,15 @@
 
-import instructions
 import StringIO
 import os
 import ipdb
 import json
 from onering import utils
 from typelib import annotations as tlannotations
-import base
 
 from jinja2 import nodes
 from jinja2.ext import Extension, contextfunction
 
-class JavaTargetBackend(base.TargetBackend):
+class JavaTargetBackend(object):
     """
     For generating java pojos for a given type
     """

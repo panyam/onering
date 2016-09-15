@@ -38,7 +38,6 @@ print "=" * 80
 
 setup(name="onering",
       version=version,
-      install_requires = ["typelib"],
       requires = ["typelib", "Jinja2", "readline", "avro", "thriftpy" ],
       description="A toolchain for declaratively specifying transformations between schemas and instances of schemas to help track dependencies across schemas.",
       author="Sri Panyam",

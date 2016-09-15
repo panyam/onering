@@ -1,20 +1,15 @@
 
+from __future__ import absolute_import
+
 import ipdb
-from tokstream import TokenStream
+from onering.dsl.parser.tokstream import TokenStream
 from onering.dsl.errors import SourceException, UnexpectedTokenException
-from typelib import core as tlcore
 from typelib import utils
-from typelib import records
-from typelib import annotations as tlannotations
-from typelib import enums as tlenums
 from onering.dsl.lexer import Token, TokenType
 from onering.dsl import core
 from onering import errors
-from onering.core import derivations
-from onering.core import transformers
 
-from rules.misc import parse_namespace
-from rules.misc import parse_declaration
+from onering.dsl.parser.rules.misc import parse_namespace, parse_declaration
 
 class Parser(TokenStream):
     """
