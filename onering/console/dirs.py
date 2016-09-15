@@ -8,12 +8,7 @@ from utils import logerror
 
 class JarsCommandRunner(runner.CommandRunner):
     """
-    Manage directories in which jars (the contain archived schemas) are searched for.
-
-    Usage:
-        list                List the directories in which jars are searched for.
-        add     <jar/dir>   Add one or more space seperated jar files or directory containing jars.
-        remove  <dir/dir>   Remove one or more space seperated jar files or directory containing jars.
+    Manage directories in which jars (that contain archived pegasus schemas) are searched for.
     """
 
     @property
@@ -32,6 +27,9 @@ class JarsCommandRunner(runner.CommandRunner):
     def do_list(self, console, cmd, rest, prev = None):
         """
         List the jar files that will be searched when resolving/loading new entities.
+
+        Usage:
+            list                List the directories in which jars are searched for.
         """
         resolvers = [str(x) for x in console.entity_resolver.resolvers if type(x) == resolver.ZipFilePathEntityResolver]
         print "\n".join(resolvers)
@@ -39,6 +37,9 @@ class JarsCommandRunner(runner.CommandRunner):
     def do_add(self, console, cmd, rest, prev = None):
         """
         Add a jar file or directory contain jars that contain schemas (structured in a hierarchy reflecting the fully qualified names).
+
+        Usage:
+            add     <jar/dir>   Add one or more space seperated jar files or directory containing jars.
         """
         entry = (rest or "").strip()
         for resolver in JarsCommandRunner.collector(console, entry):
@@ -47,6 +48,9 @@ class JarsCommandRunner(runner.CommandRunner):
     def do_remove(self, console, cmd, rest, prev = None):
         """
         Remove a jar file or directory contain jars that contain schemas (structured in a hierarchy reflecting the fully qualified names).
+
+        Usage:
+            remove  <dir/dir>   Remove one or more space seperated jar files or directory containing jars.
         """
         entry = (rest or "").strip()
         for resolver in JarsCommandRunner.collector(console, entry):
@@ -56,11 +60,6 @@ class JarsCommandRunner(runner.CommandRunner):
 class DirsCommandRunner(runner.CommandRunner):
     """
     Manage directories in which schemas are searched for.
-
-    Usage:
-        list                List the directories in which schemas are searched for.
-        add         <dir>   Add one or more space seperated directories containing schemas.
-        remove/rm   <dir>   Remove one or more space seperated schema directory schemas.
     """
     @property
     def aliases(self):
@@ -79,6 +78,9 @@ class DirsCommandRunner(runner.CommandRunner):
     def do_list(self, console, cmd, rest, prev = None):
         """
         List the folders that will be searched when resolving/loading new entities.
+
+        Usage:
+            list                List the directories in which schemas are searched for.
         """
         resolvers = [str(x) for x in console.entity_resolver.resolvers if type(x) == resolver.FilePathEntityResolver]
         print "\n".join(resolvers)
@@ -86,6 +88,9 @@ class DirsCommandRunner(runner.CommandRunner):
     def do_add(self, console, cmd, rest, prev = None):
         """
         Add a directory containing schemas (structured in a hierarchy reflecting the fully qualified names).
+
+        Usage:
+            add         <dir>   Add one or more space seperated directories containing schemas.
         """
         entry = (rest or "").strip()
         for resolver in DirsCommandRunner.collector(console, entry):
@@ -94,6 +99,9 @@ class DirsCommandRunner(runner.CommandRunner):
     def do_remove(self, console, cmd, rest, prev = None):
         """
         Remove a directory containing schemas (structured in a hierarchy reflecting the fully qualified names).
+
+        Usage:
+            remove/rm   <dir>   Remove one or more space seperated schema directory schemas.
         """
         entry = (rest or "").strip()
         for resolver in DirsCommandRunner.collector(console, entry):
@@ -102,11 +110,6 @@ class DirsCommandRunner(runner.CommandRunner):
 class TemplatesCommandRunner(runner.CommandRunner):
     """
     Manage directories in which templates are searched for.
-
-    Usage:
-        list                List the directories from templates will be searched.
-        add         <dir>   Add one or more space seperated template directories
-        remove/rm   <dir>   Remove one or more space seperated template directories.
     """
     @property
     def aliases(self):
@@ -121,6 +124,9 @@ class TemplatesCommandRunner(runner.CommandRunner):
     def do_add(self, console, cmd, rest, prev = None):
         """
         Add a directory containing schemas (structured in a hierarchy reflecting the fully qualified names).
+
+        Usage:
+            add         <dir>   Add one or more space seperated template directories
         """
         entry = (rest or "").strip()
         if entry not in console.thering.template_dirs:
@@ -129,6 +135,9 @@ class TemplatesCommandRunner(runner.CommandRunner):
     def do_remove(self, console, cmd, rest, prev = None):
         """
         Remove a directory containing schemas (structured in a hierarchy reflecting the fully qualified names).
+
+        Usage:
+            remove/rm   <dir>   Remove one or more space seperated template directories.
         """
         entry = (rest or "").strip()
         if entry in console.thering.template_dirs:

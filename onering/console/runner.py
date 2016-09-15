@@ -73,4 +73,4 @@ class CommandRunner(object):
                 doc = command.__doc__.replace("\n    ", "\n")
                 print doc
                 print
-
+        print

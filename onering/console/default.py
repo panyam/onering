@@ -22,10 +22,9 @@ class DefaultCommandRunner(runner.CommandRunner):
         return {
             "onering": orc.OneringCommandRunner(),
             "platform": platform.PlatformCommandRunner(),
-            "pegasus": pegasus.PegasusCommandRunner(),
-            "courier": courier.CourierCommandRunner(),
+            # "pegasus": pegasus.PegasusCommandRunner(),
             "dirs": dirs.DirsCommandRunner(),
-            "dirs": dirs.TemplatesCommandRunner(),
+            "templates": dirs.TemplatesCommandRunner(),
             "jars": dirs.JarsCommandRunner()
         }
 

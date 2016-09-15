@@ -7,9 +7,12 @@ from onering import utils as orutils
 from utils import logerror
 
 class OneringCommandRunner(runner.CommandRunner):
+    """
+    Commands to load onering schemas.
+    """
     def do_load(self, console, cmd, rest, prev):
         """
-        Loads one or onering files.   A onering file could contain models, derivations, transformations, bindings etc.
+        Loads one or more onering files.   A onering file could contain models, derivations, transformations, bindings etc.
 
         Usage:
 
