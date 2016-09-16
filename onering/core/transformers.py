@@ -1,6 +1,7 @@
 
 import ipdb
 from onering import errors
+from onering.utils import ResolutionStatus
 
 class TransformerGroup(object):
     """
@@ -25,25 +26,72 @@ class TransformerGroup(object):
         self._transformers[transformer.fqn] = transformer
         """
 
+    def resolve(self, type_registry):
+        """
+        Kicks of resolutions of all dependencies.  This must only be called after all derivations that produce records
+        have been resolved otherwise those records that are only derived will not be visible in the type_registry.
+        """
+        for transformer in self._transformers:
+            transformer.resolve(type_registry)
+
 class Transformer(object):
     """
     Transformers define how an instance of one type can be transformed to an instance of another.
     """
-    def __init__(self, fqn, src_type, dest_type, group = None, annotations = None, docs = ""):
+    def __init__(self, fqn, src_fqn, dest_fqn, group = None, annotations = None, docs = ""):
+        self.resolution = ResolutionStatus()
         self.annotations = annotations or []
         self.docs = docs or ""
         self.fqn = fqn
-        self.src_type = src_type
-        self.dest_type = dest_type
+        self.src_fqn = src_fqn
+        self.dest_fqn = dest_fqn
         self.group = group
         # explicit transformer rules
         self._statements = []
 
-    def add(self, stmt):
+    def add_statement(self, stmt):
         if isinstance(stmt, Expression) and stmt.next is None:
             # We dont have a stream expression, error
             raise errors.OneringException("Transformer rule must be a let statement or a stream exception, Found: %s" % str(type(stmt)))
         self._statements.append(stmt)
+
+    def resolve(self, type_registry):
+        """
+        Kicks of resolutions of all dependencies.  This must only be called after all derivations that produce records
+        have been resolved otherwise those records that are only derived will not be visible in the type_registry.
+        """
+        def resolver_method():
+            self._resolve(type_registry)
+        self.resolution.perform_once(resolver_method)
+
+
+    def _resolve(self, type_registry):
+        """
+        The main resolver method.
+        """
+        src_type = type_registry.get_type(self.src_fqn)
+        dest_type = type_registry.get_type(self.dest_fqn)
+
+        self._evaluate_auto_rules(src_type, dest_type)
+
+        temp_vars = {}
+        for stmt in self._statements:
+            self._evaluate_manual_rule(stmt, src_type, dest_type, temp_vars)
+
+    def _evaluate_auto_rules(self, src_type, dest_type):
+        """
+        Given the source and dest types, evaluates all "get/set" rules that can be 
+        inferred for shared types.   This is only possible if both src and dest types 
+        share a common ancestor (or may be even at atmost 1 level).
+        """
+        # Step 1: Find common "roots" of each of the recordsk
+        # Now go through each exp
+        ipdb.set_trace()
+
+    def _evaluate_manual_rule(self, rule, src_type, dest_type, temp_vars):
+        ipdb.set_trace()
+
+
 
 class Expression(object):
     """

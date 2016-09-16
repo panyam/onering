@@ -46,14 +46,14 @@ def parse_transformer(parser, transformer_group):
     parser.ensure_token(TokenType.STREAM)
     dest_fqn = parser.ensure_fqn()
 
-    src_type = parser.get_type(src_fqn)
-    dest_type = parser.get_type(dest_fqn)
+    n,ns,src_fqn = utils.normalize_name_and_ns(src_fqn, parser.document.namespace, ensure_namespaces_are_equal = False)
+    n,ns,dest_fqn = utils.normalize_name_and_ns(dest_fqn, parser.document.namespace, ensure_namespaces_are_equal = False)
 
     print "Parsing new transformer: %s -> %s" % (src_fqn, dest_fqn)
 
     transformer = transformers.Transformer(fqn = None,
-                                           src_type = src_type,
-                                           dest_type = dest_type,
+                                           src_fqn = src_fqn,
+                                           dest_fqn = dest_fqn,
                                            group = transformer_group,
                                            annotations = annotations,
                                            docs = parser.last_docstring())
@@ -62,7 +62,7 @@ def parse_transformer(parser, transformer_group):
     while not parser.peeked_token_is(TokenType.CLOSE_BRACE):
         # read a transformer
         statement = parse_transformer_rule(parser)
-        transformer.add(statement)
+        transformer.add_statement(statement)
     parser.ensure_token(TokenType.CLOSE_BRACE)
     parser.consume_tokens(TokenType.SEMI_COLON)
     return transformer
