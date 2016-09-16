@@ -6,6 +6,7 @@ from onering.dsl.errors import SourceException, UnexpectedTokenException
 from onering.dsl.lexer import Token, TokenType
 from onering.core import transformers
 from onering.dsl.parser.rules.annotations import parse_annotations
+from onering.dsl.parser.rules.misc import parse_field_path
 
 ########################################################################
 ##          Transformer Parsing Rules
