@@ -1,5 +1,6 @@
 
 import os
+from onering import errors
 
 class DirPointer(object):
     """
@@ -21,11 +22,11 @@ class DirPointer(object):
     @curdir.setter
     def curdir(self, value):
         if value.startswith("./") or value.startswith("../"):
-            newdir = os.path.abspath(self._current_directory + value)
+            newdir = os.path.abspath(os.path.join(self._current_directory, value))
         else:
             newdir = os.path.abspath(value)
         if not os.path.isdir(newdir):
-            logerror("Invalid directory: %s" % value)
+            raise errors.NotFoundException("dir", newdir)
         else:
             self._current_directory = newdir
 
