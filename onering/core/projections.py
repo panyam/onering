@@ -268,10 +268,11 @@ class FieldProjection(Projection):
         for field_name in selected_fields:
             newfield = Field(field_name,
                              starting_type.child_type_for(field_name),
-                             starting_type.child_data_for(field_name).is_optional,
-                             starting_type.child_data_for(field_name).default_value,
-                             starting_type.docs_for(field_name),
-                             starting_type.annotations_for(field_name))
+                             field_path = self.source_field_path.with_child(field_name),
+                             optional = starting_type.child_data_for(field_name).is_optional,
+                             default = starting_type.child_data_for(field_name).default_value,
+                             docs = starting_type.docs_for(field_name),
+                             annotations = starting_type.annotations_for(field_name))
             self._add_field(newfield)
 
 
@@ -317,8 +318,6 @@ class SingleFieldProjection(FieldProjection):
 
         if self.field_path_resolution.parent_type.constructor == "record":
             child_data = self.field_path_resolution.resolved_type_data
-            if type(child_data) is list:
-                ipdb.set_trace()
             if child_data.is_optional is not None:
                 return child_data.is_optional
         return None
@@ -372,10 +371,11 @@ class SimpleFieldProjection(SingleFieldProjection):
         else:
             newfield = Field(self.source_field_path.get(0),
                              self.projected_type,
-                             self.is_optional,
-                             self.default_value,
-                             "",
-                             self.annotations)
+                             field_path = self.source_field_path,
+                             optional = self.is_optional,
+                             default = self.default_value,
+                             docs = "",
+                             annotations = self.annotations)
             self._add_field(newfield)
 
 
@@ -398,12 +398,12 @@ class SimpleFieldProjection(SingleFieldProjection):
 
         newfield = Field(self.projected_name or self.field_path_resolution.field_name,
                          projected_type,
-                         self.projected_is_optional,
-                         self.projected_default_value,
-                         self.field_path_resolution.docs,
-                         self.annotations or self.field_path_resolution.annotations)
+                         field_path = self.source_field_path,
+                         optional = self.projected_is_optional,
+                         default = self.projected_default_value,
+                         docs = self.field_path_resolution.docs,
+                         annotations = self.annotations or self.field_path_resolution.annotations)
         self._add_field(newfield)
-
 
 class InlineDerivation(SingleFieldProjection):
     """
@@ -435,10 +435,11 @@ class InlineDerivation(SingleFieldProjection):
 
         newfield = Field(self.projected_name or self.field_path_resolution.field_name,
                          self.child_derivation.resolved_record,
-                         self.projected_is_optional,
-                         self.projected_default_value,
-                         self.field_path_resolution.docs,
-                         self.annotations or self.field_path_resolution.annotations)
+                         field_path = self.source_field_path,
+                         optional = self.projected_is_optional,
+                         default = self.projected_default_value,
+                         docs = self.field_path_resolution.docs,
+                         annotations = self.annotations or self.field_path_resolution.annotations)
         self._add_field(newfield)
         
 
@@ -490,10 +491,11 @@ class TypeStream(SingleFieldProjection):
 
         newfield = Field(self.projected_name or self.field_path_resolution.field_name,
                          field_type,
-                         self.projected_is_optional,
-                         self.projected_default_value,
-                         self.field_path_resolution.docs,
-                         self.annotations or self.field_path_resolution.annotations)
+                         field_path = self.source_field_path,
+                         optional = self.projected_is_optional,
+                         default = self.projected_default_value,
+                         docs = self.field_path_resolution.docs,
+                         annotations = self.annotations or self.field_path_resolution.annotations)
         self._add_field(newfield)
 
 
@@ -531,12 +533,28 @@ class Field(object):
     """
     Holds all information about a field within a record.
     """
-    def __init__(self, name, field_type, optional = False, default = None, docs = "", annotations = None):
+    def __init__(self, name, field_type, field_path,
+                 optional = False, default = None, docs = "", annotations = None):
+        """
+        Creates a new Field as the result of a projection.
+
+        Parameters:
+
+            name            -   Name of the field to be created
+            field_type      -   Type of the field to be created
+            field_path      -   If the field is a result of a projection then this stores the field path (either relative or absolute)
+            optional        -   Whether the field is optional
+            default         -   Whether the field has a default value
+            docs            -   Documentation for the field
+            annotations     -   Extra annotations for the field.
+        """
         if type(name) not in (str, unicode):
             ipdb.set_trace()
             assert type(name) in (str, unicode), "Expected field_name to be string, Found type: '%s'" % type(name)
         if not isinstance(field_type, tlcore.Type): ipdb.set_trace()
         assert isinstance(field_type, tlcore.Type), type(field_type)
+        assert not field_path.has_children, "Field path of a single derived field cannot have children"
+
         self.field_name = name or ""
         self.field_type = field_type
         self.is_optional = optional

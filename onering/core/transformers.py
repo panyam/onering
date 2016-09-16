@@ -26,13 +26,13 @@ class TransformerGroup(object):
         self._transformers[transformer.fqn] = transformer
         """
 
-    def resolve(self, type_registry):
+    def resolve(self, context):
         """
         Kicks of resolutions of all dependencies.  This must only be called after all derivations that produce records
         have been resolved otherwise those records that are only derived will not be visible in the type_registry.
         """
         for transformer in self._transformers:
-            transformer.resolve(type_registry)
+            transformer.resolve(context)
 
 class Transformer(object):
     """
@@ -55,41 +55,45 @@ class Transformer(object):
             raise errors.OneringException("Transformer rule must be a let statement or a stream exception, Found: %s" % str(type(stmt)))
         self._statements.append(stmt)
 
-    def resolve(self, type_registry):
+    def resolve(self, context):
         """
         Kicks of resolutions of all dependencies.  This must only be called after all derivations that produce records
         have been resolved otherwise those records that are only derived will not be visible in the type_registry.
         """
         def resolver_method():
-            self._resolve(type_registry)
+            self._resolve(context)
         self.resolution.perform_once(resolver_method)
 
 
-    def _resolve(self, type_registry):
+    def _resolve(self, context):
         """
         The main resolver method.
         """
-        src_type = type_registry.get_type(self.src_fqn)
-        dest_type = type_registry.get_type(self.dest_fqn)
+        type_registry = context.type_registry
+        self.src_type = type_registry.get_type(self.src_fqn)
+        self.dest_type = type_registry.get_type(self.dest_fqn)
 
-        self._evaluate_auto_rules(src_type, dest_type)
+        self._evaluate_auto_rules(context)
 
         temp_vars = {}
         for stmt in self._statements:
-            self._evaluate_manual_rule(stmt, src_type, dest_type, temp_vars)
+            self._evaluate_manual_rule(stmt, context, temp_vars)
 
-    def _evaluate_auto_rules(self, src_type, dest_type):
+    def _evaluate_auto_rules(self, context):
         """
         Given the source and dest types, evaluates all "get/set" rules that can be 
         inferred for shared types.   This is only possible if both src and dest types 
         share a common ancestor (or may be even at atmost 1 level).
         """
-        # Step 1: Find common "roots" of each of the recordsk
-        # Now go through each exp
-        ipdb.set_trace()
 
-    def _evaluate_manual_rule(self, rule, src_type, dest_type, temp_vars):
-        ipdb.set_trace()
+        # Step 1: Find common "ancestor" of each of the records
+        ancestor = context.find_common_ancestor(self.src_type, self.dest_type)
+        if ancestor is None:
+            # If the two types have no common ancestor then we cannot have auto rules
+            return 
+
+    def _evaluate_manual_rule(self, rule, context, temp_vars):
+        pass
 
 
 

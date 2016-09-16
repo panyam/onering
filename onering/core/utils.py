@@ -33,6 +33,14 @@ class FieldPath(object):
         else:
             return "/".join(self._parts)
 
+    def with_child(self, field_name):
+        """
+        Creates a new field path, with the given name added to the end.  If this field path
+        has children then the children are replaced with this field name otherwise
+        a new level is added at the end.
+        """
+        return FieldPath(self._parts + [field_name])
+
     @property
     def length(self):
         if self.is_absolute:
