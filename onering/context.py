@@ -53,10 +53,22 @@ class OneringContext(object):
         both record1 and record2 have transitively derived from).  It is possible that one of the records
         is an ancestor of the other in which case this one is returned.
         """
-        derivation1 = self.get_derivation(record1.fqn)
-        derivation2 = self.get_derivation(record2.fqn)
-        if derivation1 is None and derivation2 is None:
-            return None
-        ipdb.set_trace()
+        # Go through derivation1 and get a list of all parents 
+        d1set = set(self.parents_for_type(record1.fqn))
 
+        for d2parent in self.parents_for_type(record2.fqn):
+            if d2parent in d1set:
+                return self.type_registry.get_type(d2parent)
         return None
+
+
+    def parents_for_type(self, record_fqn):
+        """
+        Iterates and generates the parents of a given record (including itself)
+        """
+        while record_fqn:
+            yield record_fqn
+            deriv = self.get_derivation(record_fqn)
+            if not deriv or not deriv.has_sources:
+                return            
+            record_fqn = self.type_registry.get_type(deriv.source_aliases.values()[0]).fqn

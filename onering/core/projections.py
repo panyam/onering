@@ -557,6 +557,7 @@ class Field(object):
 
         self.field_name = name or ""
         self.field_type = field_type
+        self.field_path = field_path
         self.is_optional = optional
         self.default_value = default or None
         self.docs = docs

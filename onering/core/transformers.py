@@ -88,6 +88,7 @@ class Transformer(object):
 
         # Step 1: Find common "ancestor" of each of the records
         ancestor = context.find_common_ancestor(self.src_type, self.dest_type)
+        ipdb.set_trace()
         if ancestor is None:
             # If the two types have no common ancestor then we cannot have auto rules
             return 
