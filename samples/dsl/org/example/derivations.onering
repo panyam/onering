@@ -80,3 +80,16 @@ derive Village : City {
     populationByRace as populationCounts [__ignore__, count] => array[ count ]
     populationByRace as populationRaces [race, __ignore__] => array[ race ]
 }
+
+derive ComplexDerivation : ComplexRecord {
+    x
+    itemMap [k, value] => array [ {
+        k as key
+        value => {
+            /x
+            /a
+            b
+        }
+    } ]
+}
+

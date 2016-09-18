@@ -117,6 +117,7 @@ class DefaultCommandRunner(runner.CommandRunner):
             source_type = console.type_registry.get_type(deriv)
             self.generate_sources(source_type, console, target_platform, target_template)
 
+
     def get_for_wildcards(self, console, wildcards):
         for tw in wildcards:
             # Now resolve all derivations
