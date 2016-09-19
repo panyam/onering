@@ -162,6 +162,7 @@ class RecordDerivation(Projection):
             try:
                 proj.resolve(registry, resolver)
             except tlerrors.TypesNotFoundException, exc:
+                ipdb.set_trace()
                 unresolved_types.add(exc.missing_types)
 
         if len(unresolved_types) > 0:
@@ -356,12 +357,14 @@ class SimpleFieldProjection(SingleFieldProjection):
         # Means we are creating a "new" field so there
         # must not be a projected name and there MUST be a type
         if self.projected_name is not None:
-            raise errors.OneringException("New Field '%s' in '%s' should not have a target_name" % (self.source_field_path, self.parent_derivation.type_data.fqn))
+            raise errors.OneringException("New Field '%s' in '%s' should not have a target_name" % (self.source_field_path, self.parent_derivation.fqn))
         elif self.projected_type is None:
-            ipdb.set_trace()
-            raise errors.OneringException("New Field '%s' in '%s' does not have a target_type" % (self.source_field_path, self.parent_derivation.type_data.fqn))
+            if self.source_field_path.is_absolute:
+                raise errors.OneringException("Projection '%s' (for new field) in '%s' cannot be absolute" % (self.source_field_path, self.parent_derivation.resolved_record.fqn))
+            else:
+                raise errors.OneringException("New Field '%s' in '%s' does not have a target_type" % (self.source_field_path, self.parent_derivation.fqn))
         elif self.source_field_path.length > 1:
-            raise errors.OneringException("New Field '%s' in '%s' must not be a field path" % (self.source_field_path, self.parent_derivation.type_data.fqn))
+            raise errors.OneringException("New Field '%s' in '%s' must not be a field path" % (self.source_field_path, self.parent_derivation.fqn))
         else:
             newfield = Field(self.source_field_path.get(0),
                              self.projected_type,

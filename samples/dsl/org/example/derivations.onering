@@ -82,11 +82,11 @@ derive Village : City {
 }
 
 derive ComplexDerivation : ComplexRecord {
-    x
+    xxxxx
     itemMap [k, value] => array [ {
         k as key
         value => {
-            /x
+            /xxxxx/a
             /a
             b
         }

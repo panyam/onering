@@ -3,71 +3,6 @@ from __future__ import absolute_import
 import ipdb
 from onering.core.utils import FieldPath
 
-def resolve_path_from_record(starting_record, field_path, registry, resolver):
-    root_record = starting_record
-    parent_record = starting_record
-    final_record = starting_record
-    child_type_key = None
-    for i in xrange(field_path.length):
-        part = field_path.get(i)
-        if final_record.constructor != "record":
-            # TODO - Throw a "bad type" exception?
-            break
-        if not final_record.is_resolved:
-            # TODO - Does the order of resolutions make a difference?
-            final_record.resolve(registry)
-        if not final_record.contains(part):
-            # Throw NotFound instead of none?
-            break
-        child_type_key = part
-        parent_record = final_record
-        final_record = final_record.child_type_for(part)
-    return ResolutionResult(root_record, parent_record, child_type_key, field_path)
-
-class ResolutionResult(object):
-    def __init__(self, root_type, parent_type, child_type_key, full_field_path = None):
-        self.root_type = root_type
-        self.parent_type = parent_type
-        self.child_type_key = child_type_key
-        self.full_field_path = full_field_path
-
-    @property
-    def is_valid(self):
-        return self.root_type is not None and self.parent_type is not None and self.child_type_key is not None
-
-    @property
-    def resolved_type(self):
-        if type(self.child_type_key) in (str, unicode):
-            return self.parent_type.child_type_for(self.child_type_key)
-        else:
-            return self.parent_type.child_type_at(self.child_type_key)
-
-    @property
-    def resolved_type_data(self):
-        if type(self.child_type_key) in (str, unicode):
-            return self.parent_type.child_data_for(self.child_type_key)
-        else:
-            return self.parent_type.child_data_at(self.child_type_key)
-
-    @property
-    def docs(self):
-        return ""
-
-    @property
-    def annotations(self):
-        return []
-
-    @property
-    def field_name(self):
-        """
-        Name of the field as a result of the path resolution.  Note that this only 
-        be set if the parent_type is a record type.  Otherwise None.
-        """
-        if self.parent_type.constructor is not "record":
-            return self.full_field_path.last
-        return self.child_type_key
-
-
 class PathResolver(object):
     """
     An interface that helps in the resolution of a field path.  This is hierarchical in nature.
@@ -84,7 +19,8 @@ class PathResolver(object):
                 return self.parent_resolver.resolve_path(field_path)
             elif field_path.length > 0:
                 _, tail_field_path = field_path.pop()
-                return self.resolve_path(tail_field_path)
+                result = self.resolve_path(tail_field_path)
+                return result
             else:
                 return self._resolve_relative_path(field_path)
         else:
@@ -141,3 +77,68 @@ class TypeStreamPathResolver(PathResolver):
                     _, tail_field_path = field_path.pop()
                     return resolve_path_from_record(child_type, tail_field_path, self.type_registry, self)
         return None
+
+def resolve_path_from_record(starting_record, field_path, registry, resolver):
+    root_record = starting_record
+    parent_record = starting_record
+    final_record = starting_record
+    child_type_key = None
+    for i in xrange(field_path.length):
+        part = field_path.get(i)
+        if final_record.constructor != "record":
+            # TODO - Throw a "bad type" exception?
+            return ResolutionResult(root_record, None, None, field_path)
+        if not final_record.is_resolved:
+            # TODO - Does the order of resolutions make a difference?
+            final_record.resolve(registry)
+        if not final_record.contains(part):
+            # Throw NotFound instead of none?
+            break
+        child_type_key = part
+        parent_record = final_record
+        final_record = final_record.child_type_for(part)
+    return ResolutionResult(root_record, parent_record, child_type_key, field_path)
+
+class ResolutionResult(object):
+    def __init__(self, root_type, parent_type, child_type_key, full_field_path = None):
+        self.root_type = root_type
+        self.parent_type = parent_type
+        self.child_type_key = child_type_key
+        self.full_field_path = full_field_path
+
+    @property
+    def is_valid(self):
+        return self.root_type is not None and self.parent_type is not None and self.child_type_key is not None
+
+    @property
+    def resolved_type(self):
+        if type(self.child_type_key) in (str, unicode):
+            return self.parent_type.child_type_for(self.child_type_key)
+        else:
+            return self.parent_type.child_type_at(self.child_type_key)
+
+    @property
+    def resolved_type_data(self):
+        if type(self.child_type_key) in (str, unicode):
+            return self.parent_type.child_data_for(self.child_type_key)
+        else:
+            return self.parent_type.child_data_at(self.child_type_key)
+
+    @property
+    def docs(self):
+        return ""
+
+    @property
+    def annotations(self):
+        return []
+
+    @property
+    def field_name(self):
+        """
+        Name of the field as a result of the path resolution.  Note that this only 
+        be set if the parent_type is a record type.  Otherwise None.
+        """
+        if self.parent_type.constructor is not "record":
+            return self.full_field_path.last
+        return self.child_type_key
+

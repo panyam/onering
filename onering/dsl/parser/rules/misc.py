@@ -1,5 +1,6 @@
 
 from __future__ import absolute_import
+import ipdb
 
 from onering.dsl.lexer import Token, TokenType
 
@@ -48,6 +49,7 @@ def parse_field_path(parser, allow_abs_path = True, allow_child_selection = True
                        ( IDENTIFIER ( "/" IDENTIFIER ) * ) ?
                        ( "/" ( " * " | "(" IDENTIFIER ( ", " IDENTIFIER ) * ")" ) ) ?
             
+        Note that all "/" IDENTIFIER pairs must be in the same line!
     """
     # negates_inclusion = parser.next_token_is(TokenType.MINUS)
     field_path_parts = []
@@ -59,9 +61,16 @@ def parse_field_path(parser, allow_abs_path = True, allow_child_selection = True
 
     # read field_path parts
     # field path parts could have following
+    finished_field_path = False
     if parser.peeked_token_is(TokenType.IDENTIFIER):
+        last_line = parser.peek_token().line
         field_path_parts.append(parser.ensure_fqn())
         while parser.peeked_token_is(TokenType.SLASH):
+            next_line = parser.peek_token().line
+            if last_line != next_line:
+                finished_field_path = True
+                break
+
             tok = parser.next_token()
             if not parser.peeked_token_is(TokenType.IDENTIFIER):
                 parser.unget_token(tok)
@@ -70,7 +79,7 @@ def parse_field_path(parser, allow_abs_path = True, allow_child_selection = True
 
     # check for multi part includes
     selected_children = None
-    if allow_child_selection:
+    if allow_child_selection and not finished_field_path:
         if parser.next_token_is(TokenType.SLASH) or (starts_with_slash and not field_path_parts):
             if parser.next_token_is(TokenType.OPEN_PAREN):
                 selected_children = []

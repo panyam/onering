@@ -83,10 +83,10 @@ typeref Structure = record {
 }
 
 record ComplexRecord  {
-    x : int
+    xxxxx : int
     y : string
     itemMap : map[string,  record MyValueType { 
-        x: string
+        xxxxx : string
         a : Int
         b : string
         c : boolean
