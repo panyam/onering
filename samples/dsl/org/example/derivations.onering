@@ -86,8 +86,7 @@ derive ComplexDerivation : ComplexRecord {
     itemMap [k, value] => array [ {
         k as key
         value => {
-            /xxxxx/a
-            /a
+            /xxxxx
             b
         }
     } ]
