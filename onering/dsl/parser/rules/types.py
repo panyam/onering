@@ -8,6 +8,7 @@ from typelib import enums as tlenums
 from onering import utils
 from onering.dsl.lexer import Token, TokenType
 from onering.dsl.parser.rules.annotations import parse_annotations
+from onering.dsl.errors import UnexpectedTokenException
 
 ########################################################################
 ##          Type declaration parsing rules
@@ -26,7 +27,7 @@ def parse_type_decl(parser):
     elif type_class == "derive":
         from onering.dsl.parser.rules.derivations import parse_derivation
         return parse_derivation(parser, annotations)
-    elif type_class == "transformer":
+    elif type_class == "___transformer___": # Disable for now
         parser.next_token()     # consume it
         from onering.dsl.parser.rules.transformers import parse_transformer
         parse_transformer(parser, annotations)

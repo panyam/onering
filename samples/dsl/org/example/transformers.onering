@@ -4,8 +4,10 @@ namespace transformers
 /**
  * This should create a transformer at the top level called Town2Village as it is not enclosed within a transformer group
  */
+/*
 transformer Town2Village Town => Village {
 }
+*/
 
 /**
  * This creates a transformer group since it has not source or dest and destination at the top level.

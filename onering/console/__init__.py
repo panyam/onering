@@ -127,9 +127,11 @@ class OneringConsole(code.InteractiveConsole, OneringConsoleBase):
                 except tlerrors.TLException, exc:
                     logerror(exc.message)
                     traceback.print_exc()
+                    raise
                 except orerrors.OneringException, exc:
                     logerror(exc.message)
                     traceback.print_exc()
+                    raise
                 except:
                     traceback.print_exc()
                     raise

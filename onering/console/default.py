@@ -102,7 +102,7 @@ class DefaultCommandRunner(runner.CommandRunner):
         wildcards = []
         wildcards = [r.split(",") for r in rest.split(" ")]
         wildcards = filter(lambda x:x, reduce(lambda x,y:x+y, wildcards))
-        wildcards, _, param_args = split_list_at(lambda x:x == "wild", wildcards)
+        wildcards, _, param_args = split_list_at(lambda x:x == "with", wildcards)
         target_platform = param_args[0] if len(param_args) > 0 else None
         target_template = param_args[1] if len(param_args) > 1 else None
 

@@ -21,9 +21,6 @@ class OneringContext(object):
         from onering.templates import loader as tplloader
         self.template_loader = tplloader.TemplateLoader(self.template_dirs)
 
-    def get_transformer_group(self, fqn):
-        return self._transformer_groups.get(fqn, None)
-
     def get_derivation(self, fqn):
         return self._derivations.get(fqn, None)
 
@@ -46,6 +43,8 @@ class OneringContext(object):
             raise errors.OneringException("Duplicate transformer_group found: %s" % transformer_group.fqn)
         self._transformer_groups[transformer_group.fqn] = transformer_group
 
+    def get_transformer_group(self, fqn):
+        return self._transformer_groups.get(fqn, None)
 
     def find_common_ancestor(self, record1, record2):
         """
