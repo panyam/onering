@@ -57,8 +57,18 @@ derive OrcLand : Kingdom {
 
 derive ElvenKingdom : Kingdom {
     cities[C] => map[
-        C/name,
+        Kingdom / ruler,
         C
+     ]
+}
+
+derive TrollKingdom : Kingdom {
+    cities[C] => map[
+        Kingdom / ruler,
+        {
+            C/name,
+            C
+        }
      ]
 }
 
@@ -81,12 +91,13 @@ derive Village : City {
     populationByRace as populationRaces [race, __ignore__] => array[ race ]
 }
 
-derive ComplexDerivation : ComplexRecord {
-    xxxxx
+derive ComplexDerivation : ComplexRecord  as C {
+    C/xxxxx
     itemMap [k, value] => array [ {
         k as key
         value => {
-            /xxxxx
+            xxxxx
+            a
             b
         }
     } ]

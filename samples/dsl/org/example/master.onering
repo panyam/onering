@@ -87,7 +87,7 @@ record ComplexRecord  {
     y : string
     itemMap : map[string,  record MyValueType { 
         xxxxx : string
-        a : Int
+        a : int
         b : string
         c : boolean
     }]

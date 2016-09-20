@@ -61,6 +61,7 @@ def parse_derivation_body(parser, derivation):
         # read a field projection
         projection = parse_projection(parser, derivation)
         derivation.add_projection(projection)
+        parser.consume_tokens(TokenType.COMMA)
 
     parser.ensure_token(TokenType.CLOSE_BRACE)
     return derivation

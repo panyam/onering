@@ -50,10 +50,25 @@ class DerivationPathResolver(PathResolver):
         Checks if the field path matches any of the fields in the derivation's source records
         """
         # get the first source ...
-        source_fqn = self.derivation.source_aliases.values()[0]
-        starting_type = self.type_registry.get_type(source_fqn)
+        result = None
+        if len(self.derivation.source_aliases.keys()) == 1:
+            # If there are more than sources then we MUST use a key to start the path with
+            source_fqn = self.derivation.source_aliases.values()[0]
+            starting_type = self.type_registry.get_type(source_fqn)
 
-        return resolve_path_from_record(starting_type, field_path, self.type_registry, self)
+            # TODO: We should consider generalizing this.  Is it better to have "multiple" named sources here?
+            # Eg in a type streaming, there are technically no sources but every bound variable is a source
+            result = resolve_path_from_record(starting_type, field_path, self.type_registry, self)
+
+        if (not result or not result.is_valid) and field_path.length > 0:
+            # Then try it with as if the first part of the fieldpath is a source itself
+            for src in self.derivation.source_aliases.keys():
+                if src == field_path.get(0):
+                    src = self.derivation.source_aliases[src]
+                    starting_type = self.type_registry.get_type(source_fqn)
+                    result = resolve_path_from_record(starting_type, field_path.pop()[1], self.type_registry, self)
+                    break
+        return result
 
 class TypeStreamPathResolver(PathResolver):
     def __init__(self, parent_resolver, type_stream, type_registry):
