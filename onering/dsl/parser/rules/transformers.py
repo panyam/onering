@@ -22,26 +22,30 @@ def parse_transformer_group(parser, annotations):
     n = parser.ensure_token(TokenType.IDENTIFIER)
     ns = parser.document.namespace
     n,ns,fqn = utils.normalize_name_and_ns(n, ns)
-    print "Parsing new transformer: '%s'" % fqn
+    print "Parsing new transformer group: '%s'" % fqn
 
     transformer_group = transformers.TransformerGroup(fqn, annotations = annotations, docs = parser.last_docstring())
     parser.ensure_token(TokenType.OPEN_BRACE)
     while not parser.peeked_token_is(TokenType.CLOSE_BRACE):
         # read a transformer
-        transformer = parse_transformer(parser, transformer_group)
+        annotations = parse_annotations(parser)
+        # consume the "transformer"
+        parser.next_token_if(TokenType.IDENTIFIER, "transformer", consume = True)
+
+        transformer = parse_transformer(parser, annotations, transformer_group)
         transformer_group.add_transformer(transformer)
 
     parser.onering_context.register_transformer_group(transformer_group)
     parser.ensure_token(TokenType.CLOSE_BRACE)
     return transformer_group
 
-def parse_transformer(parser, transformer_group):
+def parse_transformer(parser, annotations, transformer_group = None):
     """
     Parses a single transformer declaration
 
-        src_type_fqn<IDENT> "=> dest_type_fqn<IDENT> "{" transformer_rule * "}"
+        transformer_name src_type_fqn<IDENT> "=> dest_type_fqn<IDENT> "{" transformer_rule * "}"
     """
-    annotations = parse_annotations(parser)
+    transformer_name = parser.ensure_token(TokenType.IDENTIFIER)
     src_fqn = parser.ensure_fqn()
     parser.ensure_token(TokenType.STREAM)
     dest_fqn = parser.ensure_fqn()
@@ -49,9 +53,9 @@ def parse_transformer(parser, transformer_group):
     n,ns,src_fqn = utils.normalize_name_and_ns(src_fqn, parser.document.namespace, ensure_namespaces_are_equal = False)
     n,ns,dest_fqn = utils.normalize_name_and_ns(dest_fqn, parser.document.namespace, ensure_namespaces_are_equal = False)
 
-    print "Parsing new transformer: %s -> %s" % (src_fqn, dest_fqn)
+    print "Parsing new transformer '%s': %s -> %s" % (transformer_name, src_fqn, dest_fqn)
 
-    transformer = transformers.Transformer(fqn = None,
+    transformer = transformers.Transformer(fqn = transformer_name,
                                            src_fqn = src_fqn,
                                            dest_fqn = dest_fqn,
                                            group = transformer_group,

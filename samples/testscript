@@ -10,7 +10,7 @@ onering load ./dsl/org/example/master
 onering load ./dsl/org/example/transformers
 
 # Generate things
-gen org.example.*, org.example
+# gen org.example.*, org.example
 
 # Generate transformers
-gent org.example.Town -> org.example.Village
+# gent org.example.Town2Village 
