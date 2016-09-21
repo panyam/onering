@@ -15,6 +15,9 @@ class JavaTargetBackend(object):
     For generating java pojos for a given type
     """
     def generate_schema(self, type_name, thetype, context, backend_annotation):
+        """
+        Generates the files for a particular type.
+        """
         n,ns,fqn = utils.normalize_name_and_ns(type_name, "")
         type_registry, output_dir = context.type_registry, context.output_dir
         record = self.normalize_record(type_name, thetype, backend_annotation)
@@ -24,8 +27,14 @@ class JavaTargetBackend(object):
         with self.normalized_output_stream(output_dir, fqn) as outstream:
             outstream.write(templ.render(record = record, backend = self))
 
-    def generate_transformer_group(self, trans_group, type_name, thetype, context, backend_annotation):
+    def generate_transformer_group(self, tgroup, type_name, thetype, context, backend_annotation):
+        """
+        Generates the files for a particular transformer utility class.
+        """
         type_registry, output_dir, template_loader = context.type_registry, context.output_dir, context.template_loader
+        n,ns,fqn = utils.normalize_name_and_ns(tgroup.fqn, "")
+        templ = self.load_template(context, backend_annotation.first_value_of("template") or "transformers/java/default_transformer_group")
+        print templ.render(tgroup = tgroup)
 
     def load_template(self, context, template_name):
         templ = context.template_loader.load_template(template_name)

@@ -89,7 +89,6 @@ class Transformer(Annotatable):
 
         # Step 1: Find common "ancestor" of each of the records
         ancestor = context.find_common_ancestor(self.src_type, self.dest_type)
-        ipdb.set_trace()
         if ancestor is None:
             # If the two types have no common ancestor then we cannot have auto rules
             return 
@@ -118,7 +117,6 @@ class Expression(object):
     @next.setter
     def next(self, value):
         if type(value) is FunctionExpression:
-            ipdb.set_trace()
             raise errors.OneringException("FunctionExpressions can only be at the start of an expression stream")
 
         if value._prev is not None:

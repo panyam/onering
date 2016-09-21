@@ -20,13 +20,8 @@ def evaluate_backend_platforms(annotatable, thering, target_platform = None):
     return backend_annotations
 
 def generate_transformers(trans_group, thering, target_platform, target_template):
-    ipdb.set_trace()
-
     # Resolve all transformers first - by now all derived schemas should have been resolved
     trans_group.resolve(thering)
-
-    # for trans in trans_group.all_transformers: if trans.sr
-    pass
 
     backend_annotations = evaluate_backend_platforms(trans_group, thering, target_platform)
 
