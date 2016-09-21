@@ -1,8 +1,9 @@
 
 import ipdb
+import os
+import sys
 import StringIO
-import os, sys
-import json
+
 from onering import utils
 from typelib import annotations as tlannotations
 
@@ -14,22 +15,9 @@ class JavaTargetBackend(object):
     For generating java pojos for a given type
     """
     def generate_schema(self, type_name, thetype, context, backend_annotation):
-        type_registry, output_dir = context.type_registry, context.output_dir
         n,ns,fqn = utils.normalize_name_and_ns(type_name, "")
-        if backend_annotation.has_param("namespace"):
-            ns = backend_annotation.first_value_of("namespace")
-            fqn = ".".join([ns, n])
-        record = {
-            "name": n,
-            "namespace": ns,
-            "import_types": [],
-            "annotations": tlannotations.Annotations(thetype.annotations),
-            "fields": [ {
-                    'field_name': fname, 
-                    'field_type': ftype,
-                    'annotations': tlannotations.Annotations(annots)
-                } for ((fname, ftype), annots) in zip(thetype.children, thetype._child_annotations)]
-        }
+        type_registry, output_dir = context.type_registry, context.output_dir
+        record = self.normalize_record(type_name, thetype, backend_annotation)
         templ = self.load_template(context, backend_annotation.first_value_of("template") or "backends/java/mutable_pojo")
         print templ.render(record = record)
 
@@ -67,19 +55,22 @@ class JavaTargetBackend(object):
                     self.outstream.close()
         return JavaPathStream(output_dir, fqn)
 
-    def normalize_output_stream(self, instance_transformer, output_target = None):
-        if output_target == None:
-            return sys.stdout, False
-        elif type(output_target) not in (str, unicode):
-            return output_target, False
-        elif os.path.isfile(output_target):
-            return open(output_target, "w"), True
-        else:
-            folder = os.path.join(output_target, instance_transformer.namespace.replace(".", os.sep))
-            if not os.path.isdir(folder):
-                os.makedirs(folder)
-            path = os.path.join(folder, instance_transformer.name) + ".java"
-            return open(path, "w"), True
+    def normalize_record(self, type_name, thetype, backend_annotation):
+        n,ns,fqn = utils.normalize_name_and_ns(type_name, "")
+        if backend_annotation.has_param("namespace"):
+            ns = backend_annotation.first_value_of("namespace")
+            fqn = ".".join([ns, n])
+        return {
+            "name": n,
+            "namespace": ns,
+            "import_types": [],
+            "annotations": tlannotations.Annotations(thetype.annotations),
+            "fields": [ {
+                    'field_name': fname, 
+                    'field_type': ftype,
+                    'annotations': tlannotations.Annotations(annots)
+                } for ((fname, ftype), annots) in zip(thetype.children, thetype._child_annotations)]
+        }
 
 def debug_print(*text):
     print "".join(map(str, list(text)))
