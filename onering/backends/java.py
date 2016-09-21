@@ -10,6 +10,44 @@ from typelib import annotations as tlannotations
 from jinja2 import nodes
 from jinja2.ext import Extension, contextfunction
 
+class TypeViewModel(object):
+    def __init__(self, type_name, thetype, context, backend_annotation):
+        self.context = context
+        self.backend_annotations = backend_annotation
+        n,ns,fqn = utils.normalize_name_and_ns(type_name, "")
+        self.thetype = thetype
+        if backend_annotation.has_param("namespace"):
+            ns = backend_annotation.first_value_of("namespace")
+            fqn = ".".join([ns, n])
+        self.name = n
+        self.namespace = ns
+        self.import_types = []
+        self.annotations = tlannotations.Annotations(thetype.annotations)
+        self.fields =  [ {
+                    'field_name': fname, 
+                    'field_type': ftype,
+                    'annotations': tlannotations.Annotations(annots)
+                } for ((fname, ftype), annots) in zip(thetype.children, thetype._child_annotations)]
+
+class TransformerGroupViewModel(object):
+    def __init__(self, tgroup, context, backend_annotation):
+        self.context = context
+        self.backend_annotations = backend_annotation
+        n,ns,fqn = utils.normalize_name_and_ns(tgroup.fqn, "")
+        self.tgroup = tgroup
+        if backend_annotation.has_param("namespace"):
+            ns = backend_annotation.first_value_of("namespace")
+            fqn = ".".join([ns, n])
+        self.name = n
+        self.namespace = ns
+        self.import_types = []
+        self.annotations = tlannotations.Annotations(tgroup.annotations)
+        self.transformers = tgroup.all_transformers
+
+
+    def render_transformer(self, transformer):
+        return transformer.fqn
+
 class JavaTargetBackend(object):
     """
     For generating java pojos for a given type
@@ -19,22 +57,25 @@ class JavaTargetBackend(object):
         Generates the files for a particular type.
         """
         n,ns,fqn = utils.normalize_name_and_ns(type_name, "")
-        type_registry, output_dir = context.type_registry, context.output_dir
-        record = self.normalize_record(type_name, thetype, backend_annotation)
+        type_registry = context.type_registry
+        record = TypeViewModel(type_name, thetype, context, backend_annotation)
         templ = self.load_template(context, backend_annotation.first_value_of("template") or "backends/java/mutable_pojo")
-        print templ.render(record = record)
+        print templ.render(record = record, backend = self)
 
-        with self.normalized_output_stream(output_dir, fqn) as outstream:
+        with self.normalized_output_stream(context.output_dir, fqn) as outstream:
             outstream.write(templ.render(record = record, backend = self))
 
-    def generate_transformer_group(self, tgroup, type_name, thetype, context, backend_annotation):
+    def generate_transformer_group(self, tgroup, context, backend_annotation):
         """
         Generates the files for a particular transformer utility class.
         """
-        type_registry, output_dir, template_loader = context.type_registry, context.output_dir, context.template_loader
-        n,ns,fqn = utils.normalize_name_and_ns(tgroup.fqn, "")
+        type_registry = context.type_registry
+        normalized_tgroup = TransformerGroupViewModel(tgroup, context, backend_annotation)
+
         templ = self.load_template(context, backend_annotation.first_value_of("template") or "transformers/java/default_transformer_group")
-        print templ.render(tgroup = tgroup)
+        print templ.render(tgroup = normalized_tgroup, backend = self)
+        with self.normalized_output_stream(context.output_dir, tgroup.fqn) as outstream:
+            outstream.write(templ.render(tgroup = normalized_tgroup, backend = self))
 
     def load_template(self, context, template_name):
         templ = context.template_loader.load_template(template_name)
@@ -63,23 +104,6 @@ class JavaTargetBackend(object):
                 if self.output_path:
                     self.outstream.close()
         return JavaPathStream(output_dir, fqn)
-
-    def normalize_record(self, type_name, thetype, backend_annotation):
-        n,ns,fqn = utils.normalize_name_and_ns(type_name, "")
-        if backend_annotation.has_param("namespace"):
-            ns = backend_annotation.first_value_of("namespace")
-            fqn = ".".join([ns, n])
-        return {
-            "name": n,
-            "namespace": ns,
-            "import_types": [],
-            "annotations": tlannotations.Annotations(thetype.annotations),
-            "fields": [ {
-                    'field_name': fname, 
-                    'field_type': ftype,
-                    'annotations': tlannotations.Annotations(annots)
-                } for ((fname, ftype), annots) in zip(thetype.children, thetype._child_annotations)]
-        }
 
 def debug_print(*text):
     print "".join(map(str, list(text)))

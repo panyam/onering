@@ -10,22 +10,20 @@ class TransformerGroup(Annotatable):
     data are available for all transformers within this group.   The group also determins how the
     """
     def __init__(self, fqn, annotations = None, docs = ""):
-        Annotatable.__init__(self, annotations)
+        Annotatable.__init__(self, annotations, docs)
         self.fqn = fqn
+        self._transformer_names = set()
         self._transformers = []
-        self.docs = docs or ""
 
     @property
     def all_transformers(self):
         return self._transformers[:]
 
     def add_transformer(self, transformer):
-        self._transformers.append(transformer)
-        """
-        if transformer.fqn in self._transformers:
+        if transformer.fqn in self._transformer_names:
             raise errors.OneringException("Duplicate transformer found: " % transformer.fqn)
-        self._transformers[transformer.fqn] = transformer
-        """
+        self._transformer_names.add(transformer.fqn)
+        self._transformers.append(transformer)
 
     def resolve(self, context):
         """
@@ -40,9 +38,8 @@ class Transformer(Annotatable):
     Transformers define how an instance of one type can be transformed to an instance of another.
     """
     def __init__(self, fqn, src_fqn, dest_fqn, group = None, annotations = None, docs = ""):
-        Annotatable.__init__(self, annotations)
+        Annotatable.__init__(self, annotations, docs)
         self.resolution = ResolutionStatus()
-        self.docs = docs or ""
         self.fqn = fqn
         self.src_fqn = src_fqn
         self.dest_fqn = dest_fqn
