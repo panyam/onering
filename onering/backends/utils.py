@@ -33,7 +33,7 @@ def generate_transformers(trans_group, thering, target_platform, target_template
         module_name = ".".join(platform.split(".")[:-1])
         platform_module = importlib.import_module(module_name)
         platform_class = getattr(platform_module, platform.split(".")[-1])
-        platform_class().generate_transformer_group(trans_group, thering, backend_annotation)
+        platform_class(thering, backend_annotation).generate_transformer_group(trans_group)
 
 
 def generate_schemas(source_type, thering, target_platform, target_template):
@@ -57,4 +57,4 @@ def generate_schemas(source_type, thering, target_platform, target_template):
         module_name = ".".join(platform.split(".")[:-1])
         platform_module = importlib.import_module(module_name)
         platform_class = getattr(platform_module, platform.split(".")[-1])
-        platform_class().generate_schema(source_type.fqn, source_type, thering, backend_annotation)
+        platform_class(thering, backend_annotation).generate_schema(source_type.fqn, source_type)

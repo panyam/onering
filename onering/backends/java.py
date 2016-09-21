@@ -11,7 +11,8 @@ from jinja2 import nodes
 from jinja2.ext import Extension, contextfunction
 
 class TypeViewModel(object):
-    def __init__(self, type_name, thetype, context, backend_annotation):
+    def __init__(self, backend, type_name, thetype, context, backend_annotation):
+        self.backend = backend
         self.context = context
         self.backend_annotations = backend_annotation
         n,ns,fqn = utils.normalize_name_and_ns(type_name, "")
@@ -30,7 +31,8 @@ class TypeViewModel(object):
                 } for ((fname, ftype), annots) in zip(thetype.children, thetype._child_annotations)]
 
 class TransformerGroupViewModel(object):
-    def __init__(self, tgroup, context, backend_annotation):
+    def __init__(self, backend, tgroup, context, backend_annotation):
+        self.backend = backend
         self.context = context
         self.backend_annotations = backend_annotation
         n,ns,fqn = utils.normalize_name_and_ns(tgroup.fqn, "")
@@ -46,39 +48,47 @@ class TransformerGroupViewModel(object):
 
 
     def render_transformer(self, transformer):
-        return transformer.fqn
+        ipdb.set_trace()
+        templ = self.backend.load_template(self.backend.backend_annotation.first_value_of("template") or "transformers/java/default_transformer")
+        return templ.render(transformer = transformer, tgroup = self, backend = self.backend)
 
 class JavaTargetBackend(object):
     """
     For generating java pojos for a given type
     """
-    def generate_schema(self, type_name, thetype, context, backend_annotation):
+    def __init__(self, context, backend_annotation):
+        self.context = context
+        self.backend_annotation = backend_annotation 
+
+    def generate_schema(self, type_name, thetype):
         """
         Generates the files for a particular type.
         """
+        context, backend_annotation = self.context, self.backend_annotation
         n,ns,fqn = utils.normalize_name_and_ns(type_name, "")
         type_registry = context.type_registry
-        record = TypeViewModel(type_name, thetype, context, backend_annotation)
-        templ = self.load_template(context, backend_annotation.first_value_of("template") or "backends/java/mutable_pojo")
+        record = TypeViewModel(self, type_name, thetype, context, backend_annotation)
+        templ = self.load_template(backend_annotation.first_value_of("template") or "backends/java/mutable_pojo")
         print templ.render(record = record, backend = self)
 
         with self.normalized_output_stream(context.output_dir, fqn) as outstream:
             outstream.write(templ.render(record = record, backend = self))
 
-    def generate_transformer_group(self, tgroup, context, backend_annotation):
+    def generate_transformer_group(self, tgroup):
         """
         Generates the files for a particular transformer utility class.
         """
+        context, backend_annotation = self.context, self.backend_annotation
         type_registry = context.type_registry
-        normalized_tgroup = TransformerGroupViewModel(tgroup, context, backend_annotation)
+        normalized_tgroup = TransformerGroupViewModel(self, tgroup, context, backend_annotation)
 
-        templ = self.load_template(context, backend_annotation.first_value_of("template") or "transformers/java/default_transformer_group")
+        templ = self.load_template(backend_annotation.first_value_of("template") or "transformers/java/default_transformer_group")
         print templ.render(tgroup = normalized_tgroup, backend = self)
         with self.normalized_output_stream(context.output_dir, tgroup.fqn) as outstream:
             outstream.write(templ.render(tgroup = normalized_tgroup, backend = self))
 
-    def load_template(self, context, template_name):
-        templ = context.template_loader.load_template(template_name)
+    def load_template(self, template_name):
+        templ = self.context.template_loader.load_template(template_name)
         templ.globals["camel_case"] = camel_case
         templ.globals["signature"] = get_type_signature
         templ.globals['debug'] = debug_print
