@@ -1,7 +1,7 @@
 
 import ipdb
 import StringIO
-import os
+import os, sys
 import json
 from onering import utils
 from typelib import annotations as tlannotations
@@ -14,7 +14,7 @@ class JavaTargetBackend(object):
     For generating java pojos for a given type
     """
     def generate_schema(self, type_name, thetype, context, backend_annotation):
-        type_registry, output_dir, template_loader = context.type_registry, context.output_dir, context.template_loader
+        type_registry, output_dir = context.type_registry, context.output_dir
         n,ns,fqn = utils.normalize_name_and_ns(type_name, "")
         if backend_annotation.has_param("namespace"):
             ns = backend_annotation.first_value_of("namespace")
@@ -30,21 +30,42 @@ class JavaTargetBackend(object):
                     'annotations': tlannotations.Annotations(annots)
                 } for ((fname, ftype), annots) in zip(thetype.children, thetype._child_annotations)]
         }
-        templ = template_loader.load_template(backend_annotation.first_value_of("template") or "backends/java/mutable_pojo")
-        templ.globals["camel_case"] = camel_case
-        templ.globals["signature"] = get_type_signature
-        templ.globals['debug'] = debug_print
+        templ = self.load_template(context, backend_annotation.first_value_of("template") or "backends/java/mutable_pojo")
         print templ.render(record = record)
 
-        output_path = os.path.join(output_dir, *fqn.split("."))
-        if not os.path.isdir(os.path.dirname(output_path)):
-            os.makedirs(os.path.dirname(output_path))
-        outstream = open(output_path + ".java", "w")
-        outstream.write(templ.render(record = record, backend = self))
-        outstream.close()
+        with self.normalized_output_stream(output_dir, fqn) as outstream:
+            outstream.write(templ.render(record = record, backend = self))
 
     def generate_transformer_group(self, trans_group, type_name, thetype, context, backend_annotation):
         type_registry, output_dir, template_loader = context.type_registry, context.output_dir, context.template_loader
+
+    def load_template(self, context, template_name):
+        templ = context.template_loader.load_template(template_name)
+        templ.globals["camel_case"] = camel_case
+        templ.globals["signature"] = get_type_signature
+        templ.globals['debug'] = debug_print
+        return templ
+
+    def normalized_output_stream(self, output_dir, fqn):
+        class JavaPathStream(object):
+            def __init__(self, output_dir, fqn):
+                self.output_dir = output_dir
+                self.fqn = fqn
+                self.output_path = None
+                self.outstream = sys.stdout
+                if self.output_dir:
+                    self.output_path = os.path.join(output_dir, *fqn.split("."))
+                    if not os.path.isdir(os.path.dirname(self.output_path)):
+                        os.makedirs(os.path.dirname(self.output_path))
+                    self.outstream = open(self.output_path + ".java", "w")
+
+            def __enter__(self):
+                return self.outstream
+
+            def __exit__(self, type, value, traceback):
+                if self.output_path:
+                    self.outstream.close()
+        return JavaPathStream(output_dir, fqn)
 
     def normalize_output_stream(self, instance_transformer, output_target = None):
         if output_target == None:
