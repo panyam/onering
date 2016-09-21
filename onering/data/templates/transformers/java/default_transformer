@@ -1,0 +1,17 @@
+
+
+public static void {{transformer.name}}({{transformer.src_fqn}} source, {{transformer.dest_fqn}} dest) {
+    {% for rule in transformer.rules %}
+        generate the rule code - this can either affect a temp variable or a destination variable
+
+        for each rule, there is a set of transformations that happen and final result is "assigned"
+        to some destination
+        1. How to manage these destinations?
+        2. How to render the transformations (and store intermediate results - register generation?)
+        3. Need a "scope" object that is shared by all rules as the variables will be applied here
+        4. Have a per type counter for generated variables
+
+        By this point, a rule should be "processed" so that any backend can do the same thing, ie generate code
+        (including things like var declarations etc)
+    {% endfor %}
+}

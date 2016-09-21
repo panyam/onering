@@ -115,11 +115,11 @@ def resolve_path_from_record(starting_record, field_path, registry, resolver):
     return ResolutionResult(root_record, parent_record, child_type_key, field_path)
 
 class ResolutionResult(object):
-    def __init__(self, root_type, parent_type, child_type_key, full_field_path = None):
+    def __init__(self, root_type, parent_type, child_type_key, normalized_field_path = None):
         self.root_type = root_type
         self.parent_type = parent_type
         self.child_type_key = child_type_key
-        self.full_field_path = full_field_path
+        self.normalized_field_path = normalized_field_path
 
     @property
     def is_valid(self):
@@ -154,6 +154,6 @@ class ResolutionResult(object):
         be set if the parent_type is a record type.  Otherwise None.
         """
         if self.parent_type.constructor is not "record":
-            return self.full_field_path.last
+            return self.normalized_field_path.last
         return self.child_type_key
 

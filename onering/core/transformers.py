@@ -15,6 +15,9 @@ class TransformerGroup(Annotatable):
         self._transformer_names = set()
         self._transformers = []
 
+    def __repr__(self):
+        return "<TG - ID: 0x%x, FQN: %s>" % (id(self), self.fqn)
+
     @property
     def all_transformers(self):
         return self._transformers[:]
@@ -46,6 +49,9 @@ class Transformer(Annotatable):
         self.group = group
         # explicit transformer rules
         self._statements = []
+
+    def __repr__(self):
+        return "<Transformer - ID: 0x%x, Name: %s (%s -> %s)>" % (id(self), self.fqn, self.src_fqn, self.dest_fqn)
 
     def add_statement(self, stmt):
         if isinstance(stmt, Expression) and stmt.next is None:
@@ -89,6 +95,7 @@ class Transformer(Annotatable):
         if ancestor is None:
             # If the two types have no common ancestor then we cannot have auto rules
             return 
+        ipdb.set_trace()
 
     def _evaluate_manual_rule(self, rule, context, temp_vars):
         pass
