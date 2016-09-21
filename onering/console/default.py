@@ -3,13 +3,11 @@ from __future__ import absolute_import
 import os
 import json
 import shlex
-import importlib
-import fnmatch
 import ipdb
-from typelib import annotations as tlannotations
 from onering.console import runner, dirs, pegasus, courier, orc, platform
 from onering.utils import split_list_at, parse_line_dict
 from onering.console.utils import logerror
+from onering.backends import utils as orbeutils
 
 class DefaultCommandRunner(runner.CommandRunner):
     @property
@@ -82,7 +80,7 @@ class DefaultCommandRunner(runner.CommandRunner):
 
     def do_gen(self, console, cmd, rest, prev):
         """
-        Generate code or schemas for given types, derivations or transformers.
+        Generate code or schemas for given types and derivations.
 
         Usage:
             gen     <types>
@@ -106,67 +104,48 @@ class DefaultCommandRunner(runner.CommandRunner):
         target_platform = param_args[0] if len(param_args) > 0 else None
         target_template = param_args[1] if len(param_args) > 1 else None
 
-        source_types, source_derivations = self.get_for_wildcards(console, wildcards)
+        source_types = console.thering.type_registry.types_for_wildcards(wildcards)
+        source_derivations = console.thering.derivations_for_wildcards(wildcards)
 
         # Awwwwright resolutions succeeded so now generate them!
         for source_fqn in source_types:
             source_type = console.type_registry.get_type(source_fqn)
-            self.generate_sources(source_type, console, target_platform, target_template)
+            orbeutils.generate_schemas(source_type, console.thering, target_platform, target_template)
 
         for deriv in source_derivations:
             source_type = console.type_registry.get_type(deriv)
-            self.generate_sources(source_type, console, target_platform, target_template)
+            orbeutils.generate_schemas(source_type, console.thering, target_platform, target_template)
 
+    def do_gent(self, console, cmd, rest, prev):
+        """
+        Generate code for transformers
 
-    def get_for_wildcards(self, console, wildcards):
-        for tw in wildcards:
-            # Now resolve all derivations
-            for derivation in console.thering.all_derivations:
-                if fnmatch.fnmatch(derivation.fqn, tw):
-                    derivation.resolve(console.type_registry, None)
+        Usage:
+            gen     <types>
+            gen     <types>      with    <platform> <template>
 
-        source_types = set()
-        source_derivations = set()
-        for tw in wildcards:
-            # First go through all resolved types
-            for (fqn,t) in console.thering.type_registry.resolved_types:
-                if fnmatch.fnmatch(fqn, tw):
-                    source_types.add(fqn)
+            <types>     Is a list of (space seperated) wild cards
+            <platform>  If a platform is specified then the generated output is for the particular platform.
+                        If the platform is not specified then the platform specified in the type's 
+                        "onering.backend" annotation is used.
+                        If this annotation is not specified then the default platform is used. Otherwise
+                        an error is thrown.
+            <template>  Same for templates, specifed -> annotation -> default
+        """
+        # Couple of more things to do here!
+        # First, this should also pick up all derivations
 
-            # Now resolve all derivations
-            for derivation in console.thering.all_derivations:
-                if fnmatch.fnmatch(derivation.fqn, tw):
-                    source_derivations.add(derivation.fqn)
+        wildcards = []
+        wildcards = [r.split(",") for r in rest.split(" ")]
+        wildcards = filter(lambda x:x, reduce(lambda x,y:x+y, wildcards))
+        wildcards, _, param_args = split_list_at(lambda x:x == "with", wildcards)
+        target_platform = param_args[0] if len(param_args) > 0 else None
+        target_template = param_args[1] if len(param_args) > 1 else None
 
-        return source_types, source_derivations
+        transformer_groups = console.thering.transformer_groups_for_wildcards(wildcards)
 
-    def generate_sources(self, source_type, console, target_platform, target_template):
-        # see if the source_type has a backend annotation
-        if source_type.constructor != "record":
-            return
+        # Awwwwright resolutions succeeded so now generate them!
+        for tgfqn in transformer_groups:
+            tg = console.thering.get_transformer_group(tgfqn)
+            orbeutils.generate_transformers(tg, console.thering, target_platform, target_template)
 
-        backend_annotations = []
-        if console.thering.default_platform:
-            backend_annotations = [tlannotations.Annotation("onering.backend", None, 
-                                        {"platform": console.thering.default_platform})]
-        if source_type.has_annotation("onering.backend"):
-            backend_annotations = source_type.get_annotations("onering.backend")
-
-        if target_platform:
-            backend_annotations = [tlannotations.Annotation("onering.backend", None, 
-                                    {"platform": target_platform, "template": target_template})]
-
-        if not backend_annotations:
-            return logerror("Please specify a platform or set a default platform for record: %s" % source_type.fqn)
-
-        for backend_annotation in backend_annotations:
-            platform_name = backend_annotation.first_value_of("platform")
-            if platform_name not in console.thering.platform_aliases:
-                logerror("Invalid platform: %s" % platform_name)
-            platform = console.thering.platform_aliases[platform_name]
-            module_name = ".".join(platform.split(".")[:-1])
-            platform_module = importlib.import_module(module_name)
-            platform_class = getattr(platform_module, platform.split(".")[-1])
-            platform_class().generate(source_type.fqn, source_type, console.type_registry,
-                                      console.thering.output_dir, console.thering.template_loader,
-                                      backend_annotation)

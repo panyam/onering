@@ -1,6 +1,9 @@
 
 namespace transformers
 
+import org.example.Town
+import org.example.Village
+
 /**
  * This should create a transformer at the top level called Town2Village as it is not enclosed within a transformer group
  */

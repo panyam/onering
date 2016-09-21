@@ -2,16 +2,17 @@
 import ipdb
 from onering import errors
 from onering.utils import ResolutionStatus
+from typelib.annotations import Annotatable
 
-class TransformerGroup(object):
+class TransformerGroup(Annotatable):
     """
     A transformer group enables a set of transformers to be logically grouped.  This group and its
     data are available for all transformers within this group.   The group also determins how the
     """
     def __init__(self, fqn, annotations = None, docs = ""):
+        Annotatable.__init__(self, annotations)
         self.fqn = fqn
         self._transformers = []
-        self.annotations = annotations or []
         self.docs = docs or ""
 
     @property
@@ -34,13 +35,13 @@ class TransformerGroup(object):
         for transformer in self._transformers:
             transformer.resolve(context)
 
-class Transformer(object):
+class Transformer(Annotatable):
     """
     Transformers define how an instance of one type can be transformed to an instance of another.
     """
     def __init__(self, fqn, src_fqn, dest_fqn, group = None, annotations = None, docs = ""):
+        Annotatable.__init__(self, annotations)
         self.resolution = ResolutionStatus()
-        self.annotations = annotations or []
         self.docs = docs or ""
         self.fqn = fqn
         self.src_fqn = src_fqn

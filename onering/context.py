@@ -1,6 +1,7 @@
 
 
 import ipdb
+import fnmatch
 from typelib import registry 
 from onering import resolver
 from onering import errors
@@ -79,3 +80,33 @@ class OneringContext(object):
             record_fqn = self.derived_from_type(record_fqn)
             if record_fqn:
                 record_fqn = record_fqn.fqn
+
+    def derivations_for_wildcards(self, wildcards):
+        """
+        Return all derivations that match any of the given wildcards.
+        """
+        for tw in wildcards:
+            # Now resolve all derivations
+            for derivation in self.all_derivations:
+                if fnmatch.fnmatch(derivation.fqn, tw):
+                    derivation.resolve(self.type_registry, None)
+
+        source_derivations = set()
+        for tw in wildcards:
+            # Now resolve all derivations
+            for derivation in self.all_derivations:
+                if fnmatch.fnmatch(derivation.fqn, tw):
+                    source_derivations.add(derivation.fqn)
+        return source_derivations
+
+    def transformer_groups_for_wildcards(self, wildcards):
+        """
+        Return all transformer groups that match any of the given wildcards.
+        """
+        out = set()
+        for tw in wildcards:
+            # Now resolve all derivations
+            for tg in self.all_transformer_groups:
+                if fnmatch.fnmatch(tg.fqn, tw):
+                    out.add(tg.fqn)
+        return out

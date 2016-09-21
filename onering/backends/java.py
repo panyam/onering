@@ -13,7 +13,8 @@ class JavaTargetBackend(object):
     """
     For generating java pojos for a given type
     """
-    def generate(self, type_name, thetype, type_registry, output_dir, template_loader, backend_annotation):
+    def generate_schema(self, type_name, thetype, context, backend_annotation):
+        type_registry, output_dir, template_loader = context.type_registry, context.output_dir, context.template_loader
         n,ns,fqn = utils.normalize_name_and_ns(type_name, "")
         if backend_annotation.has_param("namespace"):
             ns = backend_annotation.first_value_of("namespace")
@@ -41,6 +42,9 @@ class JavaTargetBackend(object):
         outstream = open(output_path + ".java", "w")
         outstream.write(templ.render(record = record, backend = self))
         outstream.close()
+
+    def generate_transformer_group(self, trans_group, type_name, thetype, context, backend_annotation):
+        type_registry, output_dir, template_loader = context.type_registry, context.output_dir, context.template_loader
 
     def normalize_output_stream(self, instance_transformer, output_target = None):
         if output_target == None:

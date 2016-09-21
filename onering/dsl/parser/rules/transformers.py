@@ -46,12 +46,13 @@ def parse_transformer(parser, annotations, transformer_group = None):
         transformer_name src_type_fqn<IDENT> "=> dest_type_fqn<IDENT> "{" transformer_rule * "}"
     """
     transformer_name = parser.ensure_token(TokenType.IDENTIFIER)
+
     src_fqn = parser.ensure_fqn()
     parser.ensure_token(TokenType.STREAM)
     dest_fqn = parser.ensure_fqn()
 
-    n,ns,src_fqn = utils.normalize_name_and_ns(src_fqn, parser.document.namespace, ensure_namespaces_are_equal = False)
-    n,ns,dest_fqn = utils.normalize_name_and_ns(dest_fqn, parser.document.namespace, ensure_namespaces_are_equal = False)
+    src_fqn = parser.normalize_fqn(src_fqn)
+    dest_fqn = parser.normalize_fqn(dest_fqn)
 
     print "Parsing new transformer '%s': %s -> %s" % (transformer_name, src_fqn, dest_fqn)
 

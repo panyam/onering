@@ -13,4 +13,4 @@ onering load ./dsl/org/example/transformers
 gen org.example.*, org.example
 
 # Generate transformers
-gent org.example.Town2Village 
+gent transformers.Town2VillageUtility

@@ -1,0 +1,65 @@
+
+import ipdb
+from typelib import annotations as tlannotations
+import importlib
+
+def evaluate_backend_platforms(annotatable, thering, target_platform = None):
+    backend_annotations = []
+    if thering.default_platform:
+        backend_annotations = [tlannotations.Annotation("onering.backend", None, 
+                                    {"platform": thering.default_platform})]
+    if annotatable.has_annotation("onering.backend"):
+        backend_annotations = annotatable.get_annotations("onering.backend")
+
+    if target_platform:
+        backend_annotations = [tlannotations.Annotation("onering.backend", None, 
+                                {"platform": target_platform, "template": target_template})]
+
+    if not backend_annotations:
+        return logerror("Please specify a platform or set a default platform for '%s'" % annotatable.fqn)
+    return backend_annotations
+
+def generate_transformers(trans_group, thering, target_platform, target_template):
+    ipdb.set_trace()
+
+    # Resolve all transformers first - by now all derived schemas should have been resolved
+    trans_group.resolve(thering)
+
+    # for trans in trans_group.all_transformers: if trans.sr
+    pass
+
+    backend_annotations = evaluate_backend_platforms(trans_group, thering, target_platform)
+
+    for backend_annotation in backend_annotations:
+        platform_name = backend_annotation.first_value_of("platform")
+        if platform_name not in thering.platform_aliases:
+            logerror("Invalid platform: %s" % platform_name)
+        platform = thering.platform_aliases[platform_name]
+        module_name = ".".join(platform.split(".")[:-1])
+        platform_module = importlib.import_module(module_name)
+        platform_class = getattr(platform_module, platform.split(".")[-1])
+        platform_class().generate_transformer_group(trans_group, thering, thering, thering, backend_annotation)
+
+
+def generate_schemas(source_type, thering, target_platform, target_template):
+    """
+    Generates one or more schema files for a particular source type.
+    """
+    # see if the source_type has a backend annotation
+    if source_type.constructor != "record":
+        return
+
+    backend_annotations = evaluate_backend_platforms(source_type, thering, target_platform)
+
+    if not backend_annotations:
+        return logerror("Please specify a platform or set a default platform for record: %s" % source_type.fqn)
+
+    for backend_annotation in backend_annotations:
+        platform_name = backend_annotation.first_value_of("platform")
+        if platform_name not in thering.platform_aliases:
+            logerror("Invalid platform: %s" % platform_name)
+        platform = thering.platform_aliases[platform_name]
+        module_name = ".".join(platform.split(".")[:-1])
+        platform_module = importlib.import_module(module_name)
+        platform_class = getattr(platform_module, platform.split(".")[-1])
+        platform_class().generate_schema(source_type.fqn, source_type, thering, backend_annotation)

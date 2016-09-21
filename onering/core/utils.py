@@ -93,3 +93,4 @@ class FieldPath(object):
         else:
             return [n for n in starting_record.child_names if n in self.selected_children]
 
+

@@ -4,20 +4,20 @@ import ipdb
 from onering import errors
 from typelib import errors as tlerrors
 from typelib import core as tlcore
+from typelib.annotations import Annotatable
 from typelib import records
 from onering.utils import normalize_name_and_ns, ResolutionStatus
 from onering.core.utils import FieldPath
 
-class Projection(object):
+class Projection(Annotatable):
     """
     Projection is anything that results in the creation of a type.
     This could be named like a field or a named derived type (like a record, union, enum)
     or an unnamed type like the argument to a type constructor (eg key type of a map)
     """
-    def __init__(self):
+    def __init__(self, annotations = None, docs = ""):
+        Annotatable.__init__(self, annotations, docs)
         self.resolution = ResolutionStatus()
-        self.docs = ""
-        self.annotations = []
 
     def resolve(self, type_registry, resolver):
         def resolver_method():
@@ -41,20 +41,14 @@ class RecordDerivation(Projection):
         Arguments:
             fqn     Fully qualified name of the record.  Records should have names unless they are inline derivations where names will be derived.
         """
-        self.annotations = annotations or []
+        super(RecordDerivation, self).__init__(annotations, docs)
         self.source_aliases = {}
         self.source_types = {}
-        self.docs = docs or ""
         self.field_projections = []
-        self._resolution = ResolutionStatus()
         self.fqn = fqn
 
     def __repr__(self):
         return "<RecordDerivation ID: 0x%x, Name: '%s'>" % (id(self), self.fqn)
-
-    @property
-    def resolution(self):
-        return self._resolution
 
     @property
     def name(self):
@@ -182,8 +176,8 @@ class FieldProjection(Projection):
     """
     A projection that simply takes a source field and returns it as is with a possibly new type.
     """
-    def __init__(self, parent_derivation, source_field_path):
-        super(FieldProjection, self).__init__()
+    def __init__(self, parent_derivation, source_field_path, annotations = None, docs = ""):
+        super(FieldProjection, self).__init__(annotations, docs)
 
         # Every field projection needs a source field path that it derives from
         self._source_field_path = source_field_path
@@ -292,8 +286,8 @@ class SingleFieldProjection(FieldProjection):
     """
     Base class of all projections that deal with single source fields.
     """
-    def __init__(self, parent_derivation, source_field_path):
-        super(SingleFieldProjection, self).__init__(parent_derivation, source_field_path)
+    def __init__(self, parent_derivation, source_field_path, annotations = None, docs = ""):
+        super(SingleFieldProjection, self).__init__(parent_derivation, source_field_path, annotations, docs)
 
         # Whether the field that is projected is optional,
         # None => inherit from source field path
@@ -444,12 +438,12 @@ class TypeStream(SingleFieldProjection):
     """
     A type of field projection that results in container types being created.
     """
-    def __init__(self, parent_derivation, source_field_path, param_names, constructor_fqn, children):
+    def __init__(self, parent_derivation, source_field_path, param_names, constructor_fqn, children, annotations = None, docs = ""):
         """
         Creates a type stream projection.
         The children could be either projections or derivations (which will result in records).
         """
-        super(TypeStream, self).__init__(parent_derivation, source_field_path)
+        super(TypeStream, self).__init__(parent_derivation, source_field_path, annotations, docs)
         self.constructor = constructor_fqn
         self.param_names = param_names or []
         self.child_projections = children
@@ -500,8 +494,8 @@ class MultiFieldProjection(FieldProjection):
     """
     A field projection that picks multiple fields.
     """
-    def __init__(self, parent_derivation, source_field_path):
-        super(MultiFieldProjection, self).__init__(parent_derivation, source_field_path)
+    def __init__(self, parent_derivation, source_field_path, annotations = None, docs = ""):
+        super(MultiFieldProjection, self).__init__(parent_derivation, source_field_path, annotations, docs)
         if not source_field_path.has_children:
             raise errors.OneringException("Field path must have children for a multi field projection.  Use a SingleFieldProject derivative instead.")
 
@@ -526,7 +520,7 @@ class MultiFieldProjection(FieldProjection):
         return "<MultiFieldProjection ID: 0x%x, Path: '%s'>" % (id(self), self.source_field_path)
 
 
-class Field(object):
+class Field(Annotatable):
     """
     Holds all information about a field within a record.
     """
@@ -545,6 +539,7 @@ class Field(object):
             docs            -   Documentation for the field
             annotations     -   Extra annotations for the field.
         """
+        super(Field, self).__init__(annotations, docs)
         if type(name) not in (str, unicode):
             ipdb.set_trace()
             assert type(name) in (str, unicode), "Expected field_name to be string, Found type: '%s'" % type(name)
@@ -557,9 +552,7 @@ class Field(object):
         self.field_path = field_path
         self.is_optional = optional
         self.default_value = default or None
-        self.docs = docs
         self.errors = []
-        self.annotations = annotations or []
 
     def __repr__(self): return str(self)
     def __str__(self): return self.fqn
