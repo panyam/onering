@@ -159,7 +159,7 @@ def record_schema_initializer(newtype, schema_data, pegasus_loader, type_namespa
             record_data.add_field(field)
 
 def array_schema_initializer(newtype, schema_data, pegasus_loader, type_namespace):
-    newtype.copy_from(tlcore.ListType(pegasus_loader.load_from_data(schema_data["items"], type_namespace)))
+    newtype.copy_from(tlcore.ArrayType(pegasus_loader.load_from_data(schema_data["items"], type_namespace)))
 
 def set_schema_initializer(newtype, schema_data, pegasus_loader, type_namespace):
     newtype.copy_from(tlcore.SetType(pegasus_loader.load_from_data(schema_data["items"], type_namespace)))

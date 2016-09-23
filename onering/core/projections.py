@@ -125,6 +125,8 @@ class RecordDerivation(Projection):
 
         # Register the type into the registry if we have a name otherwise defer it to name setting
         if self.fqn:
+            if self.fqn.endswith("populations_0"):
+                ipdb.set_trace()
             type_registry.register_type(self.fqn, self.resolved_record)
 
 

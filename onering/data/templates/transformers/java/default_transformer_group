@@ -6,7 +6,7 @@ import java.util.Map;
 public class {{tgroup.name}} {
     {% for transformer in tgroup.transformers %}
         {# Generate a function for each transformer #}
-        {{ transformer.rendered_string }}
+        {{ transformer.render() }}
     {% endfor %}
 }
 

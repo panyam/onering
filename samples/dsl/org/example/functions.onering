@@ -1,0 +1,10 @@
+
+namespace org.example
+
+bind getPopulationCounts ( array[ Town_populations_0 ] ) => array [ int ] {
+    "java" = "getPopulationCounts"
+}
+
+bind getPopulationRaces ( array[ Town_populations_0 ] ) => array [ Race ] {
+    "java" = "getPopulationCounts"
+}

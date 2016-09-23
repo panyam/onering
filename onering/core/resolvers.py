@@ -3,6 +3,27 @@ from __future__ import absolute_import
 import ipdb
 from onering.core.utils import FieldPath
 
+def resolve_path_from_record(starting_record, field_path, registry, resolver):
+    root_record = starting_record
+    parent_record = starting_record
+    final_record = starting_record
+    child_type_key = None
+    for i in xrange(field_path.length):
+        part = field_path.get(i)
+        if final_record.constructor != "record":
+            # TODO - Throw a "bad type" exception?
+            return ResolutionResult(root_record, None, None, field_path)
+        if not final_record.is_resolved:
+            # TODO - Does the order of resolutions make a difference?
+            final_record.resolve(registry)
+        if not final_record.contains(part):
+            # Throw NotFound instead of none?
+            break
+        child_type_key = part
+        parent_record = final_record
+        final_record = final_record.child_type_for(part)
+    return ResolutionResult(root_record, parent_record, child_type_key, field_path)
+
 class PathResolver(object):
     """
     An interface that helps in the resolution of a field path.  This is hierarchical in nature.
@@ -92,27 +113,6 @@ class TypeStreamPathResolver(PathResolver):
                     _, tail_field_path = field_path.pop()
                     return resolve_path_from_record(child_type, tail_field_path, self.type_registry, self)
         return None
-
-def resolve_path_from_record(starting_record, field_path, registry, resolver):
-    root_record = starting_record
-    parent_record = starting_record
-    final_record = starting_record
-    child_type_key = None
-    for i in xrange(field_path.length):
-        part = field_path.get(i)
-        if final_record.constructor != "record":
-            # TODO - Throw a "bad type" exception?
-            return ResolutionResult(root_record, None, None, field_path)
-        if not final_record.is_resolved:
-            # TODO - Does the order of resolutions make a difference?
-            final_record.resolve(registry)
-        if not final_record.contains(part):
-            # Throw NotFound instead of none?
-            break
-        child_type_key = part
-        parent_record = final_record
-        final_record = final_record.child_type_for(part)
-    return ResolutionResult(root_record, parent_record, child_type_key, field_path)
 
 class ResolutionResult(object):
     def __init__(self, root_type, parent_type, child_type_key, normalized_field_path = None):

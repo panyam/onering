@@ -11,11 +11,12 @@ class OneringContext(object):
         self.type_registry = registry.TypeRegistry()
         self.entity_resolver = resolver.EntityResolver("pdsc")
         self._derivations = {}
+        self._functions = {}
         self._transformer_groups = {}
 
         self.output_dir = "./gen"
         self.platform_aliases = {
-            "java": "onering.backends.java.JavaTargetBackend"
+            "java": "onering.generator.backends.java.JavaTargetBackend"
         }
         self.template_dirs = []
 
@@ -110,3 +111,18 @@ class OneringContext(object):
                 if fnmatch.fnmatch(tg.fqn, tw):
                     out.add(tg.fqn)
         return out
+
+
+    def get_function(self, fqn):
+        """
+        Get a function by its fqn.
+        """
+        return self._functions[fqn]
+
+    def register_function(self, function):
+        """
+        Get a function by its fqn.
+        """
+        if function.fqn in self._functions:
+            raise errors.OneringException("Duplicate function found: %s" % function.fqn)
+        self._functions[function.fqn] = function

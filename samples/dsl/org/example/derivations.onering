@@ -86,6 +86,8 @@ derive Town : City {
 
 derive Village : City {
     name as cityName
+    numHuts : int
+    chiefsHut : string
 
     populationByRace as populationCounts [__ignore__, count] => array[ count ]
     populationByRace as populationRaces [race, __ignore__] => array[ race ]

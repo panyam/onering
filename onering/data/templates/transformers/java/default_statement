@@ -1,0 +1,35 @@
+
+    # How to render a statement?
+    always render each of the expressions and finally assign the result to the target_location
+
+    Now the chains are generic and type dependant.   So each expression code gen should happen independantly with the
+    state being carried one after the other.  Upto to template to decide whether it should streams or promises or plain 
+    old sync function calls
+
+    So main thing how to handle locals and variables that are created as part of each expression.
+    We want these vars to either have local or global (ie transformer level) scope.  So symbol table
+    needs to ensure this is possible.
+
+    Phase one we dont have streams, only function calls, so treat it as such.  ie
+
+    a => b => c => d  
+
+    is assign(c(b(a())), d)
+
+    1. create a local variable of type of return type of C - will need a name so must be part of var collection
+    2. func call c(b(....)) store to created_var
+    2. do a setter call - ie set_field_path_value(d, created_var)
+
+    # Seems so much easier to do 3 address code, ie:
+    code for "a()" - set value in some r1 (if any)
+    code for "b(r1 - if a has a return type)" - set value to r2 (if any)
+    code for "c(r2 - if "b" has a return type)" - set value to r3
+    setter_call - set_field_path_value(d, r3)
+
+    so every expression should have a set of instructions, final register name where value is stored (if any) 
+    and a list of 
+
+
+    for expr in statement.expressions:
+        
+    {{ statement }}

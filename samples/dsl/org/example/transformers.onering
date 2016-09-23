@@ -3,6 +3,7 @@ namespace transformers
 
 import org.example.Town
 import org.example.Village
+import org.examples.getPopulationCounts
 
 /**
  * This should create a transformer at the top level called Town2Village as it is not enclosed within a transformer group
@@ -24,7 +25,7 @@ transformers Town2VillageUtility {
     // A transformer with some custom rules
     transformer Town2VillageManual Town => Village {
         0 => numHuts
-        "test" => chiefsHut
+        name => chiefsHut
         getPopulationCounts(populations) => populationCounts
         getPopulationRaces(populations) => populationRaces
     }

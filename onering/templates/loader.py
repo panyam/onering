@@ -1,12 +1,14 @@
 
 from __future__ import absolute_import
+from jinja2 import BaseLoader, TemplateNotFound
 from jinja2 import Environment, PackageLoader
 import pkgutil
 import os
+from os.path import join, exists, getmtime
 import ipdb
 from . import utils
 
-class TemplateLoader(object):
+class TemplateLoader(BaseLoader):
     """
     Responsible for loading templates given a name.
     """
@@ -14,13 +16,35 @@ class TemplateLoader(object):
         self.template_dirs = template_dirs or []
         self.template_extension = default_extension or ""
 
+    def get_source(self, environment, template_name):
+        final_path = template_name
+        if not template_name.startswith("/"):
+            for tdir in self.template_dirs:
+                full_path = os.path.join(tdir, name)
+                if os.path.isfile(full_path):
+                    final_path = full_path
+                else:
+                    full_path = os.path.join(tdir, name + self.template_extension)
+                    if os.path.isfile(full_path):
+                        final_path = full_path
+            else:
+                source = pkgutil.get_data("onering", "data/templates/" + template_name).decode('utf-8')
+                return source, final_path, lambda: True
 
-    def load_template(self, name):
-        for tdir in self.template_dirs:
-            full_path = os.path.join(tdir, name)
-            if os.path.isfile(full_path):
-                return utils.load_template_from_path(full_path)
-            full_path = os.path.join(tdir, name + self.template_extension)
-            if os.path.isfile(full_path):
-                return utils.load_template_from_path(full_path)
-        return utils.load_template_from_path(name)
+        with file(final_path) as f:
+            source = f.read().decode('utf-8')
+        return source, final_path, lambda: mtime == getmtime(final_path)
+
+    def load_template(self, name, extensions = None):
+        default_extensions = [ "jinja2.ext.do", "jinja2.ext.with_" ]
+        if extensions:
+            extensions.extend(default_extensions)
+        else:
+            extensions = default_extensions
+        kwargs = dict(trim_blocks = True,
+                      lstrip_blocks = True,
+                      extensions = extensions)
+        #if not template_path.startswith("/"): kwargs["loader"] = PackageLoader("onering", "data/templates")
+        env = Environment(**kwargs)
+        env.loader = self
+        return env.get_template(name)

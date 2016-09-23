@@ -3,6 +3,8 @@ import os
 import sys
 
 from onering import utils
+from onering.generator.symtable import SymbolTable
+from onering.generator import core as orgencore
 from typelib import annotations as tlannotations
 from jinja2 import nodes
 from jinja2.ext import Extension, contextfunction
@@ -47,14 +49,16 @@ class TransformerGroupViewModel(object):
 class TransformerViewModel(object):
     def __init__(self, transformer, tgroup, backend):
         self.backend = backend
-        self.name = transformer.fqn
+        self.context = tgroup.context
         self.tgroup = tgroup
+        self.name = transformer.fqn
+        self.symtable = SymbolTable()
+        self.instructions, symtable, _ = orgencore.generate_ir_for_statements(transformer.all_statements, self.context)
         self.src_name,self.src_namespace,self.src_fqn = utils.normalize_name_and_ns(transformer.src_fqn, "")
         self.dest_name,self.dest_namespace,self.dest_fqn = utils.normalize_name_and_ns(transformer.dest_fqn, "")
+        self.all_statements = transformer.all_statements
 
-    @property
-    def rendered_string(self):
-        ipdb.set_trace()
+    def render(self):
         templ = self.backend.load_template(self.backend.backend_annotation.first_value_of("template") or "transformers/java/default_transformer")
         out = templ.render(transformer = self, tgroup = self.tgroup, backend = self.backend)
         return out

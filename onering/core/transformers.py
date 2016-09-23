@@ -2,6 +2,7 @@
 import ipdb
 from onering import errors
 from onering.utils import ResolutionStatus
+from onering.core.utils import FieldPath
 from typelib.annotations import Annotatable
 
 class TransformerGroup(Annotatable):
@@ -47,17 +48,43 @@ class Transformer(Annotatable):
         self.src_fqn = src_fqn
         self.dest_fqn = dest_fqn
         self.group = group
+        self.temp_var_names = set()
         # explicit transformer rules
-        self._statements = []
+        self._implicit_statements = []
+        self._explicit_statements = []
+
+        # Keeps track of the counts of each type of auto-generated variable.
+        self._vartable = {}
 
     def __repr__(self):
         return "<Transformer - ID: 0x%x, Name: %s (%s -> %s)>" % (id(self), self.fqn, self.src_fqn, self.dest_fqn)
 
+    def is_temp_variable(self, varname):
+        return varname in self.temp_var_names
+
+    @property
+    def all_statements(self):
+        return self._implicit_statements + self._explicit_statements
+
     def add_statement(self, stmt):
-        if isinstance(stmt, Expression) and stmt.next is None:
-            # We dont have a stream expression, error
-            raise errors.OneringException("Transformer rule must be a let statement or a stream exception, Found: %s" % str(type(stmt)))
-        self._statements.append(stmt)
+        if not isinstance(stmt, Statement):
+            raise errors.OneringException("Transformer rule must be a let statement or a statement, Found: %s" % str(type(stmt)))
+        if stmt.is_temporary:
+            varname = stmt.target_variable.value
+            if self.is_temp_variable(varname):
+                raise errors.OneringException("Duplicate temporary variable declared: '%s'" % varname)
+            self.temp_var_names.add(varname)
+        self._explicit_statements.append(stmt)
+
+    def generate_ir(self, context):
+        """
+        Generates the IR for all the rules in this transformer.
+        """
+        if not self.resolution.succeeded:
+            raise errors.OneringException("Resolution has not succeeded for transformer: %s" % self.fqn)
+
+        symbol_table, instructions = generate_ir(self._implicit_statements + self._explicit_statements, context)
+
 
     def resolve(self, context):
         """
@@ -71,19 +98,23 @@ class Transformer(Annotatable):
 
     def _resolve(self, context):
         """
-        The main resolver method.
+        The main resolver method.  This should take care of the following:
+
+            1. Ensure field paths are correct
+            2. All expressions have their evaluated types set
         """
         type_registry = context.type_registry
         self.src_type = type_registry.get_type(self.src_fqn)
         self.dest_type = type_registry.get_type(self.dest_fqn)
 
-        self._evaluate_auto_rules(context)
+        # First make sure we have implicit rules taken from the derivations if any
+        self._implicit_statements = self._evaluate_implicit_statements(context)
 
-        temp_vars = {}
-        for stmt in self._statements:
-            self._evaluate_manual_rule(stmt, context, temp_vars)
+        # Now resolve all field paths appropriately
+        for statement in self.all_statements:
+            statement.resolve_types(self, context)
 
-    def _evaluate_auto_rules(self, context):
+    def _evaluate_implicit_statements(self, context):
         """
         Given the source and dest types, evaluates all "get/set" rules that can be 
         inferred for shared types.   This is only possible if both src and dest types 
@@ -92,15 +123,43 @@ class Transformer(Annotatable):
 
         # Step 1: Find common "ancestor" of each of the records
         ancestor = context.find_common_ancestor(self.src_type, self.dest_type)
-        if ancestor is None:
+        if ancestor is not None:
             # If the two types have no common ancestor then we cannot have auto rules
-            return 
-        ipdb.set_trace()
+            pass
 
-    def _evaluate_manual_rule(self, rule, context, temp_vars):
-        pass
+            # Variables are "locations" - a location is either a temp variable, or a (record + field_path)
+            # Expressions are functions of locations:
+            #   Function(multiple locations) results in locations being set
+            #   Compound blocks are a collection of expressions that also get/set variables at a function scope
+        return []
 
 
+class Statement(object):
+    def __init__(self, target_variable, expressions, is_temporary = False):
+        self.expressions = expressions
+        self.target_variable = target_variable
+        self.is_temporary = is_temporary
+        self.target_variable.from_source = False
+
+    def resolve_types(self, transformer, context):
+        """
+        Processes an expressions and resolves name bindings and creating new local vars 
+        in the process if required.
+        """
+        # Resolve field paths that should come from source type
+        for expr in self.expressions:
+            expr.resolve_types(transformer, context)
+
+        # Resolve field paths that should come from dest type
+        self.target_variable.resolve_types(transformer, context)
+
+        if not self.is_temporary:
+            # target variable type is set so verify that its type is same as the type of 
+            # the "last" expression in the chain.
+            pass
+        else:
+            # Then target variable is a temporary var declaration so set its type
+            self.target_variable.evaluated_type = self.expressions[-1].evaluated_type
 
 class Expression(object):
     """
@@ -108,46 +167,26 @@ class Expression(object):
     (or in derivations during type streaming but type streaming is "kind of" a transformer anyway.
     """
     def __init__(self):
-        # The next expression in a stream if any
-        # Because the stream expression is the top most level expression you could have
-        self._next = None
-        self._prev = None
-        self.is_temporary = False
+        self._evaluated_type = None
+
 
     @property
-    def next(self):
-        return self._next
+    def evaluated_type(self):
+        if not self._evaluated_type:
+            raise errors.OneringException("Type checking failed for '%s'" % repr(self))
+        return self._evaluated_type
 
-    @next.setter
-    def next(self, value):
-        if type(value) is FunctionExpression:
-            raise errors.OneringException("FunctionExpressions can only be at the start of an expression stream")
+    @evaluated_type.setter
+    def evaluated_type(self, vartype):
+        self.set_evaluated_type(vartype)
 
-        if value._prev is not None:
-            value._prev._next = None
-        value._prev = self
-        self._next = value
+    def resolve_types(self, transformer, context):
+        """
+        Processes an expressions and resolves name bindings and creating new local vars 
+        in the process if required.
+        """
+        pass
 
-    @property
-    def prev(self):
-        return self._prev
-
-    @property
-    def last(self):
-        temp = self
-        while temp.next is not None:
-            temp = temp.next
-        return temp
-
-class CompoundExpression(Expression):
-    """
-    A collection of expressions streams to be run in a particular order and each introducing their own variables or 
-    modifying others.   A compound expression has no type but can be streamed "into" any other expression 
-    whose input types can be anything else.  Similary any expression can stream into a compound expression.
-    """
-    def __init__(self, expressions):
-        super(CompoundExpression, self).__init__()
-        self.expressions = expressions[:]
 
 class LiteralExpression(Expression):
     """
@@ -157,32 +196,72 @@ class LiteralExpression(Expression):
         super(LiteralExpression, self).__init__()
         self.value = value
 
+    def check_types(self, context):
+        t = type(self.value)
+        if t in (string, unicode):
+            self._evaluated_type = context.type_registry.get_type("string")
+        elif t is int:
+            self._evaluated_type = context.type_registry.get_type("int")
+        elif t is bool:
+            self._evaluated_type = context.type_registry.get_type("bool")
+        elif t is float:
+            self._evaluated_type = context.type_registry.get_type("float")
+
+    def __repr__(self):
+        return "<Literal - ID: 0x%x, Value: %s>" % (id(self), str(self.value))
+
 class VariableExpression(Expression):
     def __init__(self, var_or_field_path, from_source = True):
         super(VariableExpression, self).__init__()
         self.from_source = from_source
         self.value = var_or_field_path
 
+    def __repr__(self):
+        return "<VarExp - ID: 0x%x, Value: %s>" % (id(self), str(self.value))
+
+    def set_evaluated_type(self, vartype):
+        if not self.is_field_path:
+            self._evaluated_type = vartype
+
+    def check_types(self, context):
+        if not self.is_field_path: return
+
     @property
     def is_field_path(self):
         return type(self.value) is FieldPath
 
+    def resolve_types(self, transformer, context):
+        """
+        Processes an expressions and resolves name bindings and creating new local vars 
+        in the process if required.
+        """
+        # This is a variable so resolve it to either a local var or a parent + field_path
+        if self.is_field_path:
+            from onering.core.resolvers import resolve_path_from_record
+            starting_type = transformer.src_type if self.from_source else transformer.dest_type
+            result = resolve_path_from_record(starting_type, self.value, context.type_registry, None)
+            if not result.is_valid:
+                raise errors.OneringException("Unable to resolve path '%s' in record '%s'" % (str(self.value), starting_type.fqn))
+            self._evaluated_type = result.resolved_type
+        else:
+            ipdb.set_trace()
+
 class ListExpression(Expression):
-    def __init__(self, value):
+    def __init__(self, values):
         super(ListExpression, self).__init__()
-        self.value = value
+        self.values = values
 
 class DictExpression(Expression):
-    def __init__(self, value):
+    def __init__(self, values):
         super(DictExpression, self).__init__()
-        self.value = value
+        self.values = values
 
 class TupleExpression(Expression):
     def __init__(self, values):
         super(TupleExpression, self).__init__()
         self.values = values or []
 
-class FunctionExpression(Expression):
+class FunctionCallExpression(Expression):
     """
     An expression for denoting a function call.  Function calls can only be at the start of a expression stream, eg;
 
@@ -194,7 +273,32 @@ class FunctionExpression(Expression):
 
     because f(x,y,z) must return an observable and observable returns are not supported (yet).
     """
-    def __init__(self, func_name, func_args = None):
-        super(FunctionExpression, self).__init__()
-        self.func_name = func_name
+    def __init__(self, func_fqn, func_args = None):
+        super(FunctionCallExpression, self).__init__()
+        self.func_fqn = func_fqn
         self.func_args = func_args
+
+    def resolve_types(self, transformer, context):
+        """
+        Processes an expressions and resolves name bindings and creating new local vars 
+        in the process if required.
+        """
+        self.func_type = context.type_registry.get_type(self.func_fqn)
+
+        # This is a variable so resolve it to either a local var or a parent + field_path
+        for arg in self.func_args:
+            arg.resolve_types(transformer, context)
+
+        # Ensure that types match the types being sent to functions
+        if len(self.func_args) != self.func_type.arglimit:
+            ipdb.set_trace()
+            raise errors.OneringException("Function '%s' takes %d arguments, but encountered %d" % (self.function.constructor, self.function.arglimit, len(self.func_args)))
+
+        for i in xrange(0, len(self.func_args)):
+            arg = self.func_args[i]
+            input_type = self.func_type.child_type_at(i)
+            ipdb.set_trace()
+            if arg.evaluated_type != input_type:
+                raise errors.OneringException("Argument at index %d expected type (%s), found type (%s)" % (i, arg.evaluated_type, input_type))
+
+        self._evaluated_type = self.function.output_type

@@ -7,7 +7,7 @@ import ipdb
 from onering.console import runner, dirs, pegasus, courier, orc, platform
 from onering.utils import split_list_at, parse_line_dict
 from onering.console.utils import logerror
-from onering.backends import utils as orbeutils
+from onering.generator import utils as orgenutils
 
 class DefaultCommandRunner(runner.CommandRunner):
     @property
@@ -110,11 +110,11 @@ class DefaultCommandRunner(runner.CommandRunner):
         # Awwwwright resolutions succeeded so now generate them!
         for source_fqn in source_types:
             source_type = console.type_registry.get_type(source_fqn)
-            orbeutils.generate_schemas(source_type, console.thering, target_platform, target_template)
+            orgenutils.generate_schemas(source_type, console.thering, target_platform, target_template)
 
         for deriv in source_derivations:
             source_type = console.type_registry.get_type(deriv)
-            orbeutils.generate_schemas(source_type, console.thering, target_platform, target_template)
+            orgenutils.generate_schemas(source_type, console.thering, target_platform, target_template)
 
     def do_gent(self, console, cmd, rest, prev):
         """
@@ -147,5 +147,5 @@ class DefaultCommandRunner(runner.CommandRunner):
         # Awwwwright resolutions succeeded so now generate them!
         for tgfqn in transformer_groups:
             tg = console.thering.get_transformer_group(tgfqn)
-            orbeutils.generate_transformers(tg, console.thering, target_platform, target_template)
+            orgenutils.generate_transformers(tg, console.thering, target_platform, target_template)
 

@@ -84,22 +84,37 @@ def parse_transformer_rule(parser):
     """
     annotations = parse_annotations(parser)
 
+    is_temporary = False
     if parser.next_token_is(TokenType.IDENTIFIER, "let"):
-        stmt = parse_expression(parser)
-        stmt.is_temporary = True
+        exprs = parse_expression_chain(parser)
+        is_temporary = True
     else:
-        stmt = parse_expression(parser)
+        exprs = parse_expression_chain(parser)
 
     # An expression must have more than 1 expression
-    if stmt.next is None:
-        raise errors.OneringException("An exception stream must have more than one expression")
+    if len(exprs) <= 1:
+        raise errors.OneringException("A rule statement must have at least one expression")
 
     # ensure last var IS a variable expression
-    if not isinstance(stmt.last, transformers.VariableExpression):
+    if not isinstance(exprs[-1], transformers.VariableExpression):
         raise errors.OneringException("Final target of an expression MUST be a variable")
 
     parser.consume_tokens(TokenType.SEMI_COLON)
-    return stmt
+    return transformers.Statement(exprs[-1], exprs[:-1], is_temporary)
+
+def parse_expression_chain(parser):
+    """
+    Parse an expression chain of the form 
+
+        expr => expr => expr => expr
+    """
+    out = [ parse_expression(parser) ]
+
+    # if the next is a "=>" then start streaming!
+    while parser.peeked_token_is(TokenType.STREAM):
+        parser.ensure_token(TokenType.STREAM)
+        out.append(parse_expression(parser))
+    return out
 
 def parse_expression(parser):
     """
@@ -146,6 +161,7 @@ def parse_expression(parser):
 
             # Treat the source as a function name that will be resolved later on
             source = source.get(0)
+            source_fqn = parser.normalize_fqn(source)
             parser.ensure_token(TokenType.OPEN_PAREN)
             while not parser.peeked_token_is(TokenType.CLOSE_PAREN):
                 # read another expression
@@ -157,17 +173,14 @@ def parse_expression(parser):
                     # will allow "," at the end which is a bit, well rough!
                     pass
             parser.ensure_token(TokenType.CLOSE_PAREN)
-            out = transformers.FunctionExpression(source, func_args)
+
+            # Make sure function exists
+            out = transformers.FunctionCallExpression(source_fqn, func_args)
     else:
         raise UnexpectedTokenException(parser.peek_token(),
                                        TokenType.STRING, TokenType.NUMBER,
                                        TokenType.OPEN_BRACE, TokenType.OPEN_SQUARE,
                                        TokenType.LT)
-
-    # if the next is a "=>" then start streaming!
-    if parser.peeked_token_is(TokenType.STREAM):
-        parser.ensure_token(TokenType.STREAM)
-        out.next = parse_expression(parser)
     return out
 
 def parse_tuple_expression(parser):

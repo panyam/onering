@@ -4,7 +4,7 @@ import os
 import sys
 
 from onering import utils
-from onering.backends import core as orbecore
+from onering.generator import models as orgenmodels
 from typelib import annotations as tlannotations
 
 from jinja2 import nodes
@@ -25,7 +25,7 @@ class JavaTargetBackend(object):
         context, backend_annotation = self.context, self.backend_annotation
         n,ns,fqn = utils.normalize_name_and_ns(type_name, "")
         type_registry = context.type_registry
-        record = orbecore.TypeViewModel(self, type_name, thetype, context, backend_annotation)
+        record = orgenmodels.TypeViewModel(self, type_name, thetype, context, backend_annotation)
         templ = self.load_template(backend_annotation.first_value_of("template") or "backends/java/mutable_pojo")
         print templ.render(record = record, backend = self)
 
@@ -38,7 +38,7 @@ class JavaTargetBackend(object):
         """
         context, backend_annotation = self.context, self.backend_annotation
         type_registry = context.type_registry
-        normalized_tgroup = orbecore.TransformerGroupViewModel(self, tgroup, context, backend_annotation)
+        normalized_tgroup = orgenmodels.TransformerGroupViewModel(self, tgroup, context, backend_annotation)
 
         templ = self.load_template(backend_annotation.first_value_of("template") or "transformers/java/default_transformer_group")
         print templ.render(tgroup = normalized_tgroup, backend = self)

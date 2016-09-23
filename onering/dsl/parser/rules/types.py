@@ -27,6 +27,9 @@ def parse_type_decl(parser):
     elif type_class == "derive":
         from onering.dsl.parser.rules.derivations import parse_derivation
         return parse_derivation(parser, annotations)
+    elif type_class == "bind":
+        from onering.dsl.parser.rules.functions import parse_bind
+        return parse_bind(parser, annotations)
     elif type_class == "___transformer___": # Disable for now
         parser.next_token()     # consume it
         from onering.dsl.parser.rules.transformers import parse_transformer
@@ -77,7 +80,7 @@ def parse_array_type_decl(parser, annotations = []):
     parser.ensure_token(TokenType.OPEN_SQUARE)
     target_type = parse_any_type_decl(parser)
     parser.ensure_token(TokenType.CLOSE_SQUARE)
-    return tlcore.ListType(target_type, annotations = annotations, docs = parser.last_docstring())
+    return tlcore.ArrayType(target_type, annotations = annotations, docs = parser.last_docstring())
 
 def parse_map_type_decl(parser, annotations = []):
     parser.ensure_token(TokenType.IDENTIFIER, "map")
