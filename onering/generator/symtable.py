@@ -9,12 +9,15 @@ class SymbolTable(object):
         self._curr_symtable = self
         self._children = []
         self._types_for_names = {}
+        self._var_for_path = {}
 
-    def get_var(self, var_or_field_path):
+    def get_var_for_path(self, path, typeref):
         """
         Given a variable or a field path, returns the register associated with that value.
         """
-        ipdb.set_trace()
+        if path not in self._var_for_path:
+            self._var_for_path[path] = self.next_var(typeref)
+        return self._var_for_path[path]
 
     def next_var(self, typeref):
         """

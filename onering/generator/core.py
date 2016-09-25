@@ -96,7 +96,7 @@ def generate_ir_for_literal(expr, context, input_values, instructions, symtable)
     # then why the rigmore of passing input_values?   This means our values should either
     # be const values, or addresses and the bindings should give us this.  Also input_values does not make sense
     # because you could refer to values that are coming from a "global"ish scope ie variables local to a function
-    return instructions, symtable, ir.ValueOrAddress(expr.value)
+    return instructions, symtable, ir.ValueOrVar(expr.value, True)
 
 def generate_ir_for_tuple(expr, context, input_values, instructions, symtable):
     # First evaluate all child expressions
@@ -137,22 +137,32 @@ def generate_ir_for_variable(expr, context, input_values, instructions, symtable
     # For variables do a getter and store them somewhere but only the first time,
     # otherwise reuse them
 
-
-    # TODO - this newvar biz is technically not required
-    newvar = symtable.get_var(expr)
-    if newvar is None:
-        # then create a new one by resolving the field path and getting the type
-        newvar = symtable.next_var(expr.evaluated_typeref)
-
     if expr.source_type == VarSource.LOCAL_VAR:
         return instructions, symtable, symtable.get_var(expr.value)
     else:
-        # Something only needs to be done if getting an "Existing" field-path from
-        # either source or dest vars.  Otherwise dont read a local variable 
-        # back onto itself!
+        resolution_result = expr.resolution_result 
+        starting_typeref = resolution_result.root_typeref
+        field_path = resolution_result.normalized_field_path
+        varname = SRC_MARKER_VAR
+        if expr.source_type == VarSource.DEST_FIELD:
+            varname = DEST_MARKER_VAR
 
-        # Also generate getter if the value would have changed
-        # TODO - Create a series of nested If statements for each component of the
-        # field path
-        instructions.append(ir.GetterInstruction(expr.value, newvar))
+        # What we want is given a starting variable name and a field path, 
+        # last_path = varname
+        # last_var = varname
+        # last_typeref
+        def gen_for_path(last_path, last_var, last_typeref, field_path):
+            if not field_path or field_path.length == 0:
+                return []
+
+            head, tail_path = field_path.pop()
+            next_path = last_path + "/" + head
+            next_typeref = last_typeref.final_type.arg_for(head).typeref
+            next_var = symtable.get_var_for_path(next_path, next_typeref)
+            return [ir.IfStatement(ir.ContainsInstruction(last_var, head),
+                                    gen_for_path(next_path, next_var, next_typeref, tail_path)
+                                    )]
+
+        instructions.extend(gen_for_path(varname, varname, starting_typeref, field_path))
+        ipdb.set_trace()
     return instructions, symtable, newvar

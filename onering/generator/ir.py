@@ -2,9 +2,16 @@
 import ipdb
 from onering import errors
 
-class ValueOrAddress(object):
-    def __init__(self, entry):
+class ValueOrVar(object):
+    def __init__(self, entry, is_value):
         self.entry = entry
+        self.is_value = is_value
+
+    def __repr__(self):
+        if self.is_value:
+            return "<Value (0x%x): %s>" % (id(self), self.entry)
+        else:
+            return "<Var (0x%x): %s>" % (id(self), self.entry)
 
 class GetterInstruction(object):
     """
@@ -41,3 +48,18 @@ class FunctionCallInstruction(object):
 
     def __repr__(self):
         return "CALL %s [(%s) -> %s]" % (self.func_fqn, ", ".join(self.input_registers), self.output_register)
+
+
+class IfStatement(object):
+    """
+    An instruction to keep track of if statements.
+    """
+    def __init__(self, condition, body, otherwise = None):
+        self.condition = condition
+        self.body = body
+        self.otherwise = otherwise
+
+class ContainsInstruction(object):
+    def __init__(self, var, field_name):
+        self.source_var = var
+        self.field_name = field_name

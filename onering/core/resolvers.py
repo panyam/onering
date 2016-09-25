@@ -4,25 +4,6 @@ import ipdb
 from typelib import core as tlcore
 from onering.core.utils import FieldPath
 
-def resolve_path_from_record(starting_typeref, field_path, registry, resolver):
-    root_typeref = starting_typeref
-    parent_typeref = starting_typeref
-    final_typeref = starting_typeref
-    child_key = None
-    for i in xrange(field_path.length):
-        part = field_path.get(i)
-        final_type = final_typeref.final_type
-        if final_typeref.is_unresolved or final_type.constructor != "record":
-            # TODO - Throw an "unresolved type" exception?
-            return ResolutionResult(root_typeref, None, None, field_path)
-        if not final_type.contains(part):
-            # Throw NotFound instead of none?
-            break
-        child_key = part
-        parent_typeref = final_typeref
-        final_typeref = final_type.arg_for(part).typeref
-    return ResolutionResult(root_typeref, parent_typeref, child_key, field_path)
-
 class PathResolver(object):
     """
     An interface that helps in the resolution of a field path.  This is hierarchical in nature.
@@ -154,3 +135,21 @@ class ResolutionResult(object):
             return self.normalized_field_path.last
         return self.child_key
 
+def resolve_path_from_record(starting_typeref, field_path, registry, resolver):
+    root_typeref = starting_typeref
+    parent_typeref = starting_typeref
+    final_typeref = starting_typeref
+    child_key = None
+    for i in xrange(field_path.length):
+        part = field_path.get(i)
+        final_type = final_typeref.final_type
+        if final_typeref.is_unresolved or final_type.constructor != "record":
+            # TODO - Throw an "unresolved type" exception?
+            return ResolutionResult(root_typeref, None, None, field_path)
+        if not final_type.contains(part):
+            # Throw NotFound instead of none?
+            break
+        child_key = part
+        parent_typeref = final_typeref
+        final_typeref = final_type.arg_for(part).typeref
+    return ResolutionResult(root_typeref, parent_typeref, child_key, field_path)
