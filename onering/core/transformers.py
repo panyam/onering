@@ -283,25 +283,29 @@ class FunctionCallExpression(Expression):
         Processes an expressions and resolves name bindings and creating new local vars 
         in the process if required.
         """
-        self.func_typeref = context.type_registry.get_typeref(self.func_fqn)
+        function = self.function = context.get_function(self.func_fqn)
+        func_typeref = self.function.typeref
 
-        if not self.func_typeref.is_resolved:
+        if not func_typeref.is_resolved:
             ipdb.set_trace()
 
+        func_type = func_typeref.final_type
         # This is a variable so resolve it to either a local var or a parent + field_path
         for arg in self.func_args:
             arg.resolve_types(transformer, context)
+            if function.type_inferred:
+                func_typeref.final_type.add_arg(arg.evaluated_typeref)
 
-        # Ensure that types match the types being sent to functions
-        if len(self.func_args) != self.func_typeref.final_type.argcount:
-            ipdb.set_trace()
-            raise errors.OneringException("Function '%s' takes %d arguments, but encountered %d" % (self.function.constructor, self.function.arglimit, len(self.func_args)))
+        if not function.type_inferred:
+            if len(self.func_args) != func_typeref.final_type.argcount:
+                ipdb.set_trace()
+                raise errors.OneringException("Function '%s' takes %d arguments, but encountered %d" %
+                                                (function.constructor, function.arglimit, len(self.func_args)))
 
-        for i in xrange(0, len(self.func_args)):
-            arg = self.func_args[i]
-            input_type = self.func_typeref.child_type_at(i)
-            ipdb.set_trace()
-            if arg.evaluated_typeref != input_type:
-                raise errors.OneringException("Argument at index %d expected type (%s), found type (%s)" % (i, arg.evaluated_typeref, input_type))
+            for i in xrange(0, len(self.func_args)):
+                arg = self.func_args[i]
+                input_typeref = func_typeref.final_type.arg_at(i).typeref
+                if arg.evaluated_typeref != input_typeref:
+                    raise errors.OneringException("Argument at index %d expected type (%s), found type (%s)" % (i, arg.evaluated_typeref, input_typeref))
 
-        self._evaluated_typeref = self.function.output_type
+        self._evaluated_typeref = func_type.output_typeref

@@ -16,7 +16,7 @@ from onering.dsl.parser.rules.annotations import parse_annotations
 def parse_bind(parser, annotations):
     """
     Parses a binding to a single function.
-        "bind" func_name<IDENT> "(" input_types ")" "=>" output_type "{"
+        "bind" func_name<IDENT> ( "(" input_types ")" "=>" output_type ) ? "{"
         "}"
     """
     docs = parser.last_docstring()
@@ -30,23 +30,28 @@ def parse_bind(parser, annotations):
 
     input_types = []
     output_type = None
-    parser.ensure_token(TokenType.OPEN_PAREN)
-    while not parser.peeked_token_is(TokenType.CLOSE_PAREN):
-        input_types.append(parse_any_type_decl(parser))
-        if parser.peeked_token_is(TokenType.COMMA):
-            parser.consume_token()
-            break
-    parser.ensure_token(TokenType.CLOSE_PAREN)
+    type_inferred = True
+    if parser.peeked_token_is(TokenType.OPEN_PAREN):
+        type_inferred = False
+        parser.ensure_token(TokenType.OPEN_PAREN)
+        while not parser.peeked_token_is(TokenType.CLOSE_PAREN):
+            input_types.append(parse_any_type_decl(parser))
+            if parser.peeked_token_is(TokenType.COMMA):
+                parser.consume_token()
+                break
+        parser.ensure_token(TokenType.CLOSE_PAREN)
 
-    if parser.next_token_is(TokenType.STREAM):
-        output_type = parse_any_type_decl(parser)
+        if parser.next_token_is(TokenType.STREAM):
+            output_type = parse_any_type_decl(parser)
 
     # Create a function of a given type and register it
     func_type = tlcore.FunctionType(input_types, output_type, annotations, docs)
     func_typeref = parser.register_type(fqn, func_type)
 
-    # create the binding object
-    function = functions.Function(fqn, annotations, docs)
+    # create the function object
+    function = functions.Function(fqn, func_typeref, type_inferred,
+                                  annotations, docs)
+
     parser.ensure_token(TokenType.OPEN_BRACE)
     while not parser.peeked_token_is(TokenType.CLOSE_BRACE):
         annotations = parse_annotations(parser)
@@ -56,7 +61,6 @@ def parse_bind(parser, annotations):
         platform_binding = functions.PlatformBinding(platform, native_fqn, annotations, parser.last_docstring())
         function.add_platform(platform_binding)
         parser.consume_tokens(TokenType.COMMA)
-
     parser.ensure_token(TokenType.CLOSE_BRACE)
 
     parser.onering_context.register_function(function)

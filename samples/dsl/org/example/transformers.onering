@@ -3,7 +3,8 @@ namespace transformers
 
 import org.example.Town
 import org.example.Village
-import org.examples.getPopulationCounts
+import org.example.getPopulationCounts
+import org.example.getPopulationRaces
 
 /**
  * This should create a transformer at the top level called Town2Village as it is not enclosed within a transformer group

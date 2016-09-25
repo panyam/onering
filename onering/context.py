@@ -112,7 +112,6 @@ class OneringContext(object):
                     out.add(tg.fqn)
         return out
 
-
     def get_function(self, fqn):
         """
         Get a function by its fqn.

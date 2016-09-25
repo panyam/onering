@@ -112,8 +112,8 @@ def generate_ir_for_function_call(expr, context, input_values, instructions, sym
     for arg in expr.func_args:
         instructions, symtable, value = generate_ir_for_expression(arg, context, None, instructions, symtable)
         arg_values.append(value)
-    newvar = symtable.next_var_for_type(expr.function.output_type)
-    instructions.append(ir.FunctionCallInstruction(expr.func_name, arg_values, newvar))
+    newvar = symtable.next_var_for_type(expr.function.final_type.output_typeref)
+    instructions.append(ir.FunctionCallInstruction(expr.func_fqn, arg_values, newvar))
     return instructions, symtable, newvar
 
 def generate_ir_for_variable(expr, context, input_values, instructions, symtable):
@@ -122,7 +122,7 @@ def generate_ir_for_variable(expr, context, input_values, instructions, symtable
     newvar = symtable.get_var_for_binding(expr.value)
     if newvar is None:
         # then create a new one by resolving the field path and getting the type
-        newvar = symtable.next_var_for_type(expr.evaluated_type)
+        newvar = symtable.next_var_for_type(expr.evaluated_typeref)
 
     # Also generate getter if the value would have changed
     instructions.append(ir.GetterInstruction(expr.value, newvar))
