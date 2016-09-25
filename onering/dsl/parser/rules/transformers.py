@@ -5,6 +5,7 @@ from onering import utils
 from onering.dsl.errors import SourceException, UnexpectedTokenException
 from onering.dsl.lexer import Token, TokenType
 from onering.core import transformers
+from onering.core import exprs as orexprs
 from onering.dsl.parser.rules.annotations import parse_annotations
 from onering.dsl.parser.rules.misc import parse_field_path
 
@@ -96,11 +97,11 @@ def parse_transformer_rule(parser):
         raise errors.OneringException("A rule statement must have at least one expression")
 
     # ensure last var IS a variable expression
-    if not isinstance(exprs[-1], transformers.VariableExpression):
+    if not isinstance(exprs[-1], orexprs.VariableExpression):
         raise errors.OneringException("Final target of an expression MUST be a variable")
 
     parser.consume_tokens(TokenType.SEMI_COLON)
-    return transformers.Statement(exprs[-1], exprs[:-1], is_temporary)
+    return orexprs.Statement(exprs[-1], exprs[:-1], is_temporary)
 
 def parse_expression_chain(parser):
     """
@@ -131,9 +132,9 @@ def parse_expression(parser):
     """
     out = None
     if parser.peeked_token_is(TokenType.NUMBER):
-        out = transformers.LiteralExpression(parser.next_token())
+        out = orexprs.LiteralExpression(parser.next_token())
     elif parser.peeked_token_is(TokenType.STRING):
-        out = transformers.LiteralExpression(parser.next_token())
+        out = orexprs.LiteralExpression(parser.next_token())
     elif parser.peeked_token_is(TokenType.OPEN_SQUARE):
         # Read a list
         out = parse_list_expression(parser)
@@ -147,11 +148,12 @@ def parse_expression(parser):
             source = parser.ensure_token(TokenType.NUMBER)
         else:
             source = parse_field_path(parser, allow_abs_path = False, allow_child_selection = False)
-        out = transformers.VariableExpression(source, from_source = False)
+        out = orexprs.VariableExpression(source,
+                source_type = exprs.VarSource.DEST_FIELD)
     elif parser.peeked_token_is(TokenType.IDENTIFIER):
         # See if we have a function call or a var or a field path
         source = parse_field_path(parser, allow_abs_path = False, allow_child_selection = False)
-        out = transformers.VariableExpression(source)
+        out = orexprs.VariableExpression(source)
 
         func_args = []
         if parser.peeked_token_is(TokenType.OPEN_PAREN):
@@ -175,7 +177,7 @@ def parse_expression(parser):
             parser.ensure_token(TokenType.CLOSE_PAREN)
 
             # Make sure function exists
-            out = transformers.FunctionCallExpression(source_fqn, func_args)
+            out = orexprs.FunctionCallExpression(source_fqn, func_args)
     else:
         raise UnexpectedTokenException(parser.peek_token(),
                                        TokenType.STRING, TokenType.NUMBER,

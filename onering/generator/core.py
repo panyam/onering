@@ -2,7 +2,7 @@
 
 from onering.generator.symtable import SymbolTable
 from onering.generator import ir
-from onering.core.transformers import Expression, LiteralExpression, ListExpression, DictExpression, TupleExpression, FunctionCallExpression, VariableExpression
+from onering.core.exprs import Expression, LiteralExpression, ListExpression, DictExpression, TupleExpression, FunctionCallExpression, VariableExpression
 
 """
 This module is responsible for generating code for a statement and all parts of an expression tree.

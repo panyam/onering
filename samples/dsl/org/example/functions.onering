@@ -1,6 +1,10 @@
 
 namespace org.example
 
+bind capitalize ? => string {
+    "java" = "capitalize"
+}
+
 bind getPopulationCounts {
     "java" = "getPopulationCounts"
 }

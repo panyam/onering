@@ -11,3 +11,8 @@ class NotFoundException(OneringException):
         self.value = value
         message = "Not found (%s:%s)" % (entity_type, str(value))
         super(NotFoundException, self).__init__(message)
+
+class UnknownTypeException(OneringException):
+    def __init__(self, fqn):
+        self.fqn = fqn
+        super(UnknownTypeExcetpion, self).__init__("Unknown type: %s" % fqn)

@@ -65,8 +65,9 @@ def parse_bind(parser, annotations):
 
     # Read output types in the signature if any
     if parser.next_token_is(TokenType.STREAM):
-        if parser.next_token_is(TokenType.QMARK, consume = True):
+        if parser.next_token_is(TokenType.QMARK):
             output_needs_inference = False
+        else:
             output_type = parse_any_type_decl(parser)
 
     # Create a function of a given type and register it
