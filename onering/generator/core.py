@@ -2,7 +2,7 @@
 import ipdb
 from onering.generator.symtable import SymbolTable
 from onering.generator import ir
-from onering.core.exprs import Expression, LiteralExpression, ListExpression, DictExpression, TupleExpression, FunctionCallExpression, VariableExpression
+from onering.core.exprs import Expression, LiteralExpression, ListExpression, DictExpression, TupleExpression, FunctionCallExpression, VariableExpression, VarSource
 
 """
 This module is responsible for generating code for a statement and all parts of an expression tree.
@@ -29,7 +29,11 @@ def generate_ir_for_statements(statements, context, instructions = None, symtabl
         instructions = []
     if not symtable:
         symtable = SymbolTable()
+
     for statement in (statements):
+        if statement.is_temporary:
+            # Register var if this is temporary
+            symtable.register_var(statement.target_variable.value, statement.target_variable.evaluated_typeref)
         generate_ir_for_statement(statement, context, instructions, symtable)
     return instructions, symtable, None
 
@@ -125,18 +129,30 @@ def generate_ir_for_function_call(expr, context, input_values, instructions, sym
     for arg in expr.func_args:
         instructions, symtable, value = generate_ir_for_expression(arg, context, None, instructions, symtable)
         arg_values.append(value)
-    newvar = symtable.next_var_for_type(expr.function.final_type.output_typeref)
+    newvar = symtable.next_var(expr.evaluated_typeref)
     instructions.append(ir.FunctionCallInstruction(expr.func_fqn, arg_values, newvar))
     return instructions, symtable, newvar
 
 def generate_ir_for_variable(expr, context, input_values, instructions, symtable):
     # For variables do a getter and store them somewhere but only the first time,
     # otherwise reuse them
+
+
+    # TODO - this newvar biz is technically not required
     newvar = symtable.get_var(expr)
     if newvar is None:
         # then create a new one by resolving the field path and getting the type
-        newvar = symtable.next_var_for_type(expr.evaluated_typeref)
+        newvar = symtable.next_var(expr.evaluated_typeref)
 
-    # Also generate getter if the value would have changed
-    instructions.append(ir.GetterInstruction(expr.value, newvar))
+    if expr.source_type == VarSource.LOCAL_VAR:
+        return instructions, symtable, symtable.get_var(expr.value)
+    else:
+        # Something only needs to be done if getting an "Existing" field-path from
+        # either source or dest vars.  Otherwise dont read a local variable 
+        # back onto itself!
+
+        # Also generate getter if the value would have changed
+        # TODO - Create a series of nested If statements for each component of the
+        # field path
+        instructions.append(ir.GetterInstruction(expr.value, newvar))
     return instructions, symtable, newvar

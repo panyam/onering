@@ -28,26 +28,28 @@ class Statement(object):
         in the process if required.
         """
 
+        # If type is not temporary then evaluate target var type first
+        # This will help us with type inference going backwards
+        if not self.is_temporary:
+            self.target_variable.resolve_types(transformer, context)
+
         # Resolve all types in child expressions.  
         # Apart from just evaluating all child expressions, also make sure
         # Resolve field paths that should come from source type
         for expr in self.expressions:
             expr.resolve_types(transformer, context)
 
-        # Resolve field paths that should come from dest type
-        # if self.is_temporary: ipdb.set_trace()
-        self.target_variable.resolve_types(transformer, context)
-
-        if not self.is_temporary:
+        last_expr = self.expressions[-1]
+        if self.is_temporary:
+            # Resolve field paths that should come from dest type
+            # if self.is_temporary: ipdb.set_trace()
+            self.target_variable.evaluated_typeref = last_expr.evaluated_typeref
+        else:
             # target variable type is set so verify that its type is same as the type of 
             # the "last" expression in the chain.
-            pass
-        else:
-            # Then target variable is a temporary var declaration so set its type
-            # Here the last expression CANNOT require output type inferrence because then
-            # the type of this variable cannot be inferred
-            last_expr = self.expressions[-1]
-            self.target_variable.evaluated_typeref = last_expr.evaluated_typeref
+            if type(last_expr) is FunctionCallExpression and not last_expr.function.output_known:
+                last_expr.function.typeref.final_type.output_typeref = self.target_variable.evaluated_typeref
+                last_expr.function.output_known = True
 
 class Expression(object):
     """
@@ -211,4 +213,6 @@ class FunctionCallExpression(Expression):
             output_typeref = self.function.final_type.output_typeref
             if not output_typeref or output_typeref.is_unresolved:
                 raise errors.OneringException("Output type of function '%s' not known as type inference is requested" % self.func_fqn)
+        elif self._evaluated_typeref is None:
+            self._evaluated_typeref = self.function.final_type.output_typeref
         return self._evaluated_typeref

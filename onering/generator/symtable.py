@@ -16,7 +16,7 @@ class SymbolTable(object):
         """
         ipdb.set_trace()
 
-    def next_var_for_type(self, typeref):
+    def next_var(self, typeref):
         """
         Given a type object, returns the next register/variable name for that type.
         """
