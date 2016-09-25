@@ -6,6 +6,7 @@ import org.example.Village
 import org.example.getPopulationCounts
 import org.example.getPopulationRaces
 import org.example.capitalize
+import org.example.simplify
 
 /**
  * This should create a transformer at the top level called Town2Village as it is not enclosed within a transformer group
@@ -31,7 +32,7 @@ transformers Town2VillageUtility {
         getPopulationCounts(populations) => populationCounts
         getPopulationRaces(populations) => populationRaces
         capitalize(name) => chiefsHut
-        let capitalize(name) => temp_var
+        let capitalize(simplify(name)) => temp_var
     }
 }
 

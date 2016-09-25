@@ -1,24 +1,34 @@
 
+import ipdb
+import itertools
+
 class SymbolTable(object):
-    def __init__(self, parent = None):
+    def __init__(self, parent = None, counter = None):
+        self.counter = counter or itertools.count()
         self._parent_table = parent
         self._curr_symtable = self
         self._children = []
+        self._types_for_names = {}
 
-    def get_var_for_binding(self, binding):
+    def get_var(self, var_or_field_path):
         """
         Given a variable or a field path, returns the register associated with that value.
         """
-        pass
+        ipdb.set_trace()
 
-    def next_var_for_type(self, binding):
+    def next_var_for_type(self, typeref):
         """
         Given a type object, returns the next register/variable name for that type.
         """
-        pass
+        varname = "var_%d" % self.counter.next()
+        return self.register_var(varname, typeref)
 
-    def register_var_with_type(self, varname, vartype):
-        pass
+    def register_var(self, varname, typeref):
+        if varname in self._types_for_names:
+            assert False, "Variable with name '%s' varname already exists"
+        self._types_for_names[varname] = typeref
+        self._children.append(varname)
+        return varname
 
 
     def push(self):

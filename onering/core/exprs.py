@@ -108,8 +108,10 @@ class VariableExpression(Expression):
         return "<VarExp - ID: 0x%x, Value: %s>" % (id(self), str(self.value))
 
     def set_evaluated_typeref(self, vartype):
-        if not self.is_field_path:
+        if self.source_type == VarSource.LOCAL_VAR:
             self._evaluated_typeref = vartype
+        else:
+            assert False, "cannot type evaluted type of a non local var"
 
     def check_types(self, context):
         if not self.is_field_path: return
@@ -129,12 +131,13 @@ class VariableExpression(Expression):
             starting_type = transformer.src_typeref
             if self.source_type == VarSource.DEST_FIELD:
                 starting_type = transformer.dest_typeref
-            result = resolve_path_from_record(starting_type, self.value, context.type_registry, None)
-            if not result.is_valid:
+            self.resolution_result = resolve_path_from_record(starting_type, self.value, context.type_registry, None)
+            if not self.resolution_result.is_valid:
                 raise errors.OneringException("Unable to resolve path '%s' in record '%s'" % (str(self.value), starting_type.fqn))
-            self._evaluated_typeref = result.resolved_typeref
+            self._evaluated_typeref = self.resolution_result.resolved_typeref
         else:
-            ipdb.set_trace()
+            # TODO - Any thing special for a local var?
+            pass
 
 class ListExpression(Expression):
     def __init__(self, values):

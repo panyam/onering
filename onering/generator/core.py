@@ -1,5 +1,5 @@
 
-
+import ipdb
 from onering.generator.symtable import SymbolTable
 from onering.generator import ir
 from onering.core.exprs import Expression, LiteralExpression, ListExpression, DictExpression, TupleExpression, FunctionCallExpression, VariableExpression
@@ -7,6 +7,19 @@ from onering.core.exprs import Expression, LiteralExpression, ListExpression, Di
 """
 This module is responsible for generating code for a statement and all parts of an expression tree.
 """
+
+SRC_MARKER_VAR = "<src>"
+DEST_MARKER_VAR = "<dest>"
+
+def generate_ir_for_transformer(transformer, context):
+    instructions = []
+    symtable = SymbolTable()
+
+    # Set source and dest variables in symbol table
+    symtable.register_var(SRC_MARKER_VAR, transformer.src_typeref)
+    symtable.register_var(DEST_MARKER_VAR, transformer.dest_typeref)
+    instructions, symtable, _ = generate_ir_for_statements(transformer.all_statements, context)
+    return instructions, symtable
 
 def generate_ir_for_statements(statements, context, instructions = None, symtable = None):
     """
@@ -119,7 +132,7 @@ def generate_ir_for_function_call(expr, context, input_values, instructions, sym
 def generate_ir_for_variable(expr, context, input_values, instructions, symtable):
     # For variables do a getter and store them somewhere but only the first time,
     # otherwise reuse them
-    newvar = symtable.get_var_for_binding(expr.value)
+    newvar = symtable.get_var(expr)
     if newvar is None:
         # then create a new one by resolving the field path and getting the type
         newvar = symtable.next_var_for_type(expr.evaluated_typeref)

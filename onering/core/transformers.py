@@ -78,15 +78,6 @@ class Transformer(Annotatable):
             self.temp_var_names.add(varname)
         self._explicit_statements.append(stmt)
 
-    def generate_ir(self, context):
-        """
-        Generates the IR for all the rules in this transformer.
-        """
-        if not self.resolution.succeeded:
-            raise errors.OneringException("Resolution has not succeeded for transformer: %s" % self.fqn)
-
-        symbol_table, instructions = generate_ir(self._implicit_statements + self._explicit_statements, context)
-
 
     def resolve(self, context):
         """
@@ -110,7 +101,7 @@ class Transformer(Annotatable):
         self.dest_typeref = type_registry.get_typeref(self.dest_fqn)
 
         # First make sure we have implicit rules taken from the derivations if any
-        self._implicit_statements = [] # self._evaluate_implicit_statements(context)
+        self._implicit_statements = self._evaluate_implicit_statements(context)
 
         # Now resolve all field paths appropriately
         for statement in self.all_statements:
@@ -122,6 +113,8 @@ class Transformer(Annotatable):
         inferred for shared types.   This is only possible if both src and dest types 
         share a common ancestor (or may be even at atmost 1 level).
         """
+
+        return []
 
         # Step 1: Find common "ancestor" of each of the records
         ancestor = context.find_common_ancestor(self.src_typeref, self.dest_typeref)
