@@ -293,10 +293,14 @@ class FunctionCallExpression(Expression):
         # This is a variable so resolve it to either a local var or a parent + field_path
         for arg in self.func_args:
             arg.resolve_types(transformer, context)
-            if function.type_inferred:
+
+            if function.inputs_need_inference and not function.inputs_known:
                 func_typeref.final_type.add_arg(arg.evaluated_typeref)
 
-        if not function.type_inferred:
+        # Mark inputs as having been inferred
+        function.inputs_known = True
+
+        if not function.inputs_need_inference:
             if len(self.func_args) != func_typeref.final_type.argcount:
                 ipdb.set_trace()
                 raise errors.OneringException("Function '%s' takes %d arguments, but encountered %d" %

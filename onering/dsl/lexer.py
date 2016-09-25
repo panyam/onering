@@ -21,7 +21,7 @@ class TokenType(Enum):
     COLON               = ":"
     SEMI_COLON          = ";"
     SLASH               = "/"
-    QUESTION            = "?"
+    QMARK            = "?"
     DOT                 = "."
     HASH                = "#"
     AT                  = "@"
@@ -220,7 +220,7 @@ class Lexer(object):
             elif self.matches_symbol('.'):
                 return make_token(TokenType.DOT)
             elif self.matches_symbol('?'):
-                return make_token(TokenType.QUESTION)
+                return make_token(TokenType.QMARK)
             elif self.matches_symbol('@'):
                 return make_token(TokenType.AT)
             elif self.matches_symbol('#'):

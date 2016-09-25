@@ -16,8 +16,21 @@ from onering.dsl.parser.rules.annotations import parse_annotations
 def parse_bind(parser, annotations):
     """
     Parses a binding to a single function.
-        "bind" func_name<IDENT> ( "(" input_types ")" "=>" output_type ) ? "{"
+        "bind" func_name<IDENT> type_signature "{"
         "}"
+
+        type_signature:
+            input_type_signature ?
+            ( input_type_signature "=>" output_type_signature ) ?
+
+        input_type_signature:
+            "?"
+            |   input_types
+            |   "(" input_types ")"
+
+        output_type_signature:
+            "?"
+            |   output_type
     """
     docs = parser.last_docstring()
 
@@ -30,18 +43,30 @@ def parse_bind(parser, annotations):
 
     input_types = []
     output_type = None
-    type_inferred = True
-    if parser.peeked_token_is(TokenType.OPEN_PAREN):
-        type_inferred = False
-        parser.ensure_token(TokenType.OPEN_PAREN)
-        while not parser.peeked_token_is(TokenType.CLOSE_PAREN):
-            input_types.append(parse_any_type_decl(parser))
-            if parser.peeked_token_is(TokenType.COMMA):
-                parser.consume_token()
-                break
-        parser.ensure_token(TokenType.CLOSE_PAREN)
+    inputs_need_inference = True
+    output_needs_inference = True
 
-        if parser.next_token_is(TokenType.STREAM):
+    # Read input types in the signature if any
+    if parser.next_token_is(TokenType.QMARK):
+        inputs_need_inference = True
+    else:
+        if parser.peeked_token_is(TokenType.OPEN_PAREN):
+            parser.ensure_token(TokenType.OPEN_PAREN)
+            while not parser.peeked_token_is(TokenType.CLOSE_PAREN):
+                input_types.append(parse_any_type_decl(parser))
+                if parser.peeked_token_is(TokenType.COMMA):
+                    parser.consume_token()
+                    break
+            parser.ensure_token(TokenType.CLOSE_PAREN)
+            inputs_need_inference = False
+        elif not parser.peeked_token_is(TokenType.OPEN_BRACE):
+            input_types.append(parse_any_type_decl(parser))
+            inputs_need_inference = False
+
+    # Read output types in the signature if any
+    if parser.next_token_is(TokenType.STREAM):
+        if parser.next_token_is(TokenType.QMARK, consume = True):
+            output_needs_inference = False
             output_type = parse_any_type_decl(parser)
 
     # Create a function of a given type and register it
@@ -49,7 +74,9 @@ def parse_bind(parser, annotations):
     func_typeref = parser.register_type(fqn, func_type)
 
     # create the function object
-    function = functions.Function(fqn, func_typeref, type_inferred,
+    function = functions.Function(fqn, func_typeref,
+                                  inputs_need_inference,
+                                  output_needs_inference,
                                   annotations, docs)
 
     parser.ensure_token(TokenType.OPEN_BRACE)

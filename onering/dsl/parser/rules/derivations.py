@@ -97,7 +97,7 @@ def parse_projection(parser, parent_derivation,
     projection.projected_name = projected_name
 
     projection.is_optional = None
-    if allow_optionality and parser.next_token_is(TokenType.QUESTION):
+    if allow_optionality and parser.next_token_is(TokenType.QMARK):
         projection.is_optional = True
 
     projection.default_value = None

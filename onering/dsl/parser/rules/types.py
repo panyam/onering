@@ -198,7 +198,7 @@ def parse_field_declaration(parser):
     is_optional = False
     default_value = None
 
-    if parser.next_token_is(TokenType.QUESTION):
+    if parser.next_token_is(TokenType.QMARK):
         is_optional = True
 
     if parser.next_token_is(TokenType.EQUALS):
