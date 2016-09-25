@@ -59,7 +59,6 @@ class Expression(object):
     def __init__(self):
         self._evaluated_typeref = None
 
-
     @property
     def evaluated_typeref(self):
         if not self._evaluated_typeref:
