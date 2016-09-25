@@ -129,7 +129,7 @@ def union_schema_initializer(newtype, schema_data, pegasus_loader, type_namespac
 
 def record_schema_initializer(newtype, schema_data, pegasus_loader, type_namespace):
     name,namespace,fqn = utils.normalize_name_and_ns(schema_data["name"], schema_data.get("namespace", ""))
-    newtype.copy_from(tlrecords.RecordType(tlrecords.Record(fqn, newtype, None)))
+    newtype.copy_from(tlrecords.RecordTypeRef(fqn, newtype, None))
     newtype.type_data.thetype = newtype
     record_data = newtype.type_data
 

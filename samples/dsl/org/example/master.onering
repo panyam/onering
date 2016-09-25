@@ -34,7 +34,7 @@ enum Gender {
 
 record Race {
     yearAppeared : DateTime
-    raceType : enum {
+    raceType : enum RaceType {
         Human
         Elf
         Orc
@@ -74,7 +74,7 @@ typeref Structure = record {
     name : string
     builtBy : Being
     builtOn : DateTime
-    details : union[
+    details : union StructureDetails [
         Wall,
         Palace,
         Mill,

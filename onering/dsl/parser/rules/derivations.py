@@ -122,7 +122,7 @@ def parse_projection_target(parser, parent_derivation, field_path):
         if parser.peeked_token_is(TokenType.IDENTIFIER):
             from onering.dsl.parser.rules.types import parse_any_type_decl
             projected_type = parse_any_type_decl(parser)
-            return projections.SimpleFieldProjection(parent_derivation, field_path, projected_type = projected_type)
+            return projections.SimpleFieldProjection(parent_derivation, field_path, projected_typeref = projected_type)
         else:
             raise UnexpectedTokenException(parser.peek_token(), TokenType.IDENTIFIER)
     elif parser.next_token_is(TokenType.STREAM):

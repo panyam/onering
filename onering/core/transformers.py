@@ -104,11 +104,11 @@ class Transformer(Annotatable):
             2. All expressions have their evaluated types set
         """
         type_registry = context.type_registry
-        self.src_type = type_registry.get_type(self.src_fqn)
-        self.dest_type = type_registry.get_type(self.dest_fqn)
+        self.src_typeref = type_registry.get_typeref(self.src_fqn)
+        self.dest_typeref = type_registry.get_typeref(self.dest_fqn)
 
         # First make sure we have implicit rules taken from the derivations if any
-        self._implicit_statements = self._evaluate_implicit_statements(context)
+        self._implicit_statements = [] # self._evaluate_implicit_statements(context)
 
         # Now resolve all field paths appropriately
         for statement in self.all_statements:
@@ -122,7 +122,7 @@ class Transformer(Annotatable):
         """
 
         # Step 1: Find common "ancestor" of each of the records
-        ancestor = context.find_common_ancestor(self.src_type, self.dest_type)
+        ancestor = context.find_common_ancestor(self.src_typeref, self.dest_typeref)
         if ancestor is not None:
             # If the two types have no common ancestor then we cannot have auto rules
             pass
@@ -159,7 +159,7 @@ class Statement(object):
             pass
         else:
             # Then target variable is a temporary var declaration so set its type
-            self.target_variable.evaluated_type = self.expressions[-1].evaluated_type
+            self.target_variable.evaluated_typeref = self.expressions[-1].evaluated_typeref
 
 class Expression(object):
     """
@@ -167,18 +167,18 @@ class Expression(object):
     (or in derivations during type streaming but type streaming is "kind of" a transformer anyway.
     """
     def __init__(self):
-        self._evaluated_type = None
+        self._evaluated_typeref = None
 
 
     @property
-    def evaluated_type(self):
-        if not self._evaluated_type:
+    def evaluated_typeref(self):
+        if not self._evaluated_typeref:
             raise errors.OneringException("Type checking failed for '%s'" % repr(self))
-        return self._evaluated_type
+        return self._evaluated_typeref
 
-    @evaluated_type.setter
-    def evaluated_type(self, vartype):
-        self.set_evaluated_type(vartype)
+    @evaluated_typeref.setter
+    def evaluated_typeref(self, vartype):
+        self.set_evaluated_typeref(vartype)
 
     def resolve_types(self, transformer, context):
         """
@@ -199,13 +199,13 @@ class LiteralExpression(Expression):
     def check_types(self, context):
         t = type(self.value)
         if t in (string, unicode):
-            self._evaluated_type = context.type_registry.get_type("string")
+            self._evaluated_typeref = context.type_registry.get_typeref("string")
         elif t is int:
-            self._evaluated_type = context.type_registry.get_type("int")
+            self._evaluated_typeref = context.type_registry.get_typeref("int")
         elif t is bool:
-            self._evaluated_type = context.type_registry.get_type("bool")
+            self._evaluated_typeref = context.type_registry.get_typeref("bool")
         elif t is float:
-            self._evaluated_type = context.type_registry.get_type("float")
+            self._evaluated_typeref = context.type_registry.get_typeref("float")
 
     def __repr__(self):
         return "<Literal - ID: 0x%x, Value: %s>" % (id(self), str(self.value))
@@ -219,9 +219,9 @@ class VariableExpression(Expression):
     def __repr__(self):
         return "<VarExp - ID: 0x%x, Value: %s>" % (id(self), str(self.value))
 
-    def set_evaluated_type(self, vartype):
+    def set_evaluated_typeref(self, vartype):
         if not self.is_field_path:
-            self._evaluated_type = vartype
+            self._evaluated_typeref = vartype
 
     def check_types(self, context):
         if not self.is_field_path: return
@@ -238,11 +238,11 @@ class VariableExpression(Expression):
         # This is a variable so resolve it to either a local var or a parent + field_path
         if self.is_field_path:
             from onering.core.resolvers import resolve_path_from_record
-            starting_type = transformer.src_type if self.from_source else transformer.dest_type
+            starting_type = transformer.src_typeref if self.from_source else transformer.dest_typeref
             result = resolve_path_from_record(starting_type, self.value, context.type_registry, None)
             if not result.is_valid:
                 raise errors.OneringException("Unable to resolve path '%s' in record '%s'" % (str(self.value), starting_type.fqn))
-            self._evaluated_type = result.resolved_type
+            self._evaluated_typeref = result.resolved_typeref
         else:
             ipdb.set_trace()
 
@@ -283,22 +283,25 @@ class FunctionCallExpression(Expression):
         Processes an expressions and resolves name bindings and creating new local vars 
         in the process if required.
         """
-        self.func_type = context.type_registry.get_type(self.func_fqn)
+        self.func_typeref = context.type_registry.get_typeref(self.func_fqn)
+
+        if not self.func_typeref.is_resolved:
+            ipdb.set_trace()
 
         # This is a variable so resolve it to either a local var or a parent + field_path
         for arg in self.func_args:
             arg.resolve_types(transformer, context)
 
         # Ensure that types match the types being sent to functions
-        if len(self.func_args) != self.func_type.arglimit:
+        if len(self.func_args) != self.func_typeref.final_type.argcount:
             ipdb.set_trace()
             raise errors.OneringException("Function '%s' takes %d arguments, but encountered %d" % (self.function.constructor, self.function.arglimit, len(self.func_args)))
 
         for i in xrange(0, len(self.func_args)):
             arg = self.func_args[i]
-            input_type = self.func_type.child_type_at(i)
+            input_type = self.func_typeref.child_type_at(i)
             ipdb.set_trace()
-            if arg.evaluated_type != input_type:
-                raise errors.OneringException("Argument at index %d expected type (%s), found type (%s)" % (i, arg.evaluated_type, input_type))
+            if arg.evaluated_typeref != input_type:
+                raise errors.OneringException("Argument at index %d expected type (%s), found type (%s)" % (i, arg.evaluated_typeref, input_type))
 
-        self._evaluated_type = self.function.output_type
+        self._evaluated_typeref = self.function.output_type

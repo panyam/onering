@@ -25,7 +25,7 @@ class Projection(Annotatable):
         self.resolution.perform_once(resolver_method)
 
     @property
-    def resolved_types(self):
+    def resolved_typerefs(self):
         raise Exception("Not yet implemented")
 
 
@@ -33,7 +33,7 @@ class RecordDerivation(Projection):
     """
     Describes the components of a record derivation.  
     A record derivation can have a source record and field projections.
-    Upon resolution, the derivation will have a valid "resolved_record" property
+    Upon resolution, the derivation will have a valid "resolved_recordref" property
     that will be of type Record.
     """
     def __init__(self, fqn, annotations = None, docs = ""):
@@ -46,9 +46,12 @@ class RecordDerivation(Projection):
         self.source_types = {}
         self.field_projections = []
         self.fqn = fqn
+        self._resolved_recordref = None
 
-    def __repr__(self):
-        return "<RecordDerivation ID: 0x%x, Name: '%s'>" % (id(self), self.fqn)
+    def __json__(self):
+        out = super(RecordDerivation, self).__json__()
+        out["fqn"] = self.fqn
+        return out
 
     @property
     def name(self):
@@ -65,16 +68,14 @@ class RecordDerivation(Projection):
     @fqn.setter
     def fqn(self, value):
         self._fqn = value
-        self._resolved_record = records.RecordType(None, self.annotations, self.docs)
-        self._resolved_record.type_data.fqn = value
 
     @property
-    def resolved_types(self):
-        return [self.resolved_record]
+    def resolved_typerefs(self):
+        return [self.resolved_recordref]
 
     @property
-    def resolved_record(self):
-        return self._resolved_record
+    def resolved_recordref(self):
+        return self._resolved_recordref
 
     def add_projection(self, projection):
         """
@@ -105,14 +106,22 @@ class RecordDerivation(Projection):
     def _resolve(self, type_registry, resolver):
         """
         Resolves the derivation by:
-            1. Resolving all source fields
-            2. Creating a resolver that takes into account the source fields,
-            3. Resolving all field projections with the new resolver
+            1. Register a new type ref as whether the FQN was provided by user or auto generated,
+               it should not be registered until resolution begins.
+            2. Resolving all source fields
+            3. Creating a resolver that takes into account the source fields,
+            4. Resolving all field projections with the new resolver
         """
-        # Step 1
+        # Step 1: Register a new record type for the FQN
+        if not self.fqn:
+            ipdb.set_trace()
+            assert False
+        self._resolved_recordref = type_registry.register_type(self.fqn, records.RecordType(None, self.annotations, self.docs))
+
+        # Step 2
         self._resolve_sources(type_registry)
 
-        # Step 2: TODO - Create the Resolver to take into account this derivation's source record(s) if any (eg in a type stream, the derivation wont have sources)
+        # Step 3: TODO - Create the Resolver to take into account this derivation's source record(s) if any (eg in a type stream, the derivation wont have sources)
         if self.source_aliases:
             # TODO - create new resolver
             from onering.core.resolvers import DerivationPathResolver
@@ -120,34 +129,23 @@ class RecordDerivation(Projection):
         else:
             pass
 
-        # Step 3: Resolve field projections
+        # Step 4: Resolve field projections
         self._resolve_projections(type_registry, resolver)
-
-        # Register the type into the registry if we have a name otherwise defer it to name setting
-        if self.fqn:
-            if self.fqn.endswith("populations_0"):
-                ipdb.set_trace()
-            type_registry.register_type(self.fqn, self.resolved_record)
 
 
     def _resolve_sources(self, registry):
         unresolved_types = set()
         for (alias,fqn) in self.source_aliases.iteritems():
-            source_rec_type = registry.get_type(fqn)
-            if source_rec_type is None:
+            source_rec_typeref = registry.get_typeref(fqn)
+            if source_rec_typeref is None:
                 # TODO - Is this another derivation that needs resolution first?
                 ipdb.set_trace()
                 unresolved_types.add(fqn)
-            elif source_rec_type.is_unresolved:
-                source_rec_type.resolve(registry)
-                if source_rec_type.is_unresolved:
-                    unresolved_types.add(source_rec_ref.record_fqn)
-                else:
-                    # save resolved type
-                    self.source_types[alias] = source_rec_type
+            elif source_rec_typeref.is_unresolved:
+                unresolved_types.add(source_rec_ref.record_fqn)
             else:
                 # save resolved type
-                self.source_types[alias] = source_rec_type
+                self.source_types[alias] = source_rec_typeref
 
         if len(unresolved_types) > 0:
             raise tlerrors.TypesNotFoundException(*list(unresolved_types))
@@ -167,12 +165,7 @@ class RecordDerivation(Projection):
         # otherwise all of these are resolved so create our field list from these
         for proj in self.field_projections:
             for field in proj.projected_fields:
-                self.resolved_record.add_child(field.field_type, field.field_name,
-                                             field.docs, field.annotations,
-                                             records.FieldData(field.field_name,
-                                                               self.resolved_record,
-                                                               field.is_optional,
-                                                               field.default_value))
+                self.resolved_recordref.final_type.add_arg(field)
 
 class FieldProjection(Projection):
     """
@@ -189,9 +182,14 @@ class FieldProjection(Projection):
         self._resolved_fields = []
         self.field_path_resolution = None
 
+    def __json__(self):
+        out = super(FieldProjection, self).__json__()
+        out["src"] = repr(self.source_field_path)
+        return out
+
     @property
-    def resolved_types(self):
-        return [f.field_type for f in self._resolved_fields]
+    def resolved_typerefs(self):
+        return [f.typeref for f in self._resolved_fields]
 
     @property
     def source_field_path(self):
@@ -222,6 +220,7 @@ class FieldProjection(Projection):
         Resolves a projection.  This should be implemented by child projection 
         types.
         """
+        # if str(self.source_field_path) == "name": ipdb.set_trace()
         self.field_path_resolution = resolver.resolve_path(self._source_field_path)
 
         # Let child classes handle this
@@ -258,30 +257,32 @@ class FieldProjection(Projection):
         source_field_path.
         """
         if not field_path.all_fields_selected:
-            missing_fields = set(field_path.selected_children) - set(starting_type.child_names)
+            field_names = [a.name for a in starting_type.args]
+            missing_fields = set(field_path.selected_children) - set(field_names)
             if len(missing_fields) > 0:
                 raise errors.OneringException("Invalid fields in selection: '%s'" % ", ".join(list(missing_fields)))
 
         selected_fields = field_path.get_selected_fields(starting_type)
         for field_name in selected_fields:
+            arg = starting_type.arg_for(field_name)
             newfield = Field(field_name,
-                             starting_type.child_type_for(field_name),
+                             starting_type.arg_for(field_name).typeref,
                              field_path = self.source_field_path.with_child(field_name),
-                             optional = starting_type.child_data_for(field_name).is_optional,
-                             default = starting_type.child_data_for(field_name).default_value,
-                             docs = starting_type.docs_for(field_name),
-                             annotations = starting_type.annotations_for(field_name))
+                             is_optional = arg.is_optional,
+                             default_value = arg.default_value,
+                             docs = arg.docs,
+                             annotations = arg.annotations)
             self._add_field(newfield)
 
 
 
-def _auto_generate_projected_type_name(registry, projected_type, parent_derivation, field_path_resolution):
-    if projected_type and projected_type.fqn is None and parent_derivation:
-        parent_fqn = parent_derivation.fqn
-        field_name = field_path_resolution.field_name
-        parent_name,ns,parent_fqn = normalize_name_and_ns(parent_fqn, None)
-        projected_type.type_data.fqn = parent_fqn + "_" + field_name
-        registry.register_type(projected_type.fqn, projected_type)
+def _auto_generate_projected_typeref_name(registry, derivation_or_typeref, parent_derivation, field_path_resolution):
+    if derivation_or_typeref and parent_derivation:
+        if derivation_or_typeref.fqn is None:
+            parent_fqn = parent_derivation.fqn
+            field_name = field_path_resolution.field_name
+            parent_name,ns,parent_fqn = normalize_name_and_ns(parent_fqn, None)
+            derivation_or_typeref.fqn = parent_fqn + "_" + field_name
 
 
 class SingleFieldProjection(FieldProjection):
@@ -307,7 +308,8 @@ class SingleFieldProjection(FieldProjection):
             return self.is_optional
 
         if self.field_path_resolution.parent_type.constructor == "record":
-            child_data = self.field_path_resolution.resolved_type_data
+            key = self.field_path_resolution.child_key
+            child_data = self.field_path_resolution.parent_type.arg_for(key)
             if child_data.is_optional is not None:
                 return child_data.is_optional
         return None
@@ -319,7 +321,8 @@ class SingleFieldProjection(FieldProjection):
             return self.default_value
 
         if self.field_path_resolution.parent_type.constructor == "record":
-            child_data = self.field_path_resolution.resolved_type_data
+            key = self.field_path_resolution.child_key
+            child_data = self.field_path_resolution.parent_type.arg_for(key)
             if child_data.default_value is not None:
                 return child_data.default_value
         return None
@@ -329,22 +332,22 @@ class SimpleFieldProjection(SingleFieldProjection):
     """
     A simple projection that maps a single field path into a single target type.
     """
-    def __init__(self, parent_derivation, source_field_path, projected_type = None):
+    def __init__(self, parent_derivation, source_field_path, projected_typeref = None):
         super(SimpleFieldProjection, self).__init__(parent_derivation, source_field_path)
-        self._projected_type = projected_type
+        self._projected_typeref = projected_typeref
 
-        if projected_type and not isinstance(projected_type, tlcore.Type):
-            raise errors.OneringException("Projected type must be a Type instance")
+        if projected_typeref and not isinstance(projected_typeref, tlcore.TypeRef):
+            raise errors.OneringException("Projected type must be a TypeRef instance")
 
-    def __repr__(self):
-        if self.projected_type:
-            return "<SimpleFieldProjection ID: 0x%x, Path: '%s', PType: '%s'>" % (id(self), self.source_field_path, repr(self.projected_type))
-        else:
-            return "<SimpleFieldProjection ID: 0x%x, Path: '%s'>" % (id(self), self.source_field_path)
+    def __json__(self):
+        out = super(SimpleFieldProjection, self).__json__()
+        if self.projected_typeref:
+            out["ptype"] = self.projected_typeref.json()
+        return out
 
     @property
-    def projected_type(self):
-        return self._projected_type
+    def projected_typeref(self):
+        return self._projected_typeref
 
     def _field_path_resolution_failed(self):
         """
@@ -354,7 +357,7 @@ class SimpleFieldProjection(SingleFieldProjection):
         # must not be a projected name and there MUST be a type
         if self.projected_name is not None:
             raise errors.OneringException("New Field '%s' in '%s' should not have a target_name" % (self.source_field_path, self.parent_derivation.fqn))
-        elif self.projected_type is None:
+        elif self.projected_typeref is None:
             if self.source_field_path.is_absolute:
                 raise errors.OneringException("Projection '%s' (for new field) in '%s' cannot be absolute" % (self.source_field_path, self.parent_derivation.resolved_record.fqn))
             else:
@@ -363,10 +366,10 @@ class SimpleFieldProjection(SingleFieldProjection):
             raise errors.OneringException("New Field '%s' in '%s' must not be a field path" % (self.source_field_path, self.parent_derivation.fqn))
         else:
             newfield = Field(self.source_field_path.get(0),
-                             self.projected_type,
+                             self.projected_typeref,
                              field_path = self.source_field_path,
-                             optional = self.is_optional,
-                             default = self.default_value,
+                             is_optional = self.is_optional,
+                             default_value = self.default_value,
                              docs = "",
                              annotations = self.annotations)
             self._add_field(newfield)
@@ -377,23 +380,22 @@ class SimpleFieldProjection(SingleFieldProjection):
         Called after the intial field path resolution and if final field data was found.
         """
         # If the projected name is new record that is unnamed then give it an autogenerated name
-        _auto_generate_projected_type_name(registry, self.projected_type, self.parent_derivation, self.field_path_resolution)
+        _auto_generate_projected_typeref_name(registry, self.projected_typeref,
+                                              self.parent_derivation, self.field_path_resolution)
 
-        if self.projected_type and self.projected_type.is_unresolved:
-            self.projected_type.resolve(registry)
-            if self.projected_type.is_unresolved:
-                # TODO: Dont do anything here as even though the projected type is unresolved
-                # It is only being referenced and not dereferenced.  Only fail on an unresolved
-                # type if it is being unpacked for its fields.
-                print "Unresolved Type: ", self.projected_type
+        if self.projected_typeref and self.projected_typeref.is_unresolved:
+            # TODO: Dont do anything here as even though the projected type is unresolved
+            # It is only being referenced and not dereferenced.  Only fail on an unresolved
+            # type if it is being unpacked for its fields.
+            print "Unresolved Type: ", self.projected_typeref
 
-        projected_type = self.projected_type or self.field_path_resolution.resolved_type
+        projected_typeref = self.projected_typeref or self.field_path_resolution.resolved_typeref
 
         newfield = Field(self.projected_name or self.field_path_resolution.field_name,
-                         projected_type,
+                         projected_typeref,
                          field_path = self.source_field_path,
-                         optional = self.projected_is_optional,
-                         default = self.projected_default_value,
+                         is_optional = self.projected_is_optional,
+                         default_value = self.projected_default_value,
                          docs = self.field_path_resolution.docs,
                          annotations = self.annotations or self.field_path_resolution.annotations)
         self._add_field(newfield)
@@ -408,29 +410,32 @@ class InlineDerivation(SingleFieldProjection):
         if derivation is None or not isinstance(derivation, RecordDerivation):
             raise errors.OneringException("derivation must be of type Derivation")
 
+    def __json__(self):
+        out = super(InlineDerivation, self).__json__()
+        out["target"] = self.child_derivation.json()
+        return out
 
     def _field_path_resolved(self, registry, resolver):
         """
         Called after the intial field path resolution and if final field data was found.
         """
-
         # If the inline derivation is unnamed then give it a generated name
-        _auto_generate_projected_type_name(registry, self.child_derivation.resolved_record,
-                                           self.parent_derivation, self.field_path_resolution)
+        _auto_generate_projected_typeref_name(registry, self.child_derivation,
+                                              self.parent_derivation, self.field_path_resolution)
 
         # Resolve the child derivation here, but first make sure the child derivation has 
         # a source set that is the same as the type of the source field!
-        source_fqn = self.field_path_resolution.resolved_type.fqn
+        source_fqn = self.field_path_resolution.resolved_typeref.fqn
         if not self.child_derivation.has_source(source_fqn):
             self.child_derivation.add_source(source_fqn)
 
         self.child_derivation.resolve(registry, resolver)
 
         newfield = Field(self.projected_name or self.field_path_resolution.field_name,
-                         self.child_derivation.resolved_record,
+                         self.child_derivation.resolved_recordref,
                          field_path = self.source_field_path,
-                         optional = self.projected_is_optional,
-                         default = self.projected_default_value,
+                         is_optional = self.projected_is_optional,
+                         default_value = self.projected_default_value,
                          docs = self.field_path_resolution.docs,
                          annotations = self.annotations or self.field_path_resolution.annotations)
         self._add_field(newfield)
@@ -475,18 +480,18 @@ class TypeStream(SingleFieldProjection):
                 proj.fqn = "%s_%s_%d" % (parent_fqn, field_name, index)
             proj.resolve(registry, resolver)
             # each resolution should have exactly 1 resolved field
-            if len(proj.resolved_types) != 1:
+            if len(proj.resolved_typerefs) != 1:
                 raise errors.OneringException("Exactly one resolved type must be present in the arguments of a constructor to a type stream.")
 
         # Now we create the field that is of the type of the constructor provided to us
-        type_args = [cp.resolved_types[0] for cp in self.child_projections]
-        field_type = tlcore.Type(self.constructor, type_args)
+        type_args = [cp.resolved_typerefs[0] for cp in self.child_projections]
+        field_typeref = tlcore.TypeRef(tlcore.Type(None, self.constructor, type_args), None)
 
         newfield = Field(self.projected_name or self.field_path_resolution.field_name,
-                         field_type,
+                         field_typeref,
                          field_path = self.source_field_path,
-                         optional = self.projected_is_optional,
-                         default = self.projected_default_value,
+                         is_optional = self.projected_is_optional,
+                         default_value = self.projected_default_value,
                          docs = self.field_path_resolution.docs,
                          annotations = self.annotations or self.field_path_resolution.annotations)
         self._add_field(newfield)
@@ -516,18 +521,18 @@ class MultiFieldProjection(FieldProjection):
         """
         Called after the intial field path resolution and if final field data was not found.
         """
-        self._include_child_fields(self.field_path_resolution.resolved_type, self.source_field_path)
+        self._include_child_fields(self.field_path_resolution.resolved_typeref.final_type, self.source_field_path)
 
     def __repr__(self):
         return "<MultiFieldProjection ID: 0x%x, Path: '%s'>" % (id(self), self.source_field_path)
 
 
-class Field(Annotatable):
+class Field(records.FieldTypeArg):
     """
     Holds all information about a field within a record.
     """
-    def __init__(self, name, field_type, field_path,
-                 optional = False, default = None, docs = "", annotations = None):
+    def __init__(self, name, field_typeref, field_path,
+                 is_optional = False, default_value = None, docs = "", annotations = None):
         """
         Creates a new Field as the result of a projection.
 
@@ -541,24 +546,11 @@ class Field(Annotatable):
             docs            -   Documentation for the field
             annotations     -   Extra annotations for the field.
         """
-        super(Field, self).__init__(annotations, docs)
-        if type(name) not in (str, unicode):
-            ipdb.set_trace()
-            assert type(name) in (str, unicode), "Expected field_name to be string, Found type: '%s'" % type(name)
-        if not isinstance(field_type, tlcore.Type): ipdb.set_trace()
-        assert isinstance(field_type, tlcore.Type), type(field_type)
+        records.FieldTypeArg.__init__(self, name, field_typeref, is_optional, default_value, annotations, docs)
         assert not field_path.has_children, "Field path of a single derived field cannot have children"
-
-        self.field_name = name or ""
-        self.field_type = field_type
         self.field_path = field_path
-        self.is_optional = optional
-        self.default_value = default or None
-        self.errors = []
 
-    def __repr__(self): return str(self)
-    def __str__(self): return self.fqn
-
-    @property
-    def fqn(self):
-        return self.field_name
+    def __json__(self):
+        out = super(Field, self).__json__()
+        out["fpath"] = repr(self.field_path)
+        return out

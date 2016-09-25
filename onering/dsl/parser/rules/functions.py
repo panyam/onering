@@ -42,9 +42,8 @@ def parse_bind(parser, annotations):
         output_type = parse_any_type_decl(parser)
 
     # Create a function of a given type and register it
-    ipdb.set_trace()
     func_type = tlcore.FunctionType(input_types, output_type, annotations, docs)
-    parser.register_type(fqn, func_type)
+    func_typeref = parser.register_type(fqn, func_type)
 
     # create the binding object
     function = functions.Function(fqn, annotations, docs)

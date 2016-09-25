@@ -52,12 +52,16 @@ def parse_typeref_decl(parser, annotations):
     name, namespace, fqn = utils.normalize_name_and_ns(name, parser.document.namespace)
 
     parser.ensure_token(TokenType.EQUALS)
-    target_type = parse_any_type_decl(parser, typereffed_fqn = fqn)
+    target_typeref = parse_any_type_decl(parser, typereffed_fqn = fqn)
+    if not isinstance(target_typeref, tlcore.TypeRef):
+        ipdb.set_trace()
 
-    parser.register_type(fqn, target_type)
+    parser.register_type(fqn, target_typeref)
     return fqn
 
 def parse_any_type_decl(parser, annotations = [], typereffed_fqn = None):
+    # TODO - Use generic generic types instead of hard coded map and array 
+    # ie based on the presence of a "[" token after an identifier
     next_token = parser.ensure_token(TokenType.IDENTIFIER, peek = True)
     if next_token == "array":
         return parse_array_type_decl(parser, annotations)
@@ -66,21 +70,21 @@ def parse_any_type_decl(parser, annotations = [], typereffed_fqn = None):
     elif next_token in [ "record", "enum", "union" ]:
         return parse_complex_type_decl(parser, annotations, typereffed_fqn)
     else:
-        return parse_primitive_type(parser, annotations)
+        return parse_named_typeref(parser, annotations)
 
-def parse_primitive_type(parser, annotations = []):
+def parse_named_typeref(parser, annotations = []):
     parser.ensure_token(TokenType.IDENTIFIER, peek = True)
     fqn = parser.ensure_fqn()
     # if this type exists in the type registry use this type
     # otherwise register as an unresolved type and proceed
-    return parser.get_type(fqn)
+    return parser.get_typeref(fqn)
 
 def parse_array_type_decl(parser, annotations = []):
     parser.ensure_token(TokenType.IDENTIFIER, "array")
     parser.ensure_token(TokenType.OPEN_SQUARE)
     target_type = parse_any_type_decl(parser)
     parser.ensure_token(TokenType.CLOSE_SQUARE)
-    return tlcore.ArrayType(target_type, annotations = annotations, docs = parser.last_docstring())
+    return tlcore.TypeRef(tlcore.ArrayType(target_type, annotations = annotations, docs = parser.last_docstring()), None)
 
 def parse_map_type_decl(parser, annotations = []):
     parser.ensure_token(TokenType.IDENTIFIER, "map")
@@ -89,7 +93,7 @@ def parse_map_type_decl(parser, annotations = []):
     parser.ensure_token(TokenType.COMMA)
     value_type = parse_any_type_decl(parser)
     parser.ensure_token(TokenType.CLOSE_SQUARE)
-    return tlcore.MapType(key_type, value_type, annotations = annotations, docs = parser.last_docstring())
+    return tlcore.TypeRef(tlcore.MapType(key_type, value_type, annotations = annotations, docs = parser.last_docstring()), None)
 
 def parse_complex_type_decl(parser, annotations = [], typereffed_fqn = None):
     type_class = parser.ensure_token(TokenType.IDENTIFIER)
@@ -98,96 +102,91 @@ def parse_complex_type_decl(parser, annotations = [], typereffed_fqn = None):
 
     newtype = None
     fqn = typereffed_fqn
-    if parser.peeked_token_is(TokenType.IDENTIFIER):
+    if parser.peeked_token_is(TokenType.IDENTIFIER) or fqn is None:
         # we have a name
         n = parser.ensure_token(TokenType.IDENTIFIER)
         ns = parser.document.namespace
         n,ns,fqn = utils.normalize_name_and_ns(n, ns)
 
+    if fqn:
+        print "Registering new %s: '%s'" % (type_class, fqn)
+        newtyperef = parser.register_type(fqn, None)
+    else:
+        newtyperef = tlcore.TypeRef(None, None)
+
+    docs = parser.last_docstring()
     if type_class == "enum":
-        newtype = tlenums.EnumType(annotations = annotations, docs = parser.last_docstring())
-        if fqn:
-            newtype = parser.register_type(fqn, newtype)
-            newtype.type_data.fqn = fqn
-        parse_enum_body(parser, newtype)
+        symbols = parse_enum_body(parser)
+        newtyperef.target = tlenums.EnumType(symbols, annotations = annotations, docs = docs)
     elif type_class == "union":
-        newtype = tlcore.UnionType([], annotations = annotations, docs = parser.last_docstring())
-        if fqn:
-            newtype = parser.register_type(fqn, newtype)
-        parse_union_body(parser, newtype)
+        union_types = parse_union_body(parser)
+        newtyperef.target = tlcore.UnionType(union_types, annotations = annotations, docs = docs)
     elif type_class == "record":
-        newtype = records.RecordType(records.Record(fqn, None, None), annotations = annotations, docs = parser.last_docstring())
-        record_data = newtype.type_data
-        if fqn:
-            newtype = parser.register_type(fqn, newtype)
-            print "Parsing new record: '%s'" % fqn
-
-        parse_record_body(parser, newtype)
-
-        # Try for a resolution if we dont want lazy evaluation
-        if not parser.lazy_resolution_enabled:
-            newtype.resolve(parser.onering_context.type_registry, parser.resolver)
+        fields = parse_record_body(parser)
+        newtyperef.target = records.RecordType(fields, annotations = annotations, docs = docs)
     else:
         assert False
 
-    assert newtype is not None, "A type was NOT parsed"
-    return newtype
+    assert newtyperef is not None, "A type was NOT parsed"
+    return newtyperef
 
 ########################################################################
 ##          Enum and Union parsing
 ########################################################################
 
-def parse_enum_body(parser, enum_type):
+def parse_enum_body(parser):
     """
     Parse the body of an enum declaration:
 
         "{" enum_symbols + "}"
     """
+    symbols = []
     parser.ensure_token(TokenType.OPEN_BRACE)
     while not parser.peeked_token_is(TokenType.CLOSE_BRACE):
         annotations = parse_annotations(parser)
-        symbol = parser.ensure_token(TokenType.IDENTIFIER)
-        enum_type.type_data.add_symbol(symbol, annotations, parser.last_docstring)
+        name = parser.ensure_token(TokenType.IDENTIFIER)
+        symbols.append(tlenums.EnumSymbol(name, annotations, parser.last_docstring))
         # consume comma silently
         parser.next_token_if(TokenType.COMMA, consume = True)
     parser.ensure_token(TokenType.CLOSE_BRACE)
-    return enum_type
+    return symbols
 
-def parse_union_body(parser, union_type):
+def parse_union_body(parser):
     """
     Parse the body of an union declaration:
         "{" any_type_decl + "}"
     """
+    union_types = []
     parser.ensure_token(TokenType.OPEN_SQUARE)
     while not parser.peeked_token_is(TokenType.CLOSE_SQUARE):
-        child_type = parse_any_type_decl(parser)
-        union_type.add_child(child_type)
-        parser.next_token_if(TokenType.COMMA, consume = True)
+        union_types.append(parse_any_type_decl(parser))
+        parser.consume_tokens(TokenType.COMMA)
     parser.ensure_token(TokenType.CLOSE_SQUARE)
-    return union_type
+    return union_types
 
 ########################################################################
 ##          Record and Field parsing
 ########################################################################
 
-def parse_record_body(parser, parent_record):
+def parse_record_body(parser):
     """
     Parses the body of a record declaration:
 
         record_type_body := "{" ( annotation * field_declaration ) * "}"
 
     """
+    fields = []
     parser.ensure_token(TokenType.OPEN_BRACE)
 
     # read annotations as they can be used by ... or field projections
     while not parser.peeked_token_is(TokenType.CLOSE_BRACE):
         # read a field projection
-        parse_field_declaration(parser, parent_record)
+        fields.append(parse_field_declaration(parser))
 
     parser.ensure_token(TokenType.CLOSE_BRACE)
-    return parent_record
+    return fields
 
-def parse_field_declaration(parser, parent_record):
+def parse_field_declaration(parser):
     """
         field_declaration := annotations ? IDENTIFIER ":" type_decl "?" ? ( "=" literal_value ) ?
     """
@@ -195,7 +194,7 @@ def parse_field_declaration(parser, parent_record):
     docstring = parser.last_docstring()
     field_name = parser.ensure_token(TokenType.IDENTIFIER)
     parser.ensure_token(TokenType.COLON)
-    field_type = parse_any_type_decl(parser)
+    field_typeref = parse_any_type_decl(parser)
     is_optional = False
     default_value = None
 
@@ -205,5 +204,5 @@ def parse_field_declaration(parser, parent_record):
     if parser.next_token_is(TokenType.EQUALS):
         default_value = parser.ensure_literal_value()
 
-    child_data = records.FieldData(field_name, parent_record, is_optional, default_value)
-    parent_record.add_child(field_type, field_name, docstring, annotations, child_data)
+    field = records.FieldTypeArg(field_name, field_typeref, is_optional, default_value, annotations, docstring)
+    return field

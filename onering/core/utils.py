@@ -89,8 +89,8 @@ class FieldPath(object):
         Given a source field, return all child fields as per the selected_fields spec.
         """
         if self.all_fields_selected:
-            return starting_record.child_names
+            return [arg.name for arg in starting_record.args]
         else:
-            return [n for n in starting_record.child_names if n in self.selected_children]
+            return [arg.name for arg in starting_record.args if arg.name in self.selected_children]
 
 

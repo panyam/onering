@@ -104,17 +104,17 @@ class DefaultCommandRunner(runner.CommandRunner):
         target_platform = param_args[0] if len(param_args) > 0 else None
         target_template = param_args[1] if len(param_args) > 1 else None
 
-        source_types = console.thering.type_registry.types_for_wildcards(wildcards)
+        source_types = console.thering.type_registry.typerefs_for_wildcards(wildcards)
         source_derivations = console.thering.derivations_for_wildcards(wildcards)
 
         # Awwwwright resolutions succeeded so now generate them!
         for source_fqn in source_types:
-            source_type = console.type_registry.get_type(source_fqn)
-            orgenutils.generate_schemas(source_type, console.thering, target_platform, target_template)
+            source_typeref = console.type_registry.get_typeref(source_fqn)
+            orgenutils.generate_schemas(source_typeref, console.thering, target_platform, target_template)
 
         for deriv in source_derivations:
-            source_type = console.type_registry.get_type(deriv)
-            orgenutils.generate_schemas(source_type, console.thering, target_platform, target_template)
+            source_typeref = console.type_registry.get_typeref(deriv)
+            orgenutils.generate_schemas(source_typeref, console.thering, target_platform, target_template)
 
     def do_gent(self, console, cmd, rest, prev):
         """

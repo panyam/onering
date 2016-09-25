@@ -80,7 +80,7 @@ derive Town : City {
         race / (*)
         count
         createdTime : DateTime
-        anEnum : enum { A, B, C }
+        anEnum : enum ARandomEnum { A, B, C }
     } ]
 }
 

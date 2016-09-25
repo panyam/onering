@@ -1,5 +1,6 @@
 Jinja2>=2.7
 readline
+pyyaml
 avro
 thriftpy
 typelib

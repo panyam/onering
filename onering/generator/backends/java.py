@@ -6,6 +6,7 @@ import sys
 from onering import utils
 from onering.generator import models as orgenmodels
 from typelib import annotations as tlannotations
+from typelib import core as tlcore
 
 from jinja2 import nodes
 from jinja2.ext import Extension, contextfunction
@@ -96,31 +97,37 @@ class InvokeGetterExtension(Extension):
         ipdb.set_trace()
         pass
     
-def get_type_signature(thetype):
+def get_type_signature(thetyperef):
+    if type(thetyperef) is not tlcore.TypeRef:
+        ipdb.set_trace()
+
+    if thetyperef.fqn:
+        return thetyperef.fqn
+
+    thetype = thetyperef.final_type
     if thetype.constructor in ("record", "union"):
+        ipdb.set_trace()
         return thetype.fqn
     if thetype.constructor == "string":
         return "String"
     if thetype.constructor == "double":
         return "Double"
     if thetype.constructor in ("list", "array"):
-        value_type = get_type_signature(thetype.child_type_at(0))
+        value_type = get_type_signature(thetype.arg_at(0).typeref)
         if value_type is None:
             ipdb.set_trace()
         return "List<" + value_type + ">" 
     if thetype.constructor == "map":
-        key_type = get_type_signature(thetype.child_type_at(0))
-        value_type = get_type_signature(thetype.child_type_at(1))
+        key_type = get_type_signature(thetype.arg_at(0).typeref)
+        value_type = get_type_signature(thetype.arg_at(1).typeref)
         if value_type is None or key_type is None:
             ipdb.set_trace()
         return "Map<" + key_type + ", " + value_type + ">"
     if thetype.constructor == "set":
-        value_type = get_type_signature(thetype.child_type_at(0))
+        value_type = get_type_signature(thetype.arg_at(0).typeref)
         if value_type is None:
             ipdb.set_trace()
         return "Set<" + value_type + ">" 
-    if len(thetype.children) == 0:
-        return thetype.fqn
     ipdb.set_trace()
     assert False
 

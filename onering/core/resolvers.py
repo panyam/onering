@@ -1,28 +1,27 @@
 
 from __future__ import absolute_import
 import ipdb
+from typelib import core as tlcore
 from onering.core.utils import FieldPath
 
-def resolve_path_from_record(starting_record, field_path, registry, resolver):
-    root_record = starting_record
-    parent_record = starting_record
-    final_record = starting_record
-    child_type_key = None
+def resolve_path_from_record(starting_typeref, field_path, registry, resolver):
+    root_typeref = starting_typeref
+    parent_typeref = starting_typeref
+    final_typeref = starting_typeref
+    child_key = None
     for i in xrange(field_path.length):
         part = field_path.get(i)
-        if final_record.constructor != "record":
-            # TODO - Throw a "bad type" exception?
-            return ResolutionResult(root_record, None, None, field_path)
-        if not final_record.is_resolved:
-            # TODO - Does the order of resolutions make a difference?
-            final_record.resolve(registry)
-        if not final_record.contains(part):
+        final_type = final_typeref.final_type
+        if final_typeref.is_unresolved or final_type.constructor != "record":
+            # TODO - Throw an "unresolved type" exception?
+            return ResolutionResult(root_typeref, None, None, field_path)
+        if not final_type.contains(part):
             # Throw NotFound instead of none?
             break
-        child_type_key = part
-        parent_record = final_record
-        final_record = final_record.child_type_for(part)
-    return ResolutionResult(root_record, parent_record, child_type_key, field_path)
+        child_key = part
+        parent_typeref = final_typeref
+        final_typeref = final_type.arg_for(part).typeref
+    return ResolutionResult(root_typeref, parent_typeref, child_key, field_path)
 
 class PathResolver(object):
     """
@@ -75,19 +74,19 @@ class DerivationPathResolver(PathResolver):
         if len(self.derivation.source_aliases.keys()) == 1:
             # If there are more than sources then we MUST use a key to start the path with
             source_fqn = self.derivation.source_aliases.values()[0]
-            starting_type = self.type_registry.get_type(source_fqn)
+            starting_typeref = self.type_registry.get_typeref(source_fqn)
 
             # TODO: We should consider generalizing this.  Is it better to have "multiple" named sources here?
             # Eg in a type streaming, there are technically no sources but every bound variable is a source
-            result = resolve_path_from_record(starting_type, field_path, self.type_registry, self)
+            result = resolve_path_from_record(starting_typeref, field_path, self.type_registry, self)
 
         if (not result or not result.is_valid) and field_path.length > 0:
             # Then try it with as if the first part of the fieldpath is a source itself
             for src in self.derivation.source_aliases.keys():
                 if src == field_path.get(0):
                     src = self.derivation.source_aliases[src]
-                    starting_type = self.type_registry.get_type(source_fqn)
-                    result = resolve_path_from_record(starting_type, field_path.pop()[1], self.type_registry, self)
+                    starting_typeref = self.type_registry.get_typeref(source_fqn)
+                    result = resolve_path_from_record(starting_typeref, field_path.pop()[1], self.type_registry, self)
                     break
         return result
 
@@ -103,41 +102,39 @@ class TypeStreamPathResolver(PathResolver):
         """
         # get the first source ...
         # basicaly check if field_path[0] matches any of the parameters then drill down on that
-        field_type = self.type_stream.field_path_resolution.resolved_type
+        field_typeref = self.type_stream.field_path_resolution.resolved_typeref
         for index,param in enumerate(self.type_stream.param_names):
             if param == field_path.get(0):
-                child_type = field_type.child_type_at(index)
+                child_typeref = field_typeref.final_type.arg_at(index).typeref
                 if field_path.length == 1:
-                    return ResolutionResult(field_type, field_type, index, field_path)
+                    return ResolutionResult(field_typeref, field_typeref, index, field_path)
                 else:
                     _, tail_field_path = field_path.pop()
-                    return resolve_path_from_record(child_type, tail_field_path, self.type_registry, self)
+                    return resolve_path_from_record(child_typeref, tail_field_path, self.type_registry, self)
         return None
 
 class ResolutionResult(object):
-    def __init__(self, root_type, parent_type, child_type_key, normalized_field_path = None):
-        self.root_type = root_type
-        self.parent_type = parent_type
-        self.child_type_key = child_type_key
+    def __init__(self, root_typeref, parent_typeref, child_key, normalized_field_path = None):
+        self.root_typeref = root_typeref
+        self.parent_typeref = parent_typeref
+        self.child_key = child_key
         self.normalized_field_path = normalized_field_path
 
     @property
     def is_valid(self):
-        return self.root_type is not None and self.parent_type is not None and self.child_type_key is not None
+        return self.root_typeref is not None and self.parent_typeref is not None and self.child_key is not None
 
     @property
-    def resolved_type(self):
-        if type(self.child_type_key) in (str, unicode):
-            return self.parent_type.child_type_for(self.child_type_key)
-        else:
-            return self.parent_type.child_type_at(self.child_type_key)
+    def parent_type(self):
+        return self.parent_typeref.target
 
     @property
-    def resolved_type_data(self):
-        if type(self.child_type_key) in (str, unicode):
-            return self.parent_type.child_data_for(self.child_type_key)
+    def resolved_typeref(self):
+        if type(self.child_key) in (str, unicode):
+            child = self.parent_typeref.final_type.arg_for(self.child_key).typeref
         else:
-            return self.parent_type.child_data_at(self.child_type_key)
+            child = self.parent_typeref.final_type.arg_at(self.child_key).typeref
+        return child
 
     @property
     def docs(self):
@@ -151,9 +148,9 @@ class ResolutionResult(object):
     def field_name(self):
         """
         Name of the field as a result of the path resolution.  Note that this only 
-        be set if the parent_type is a record type.  Otherwise None.
+        be set if the parent_typeref is a record type.  Otherwise None.
         """
-        if self.parent_type.constructor is not "record":
+        if self.parent_typeref.final_type.constructor is not "record":
             return self.normalized_field_path.last
-        return self.child_type_key
+        return self.child_key
 

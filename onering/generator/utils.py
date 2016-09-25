@@ -36,14 +36,15 @@ def generate_transformers(trans_group, thering, target_platform, target_template
         platform_class(thering, backend_annotation).generate_transformer_group(trans_group)
 
 
-def generate_schemas(source_type, thering, target_platform, target_template):
+def generate_schemas(source_typeref, thering, target_platform, target_template):
     """
     Generates one or more schema files for a particular source type.
     """
-    # see if the source_type has a backend annotation
-    if source_type.constructor != "record":
+    # see if the source_typeref has a backend annotation
+    if not (source_typeref.is_type and source_typeref.target.constructor == "record"):
         return
 
+    source_type = source_typeref.target
     backend_annotations = evaluate_backend_platforms(source_type, thering, target_platform)
 
     if not backend_annotations:
@@ -57,4 +58,4 @@ def generate_schemas(source_type, thering, target_platform, target_template):
         module_name = ".".join(platform.split(".")[:-1])
         platform_module = importlib.import_module(module_name)
         platform_class = getattr(platform_module, platform.split(".")[-1])
-        platform_class(thering, backend_annotation).generate_schema(source_type.fqn, source_type)
+        platform_class(thering, backend_annotation).generate_schema(source_typeref.fqn, source_type)

@@ -31,29 +31,28 @@ class Parser(TokenStream):
         self._last_docstring = ""
         self.injections = {}
         self.onering_context = context
-        self.lazy_resolution_enabled = True
 
-    def get_type(self, fqn):
+    def get_typeref(self, fqn):
         """
-        Get's the type corresponding to the given fqn if it exists
-        otherwise returns an unresolved type as a place holder until
-        it can be resolved.
+        Get's the reference to a type type corresponding to the given fqn 
+        if it exists otherwise returns an unresolved type as a place holder 
+        until it can be resolved.
         """
-        t = self.onering_context.type_registry.get_type(fqn, nothrow = True)
-        if not t:
+        tref = self.onering_context.type_registry.get_typeref(fqn, nothrow = True)
+        if not tref:
             # TODO: if the fqn is actually NOT fully qualified, then
             # see if this matches any of the ones in the import decls
 
             fqn = self.normalize_fqn(fqn)
-            t = self.onering_context.type_registry.get_type(fqn, nothrow = True)
+            tref = self.onering_context.type_registry.get_typeref(fqn, nothrow = True)
 
-            if not t:
+            if not tref:
                 # Try with the namespace as well
                 n,ns,fqn = utils.normalize_name_and_ns(fqn, self.document.namespace, ensure_namespaces_are_equal=False)
-                t = self.onering_context.type_registry.get_type(fqn, nothrow = True)
-                if not t:
-                    t = self.onering_context.type_registry.register_type(fqn, None)
-        return t
+                tref = self.onering_context.type_registry.get_typeref(fqn, nothrow = True)
+                if not tref:
+                    tref = self.onering_context.type_registry.register_type(fqn, None)
+        return tref
 
     def register_type(self, name, newtype):
         return self.onering_context.type_registry.register_type(name, newtype)
@@ -71,7 +70,7 @@ class Parser(TokenStream):
 
     def add_import(self, fqn):
         # see if a type needs to be created
-        if not self.onering_context.type_registry.get_type(fqn, nothrow = True):
+        if not self.onering_context.type_registry.get_typeref(fqn, nothrow = True):
             self.onering_context.type_registry.register_type(fqn, None)
         self.imports.append(fqn)
 
