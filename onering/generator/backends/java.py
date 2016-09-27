@@ -50,6 +50,7 @@ class JavaTargetBackend(object):
         templ = self.context.template_loader.load_template(template_name)
         templ.globals["camel_case"] = camel_case
         templ.globals["signature"] = get_type_signature
+        templ.globals["default_value"] = default_value_for_typeref
         templ.globals['debug'] = debug_print
         return templ
 
@@ -97,6 +98,8 @@ class InvokeGetterExtension(Extension):
         ipdb.set_trace()
         pass
     
+
+
 def get_type_signature(thetyperef):
     if type(thetyperef) is not tlcore.TypeRef:
         ipdb.set_trace()
@@ -139,3 +142,52 @@ def get_type_signature(thetyperef):
     ipdb.set_trace()
     assert False
 
+
+def default_value_for_typeref(thetyperef):
+    """
+    Given a typeref return the default value for it.
+    """
+    if type(thetyperef) is not tlcore.TypeRef:
+        ipdb.set_trace()
+
+    thetype = thetyperef.final_type
+    if thetyperef.fqn:
+        if thetyperef.fqn == "string":
+            return ""
+        if thetyperef.fqn == "double":
+            return "0.0"
+        if thetyperef.fqn == "int":
+            return "0"
+        if thetyperef.fqn == "float":
+            return "0.0"
+        if thetyperef.fqn == "bool":
+            return "false"
+        return "new %s()" % thetyperef.fqn
+
+    if thetype.constructor == "string":
+        return ""
+    if thetype.constructor == "double":
+        return "0"
+
+    if thetype.constructor in ("record", "union"):
+        ipdb.set_trace()
+        return "new %s()" % thetype.constructor
+
+    if thetype.constructor in ("list", "array"):
+        value_type = get_type_signature(thetype.arg_at(0).typeref)
+        if value_type is None:
+            ipdb.set_trace()
+        return "new List<" + value_type + ">()" 
+    if thetype.constructor == "map":
+        key_type = get_type_signature(thetype.arg_at(0).typeref)
+        value_type = get_type_signature(thetype.arg_at(1).typeref)
+        if value_type is None or key_type is None:
+            ipdb.set_trace()
+        return "new Map<" + key_type + ", " + value_type + ">()"
+    if thetype.constructor == "set":
+        value_type = get_type_signature(thetype.arg_at(0).typeref)
+        if value_type is None:
+            ipdb.set_trace()
+        return "new Set<" + value_type + ">()"
+    ipdb.set_trace()
+    assert False

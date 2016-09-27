@@ -1,6 +1,7 @@
 
 import ipdb
 from onering import errors
+from onering.dsl import lexer
 
 class ValueOrVar(object):
     def __init__(self, entry, is_value):
@@ -12,6 +13,15 @@ class ValueOrVar(object):
             return "<Value (0x%x): %s>" % (id(self), self.entry)
         else:
             return "<Var (0x%x): %s>" % (id(self), self.entry)
+
+    def __str__(self):
+        if type(self.entry) is lexer.Token:
+            val = self.entry.value
+            if type(val) in (str, unicode):
+                return "\"%s\"" % val
+            return str(val)
+        else:
+            return str(self.entry)
 
 class GetFieldInstruction(object):
     """
@@ -53,21 +63,22 @@ class FunctionCallInstruction(object):
     An instruction to call a particular function with the arguments as the values from a particular register
     and then set the output into the output_register.
     """
-    def __init__(self, func_fqn, input_registers, output_register):
+    def __init__(self, func_fqn, input_vars, output_var):
         self.func_fqn = func_fqn
-        self.input_registers = input_registers
-        self.output_register = output_register
+        self.input_vars = input_vars
+        self.output_var = output_var
 
     def __repr__(self):
-        return "CALL %s [(%s) -> %s]" % (self.func_fqn, ", ".join(self.input_registers), self.output_register)
+        return "CALL %s [(%s) -> %s]" % (self.func_fqn, ", ".join(self.input_vars), self.output_var)
 
 
 class IfStatement(object):
     """
     An instruction to keep track of if statements.
     """
-    def __init__(self, condition_var, body, otherwise = None):
+    def __init__(self, condition_var, body, otherwise = None, negate = False):
         self.condition_var = condition_var
+        self.negate = negate
         self.body = body or []
         self.otherwise = otherwise or []
 
@@ -75,3 +86,8 @@ class ContainsInstruction(object):
     def __init__(self, var, field_name):
         self.source_var = var
         self.field_name = field_name
+
+class NewInstruction(object):
+    def __init__(self, value_typeref, target_var):
+        self.value_typeref = value_typeref
+        self.target_var = target_var

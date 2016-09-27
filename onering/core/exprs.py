@@ -102,10 +102,11 @@ class LiteralExpression(Expression):
         return "<Literal - ID: 0x%x, Value: %s>" % (id(self), str(self.value))
 
 class VariableExpression(Expression):
-    def __init__(self, var_or_field_path, source_type = VarSource.SOURCE_FIELD):
+    def __init__(self, field_path, source_type = VarSource.SOURCE_FIELD):
         super(VariableExpression, self).__init__()
         self.source_type = source_type
-        self.value = var_or_field_path
+        self.value = field_path
+        assert type(field_path) is FieldPath and field_path.length > 0
 
     def __repr__(self):
         return "<VarExp - ID: 0x%x, Value: %s>" % (id(self), str(self.value))
@@ -118,10 +119,6 @@ class VariableExpression(Expression):
 
     def check_types(self, context):
         if not self.is_field_path: return
-
-    @property
-    def is_field_path(self):
-        return type(self.value) is FieldPath
 
     def resolve_types(self, transformer, context):
         """

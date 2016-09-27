@@ -171,6 +171,10 @@ def generate_ir_for_setter(source_var, expr, instructions, symtable):
     if expr.source_type == VarSource.LOCAL_VAR:
         starting_typeref = expr.evaluated_typeref
         starting_var, field_path = expr.value.pop()
+        if field_path.length == 0:
+            # Do a direct copy as no nesting into a local var
+            instructions.append(ir.CopyVarInstruction(source_var, starting_var))
+            return instructions, symtable, None
     else:
         resolution_result = expr.resolution_result 
         starting_typeref = resolution_result.root_typeref
@@ -182,19 +186,26 @@ def generate_ir_for_setter(source_var, expr, instructions, symtable):
 
     curr_typeref = starting_typeref
     curr_path = curr_var = starting_var
-    curr_instrs = instructions
+
     while field_path.length > 0:
         next_field_name, tail_path = field_path.pop()
         next_path = curr_path + "/" + next_field_name
         next_typeref = curr_typeref.final_type.arg_for(next_field_name).typeref
         next_var = symtable.get_var_for_path(next_path, next_typeref)
 
-        # Get the next var and store into the var
-        contains_instr = ir.ContainsInstruction(curr_var, next_field_name)
-        get_instr = ir.GetFieldInstruction(curr_var, next_field_name, next_var)
-        if_stmt = ir.IfStatement(contains_instr, [ get_instr ], None)
-        curr_instrs.append(if_stmt)
-        curr_instrs = if_stmt.body
-        curr_path, curr_var, field_path = next_path, next_var, tail_path
+        if tail_path.length == 0:
+            # Means we have a single entry in the path left
+            # so the value can be directly set
+            instructions.append(ir.SetFieldInstruction(source_var, next_field_name, next_var))
+        else:
+            # Get the next var and store into the var
+            contains_instr = ir.ContainsInstruction(curr_var, next_field_name)
+            set_default_instr = ir.NewInstruction(curr_typeref, next_var)
+            if_stmt = ir.IfStatement(contains_instr, [ set_default_instr ], None, negate = True)
+            instructions.append(if_stmt)
 
-    return instructions, symtable, curr_var
+            get_instr = ir.GetFieldInstruction(curr_var, next_field_name, next_var)
+            instructions.append(get_instr)
+
+        curr_path, curr_var, field_path = next_path, next_var, tail_path
+    return instructions, symtable, None
