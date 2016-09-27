@@ -20,6 +20,8 @@ class Statement(object):
         if self.is_temporary:
             self.target_variable.source_type = VarSource.LOCAL_VAR
         else:
+            # TODO: check if target_var already refers to something that is
+            # a previous defined local
             self.target_variable.source_type = VarSource.DEST_FIELD
 
     def resolve_types(self, transformer, context):

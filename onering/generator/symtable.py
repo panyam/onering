@@ -11,6 +11,10 @@ class SymbolTable(object):
         self._types_for_names = {}
         self._var_for_path = {}
 
+    @property
+    def declarations(self):
+        return [ (varname, self._types_for_names[varname]) for varname in self._children ]
+
     def get_var_for_path(self, path, typeref):
         """
         Given a variable or a field path, returns the register associated with that value.

@@ -13,28 +13,40 @@ class ValueOrVar(object):
         else:
             return "<Var (0x%x): %s>" % (id(self), self.entry)
 
-class GetterInstruction(object):
+class GetFieldInstruction(object):
     """
-    An instruction to get the value of a field path from a starting variable and set it into 
-    a particular register.
+    An instruction to get the value of a field path from a starting variable and set it into a particular register.
     """
-    def __init__(self, field_path, target_register):
-        self.field_path = field_path
-        self.target_register = target_register
-
-    def __repr__(self):
-        return "GET %s -> %s" % (self.field_path, self.target_register)
-
-class SetterInstruction(object):
-    """
-    An instruction to set the value of a register into a particular field path starting of a variable.
-    """
-    def __init__(self, source_register, target_var):
-        self.source_register = source_register
+    def __init__(self, source_var, field_key, target_var):
+        self.source_var = source_var
+        self.field_key = field_key
         self.target_var = target_var
 
     def __repr__(self):
-        return "SET %s -> %s" % (self.source_register, self.target_var)
+        return "GET %s[%s] -> %s" % (self.source_var, self.field_key, self.target_var)
+
+class CopyVarInstruction(object):
+    """
+    An instruction to get the value of a local var and set it into another var.
+    """
+    def __init__(self, source_var, target_var):
+        self.source_var = source_var
+        self.target_var = target_var
+
+    def __repr__(self):
+        return "GET %s -> %s" % (self.source_var , self.target_var)
+
+class SetFieldInstruction(object):
+    """
+    Set the value of a field in target variable from source variable
+    """
+    def __init__(self, source_var, field_key, target_var):
+        self.source_var = source_var
+        self.target_var = target_var
+        self.field_key = field_key
+
+    def __repr__(self):
+        return "SET %s -> %s[%s]" % (self.source_var, self.target_var, self.field_key)
 
 class FunctionCallInstruction(object):
     """
@@ -54,10 +66,10 @@ class IfStatement(object):
     """
     An instruction to keep track of if statements.
     """
-    def __init__(self, condition, body, otherwise = None):
-        self.condition = condition
-        self.body = body
-        self.otherwise = otherwise
+    def __init__(self, condition_var, body, otherwise = None):
+        self.condition_var = condition_var
+        self.body = body or []
+        self.otherwise = otherwise or []
 
 class ContainsInstruction(object):
     def __init__(self, var, field_name):

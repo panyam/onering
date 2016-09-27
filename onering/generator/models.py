@@ -55,7 +55,6 @@ class TransformerViewModel(object):
         self.src_name,self.src_namespace,self.src_fqn = utils.normalize_name_and_ns(transformer.src_fqn, "")
         self.dest_name,self.dest_namespace,self.dest_fqn = utils.normalize_name_and_ns(transformer.dest_fqn, "")
         self.all_statements = transformer.all_statements
-        a = repr(self.instructions)
 
     def render(self):
         templ = self.backend.load_template(self.backend.backend_annotation.first_value_of("template") or "transformers/java/default_transformer")

@@ -1,0 +1,50 @@
+
+{% macro render_instruction(instruction) -%}
+{% if instruction.__class__.__name__ == "IfStatement" %}
+    {{ render_if_instruction(instruction) }}
+{% elif instruction.__class__.__name__ == "SetFieldInstruction" %}
+    {{ render_setfield_instruction(instruction) }}
+{% elif instruction.__class__.__name__ == "GetFieldInstruction" %}
+    {{ render_getfield_instruction(instruction) }}
+{% elif instruction.__class__.__name__ == "CopyVarInstruction" %}
+    {{ render_copyvar_instruction(instruction) }}
+{% elif instruction.__class__.__name__ == "SetFieldInstruction" %}
+    {{ render_setfield_instruction(instruction) }}
+{% elif instruction.__class__.__name__ == "FunctionCallInstruction" %}
+    {{ render_funccall_instruction(instruction) }}
+{% elif instruction.__class__.__name__ == "ContainsInstruction" %}
+    {{ render_contains_instruction(instruction) }}
+{% endif %}
+{%- endmacro %}
+
+{% macro render_if_instruction(if_instruction) -%}
+    if ({{render_instruction(if_instruction.condition_var)}}) {
+        {% for instruction in if_instruction.body %}
+        {{ render_instruction(instruction) }}
+        {% endfor %}
+    } else {
+        {% for instruction in if_instruction.otherwise %}
+        {{ render_instruction(instruction) }}
+        {% endfor %}
+    }
+{%- endmacro %}
+
+{% macro render_getfield_instruction(instruction) -%}
+{{instruction.target_var}} = {{instruction.source_var}}.get{{camel_case(instruction.field_key)}}();
+{%- endmacro %}
+
+{% macro render_copyvar_instruction(instruction) -%}
+{{instruction.target_var}} = {{instruction.source_var}};
+{%- endmacro %}
+
+{% macro render_setfield_instruction(setter_instruction) -%}
+setter baby
+{%- endmacro %}
+
+{% macro render_funccall_instruction(funccall_instruction) -%}
+funccall baby
+{%- endmacro %}
+
+{% macro render_contains_instruction(instruction) -%}
+{{instruction.source_var}}.has{{camel_case(instruction.field_name)}}()
+{%- endmacro %}

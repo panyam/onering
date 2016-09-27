@@ -8,8 +8,8 @@ from onering.core.exprs import Expression, LiteralExpression, ListExpression, Di
 This module is responsible for generating code for a statement and all parts of an expression tree.
 """
 
-SRC_MARKER_VAR = "<src>"
-DEST_MARKER_VAR = "<dest>"
+SRC_MARKER_VAR = "source"
+DEST_MARKER_VAR = "dest"
 
 def generate_ir_for_transformer(transformer, context):
     instructions = []
@@ -72,10 +72,10 @@ def generate_ir_for_statement(statement, context, instructions, symtable):
     last_return = None
     for expr in statement.expressions:
         # Call the the generator for the expression with the last return value as its inputs
-        instructions, symtable, last_return = generate_ir_for_expression(expr, context, last_return, instructions, symtable)
+        instructions, symtable, last_var = generate_ir_for_expression(expr, context, last_return, instructions, symtable)
 
     # Generate a setter instruction too
-    instructions.append(ir.SetterInstruction(last_return, statement.target_variable))
+    generate_ir_for_setter(last_var, statement.target_variable, instructions, symtable)
 
     # Statements dont have return values
     return instructions, symtable, None
@@ -134,35 +134,67 @@ def generate_ir_for_function_call(expr, context, input_values, instructions, sym
     return instructions, symtable, newvar
 
 def generate_ir_for_variable(expr, context, input_values, instructions, symtable):
-    # For variables do a getter and store them somewhere but only the first time,
-    # otherwise reuse them
-
     if expr.source_type == VarSource.LOCAL_VAR:
-        return instructions, symtable, symtable.get_var(expr.value)
+        starting_typeref = expr.evaluated_typeref
+        starting_var, field_path = expr.value.pop()
     else:
         resolution_result = expr.resolution_result 
         starting_typeref = resolution_result.root_typeref
         field_path = resolution_result.normalized_field_path
-        varname = SRC_MARKER_VAR
+
+        starting_var = SRC_MARKER_VAR
         if expr.source_type == VarSource.DEST_FIELD:
-            varname = DEST_MARKER_VAR
+            starting_var = DEST_MARKER_VAR
 
-        # What we want is given a starting variable name and a field path, 
-        # last_path = varname
-        # last_var = varname
-        # last_typeref
-        def gen_for_path(last_path, last_var, last_typeref, field_path):
-            if not field_path or field_path.length == 0:
-                return []
+    curr_typeref = starting_typeref
+    curr_path = curr_var = starting_var
+    curr_instrs = instructions
+    while field_path.length > 0:
+        next_field_name, tail_path = field_path.pop()
+        next_path = curr_path + "/" + next_field_name
+        next_typeref = curr_typeref.final_type.arg_for(next_field_name).typeref
+        next_var = symtable.get_var_for_path(next_path, next_typeref)
 
-            head, tail_path = field_path.pop()
-            next_path = last_path + "/" + head
-            next_typeref = last_typeref.final_type.arg_for(head).typeref
-            next_var = symtable.get_var_for_path(next_path, next_typeref)
-            return [ir.IfStatement(ir.ContainsInstruction(last_var, head),
-                                    gen_for_path(next_path, next_var, next_typeref, tail_path)
-                                    )]
+        # Get the next var and store into the var
+        contains_instr = ir.ContainsInstruction(curr_var, next_field_name)
+        get_instr = ir.GetFieldInstruction(curr_var, next_field_name, next_var)
+        if_stmt = ir.IfStatement(contains_instr, [ get_instr ], None)
+        curr_instrs.append(if_stmt)
+        curr_instrs = if_stmt.body
+        curr_path, curr_var, field_path = next_path, next_var, tail_path
 
-        instructions.extend(gen_for_path(varname, varname, starting_typeref, field_path))
-        ipdb.set_trace()
-    return instructions, symtable, newvar
+    return instructions, symtable, curr_var
+
+
+
+def generate_ir_for_setter(source_var, expr, instructions, symtable):
+    if expr.source_type == VarSource.LOCAL_VAR:
+        starting_typeref = expr.evaluated_typeref
+        starting_var, field_path = expr.value.pop()
+    else:
+        resolution_result = expr.resolution_result 
+        starting_typeref = resolution_result.root_typeref
+        field_path = resolution_result.normalized_field_path
+
+        starting_var = SRC_MARKER_VAR
+        if expr.source_type == VarSource.DEST_FIELD:
+            starting_var = DEST_MARKER_VAR
+
+    curr_typeref = starting_typeref
+    curr_path = curr_var = starting_var
+    curr_instrs = instructions
+    while field_path.length > 0:
+        next_field_name, tail_path = field_path.pop()
+        next_path = curr_path + "/" + next_field_name
+        next_typeref = curr_typeref.final_type.arg_for(next_field_name).typeref
+        next_var = symtable.get_var_for_path(next_path, next_typeref)
+
+        # Get the next var and store into the var
+        contains_instr = ir.ContainsInstruction(curr_var, next_field_name)
+        get_instr = ir.GetFieldInstruction(curr_var, next_field_name, next_var)
+        if_stmt = ir.IfStatement(contains_instr, [ get_instr ], None)
+        curr_instrs.append(if_stmt)
+        curr_instrs = if_stmt.body
+        curr_path, curr_var, field_path = next_path, next_var, tail_path
+
+    return instructions, symtable, curr_var

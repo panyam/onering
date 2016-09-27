@@ -102,16 +102,24 @@ def get_type_signature(thetyperef):
         ipdb.set_trace()
 
     if thetyperef.fqn:
+        if thetyperef.fqn == "string":
+            return "String"
+        if thetyperef.fqn == "double":
+            return "Double"
+        if thetyperef.fqn == "int":
+            return "Int"
+        if thetyperef.fqn == "float":
+            return "Float"
         return thetyperef.fqn
 
     thetype = thetyperef.final_type
-    if thetype.constructor in ("record", "union"):
-        ipdb.set_trace()
-        return thetype.fqn
     if thetype.constructor == "string":
         return "String"
     if thetype.constructor == "double":
         return "Double"
+    if thetype.constructor in ("record", "union"):
+        ipdb.set_trace()
+        return thetype.fqn
     if thetype.constructor in ("list", "array"):
         value_type = get_type_signature(thetype.arg_at(0).typeref)
         if value_type is None:
