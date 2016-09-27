@@ -53,6 +53,7 @@ class JarsCommandRunner(runner.CommandRunner):
             remove  <dir/dir>   Remove one or more space seperated jar files or directory containing jars.
         """
         entry = (rest or "").strip()
+        entry = console.abspath(entry)
         for resolver in JarsCommandRunner.collector(console, entry):
             console.entity_resolver.remove_resolver(resolver)
 
@@ -129,8 +130,10 @@ class TemplatesCommandRunner(runner.CommandRunner):
             add         <dir>   Add one or more space seperated template directories
         """
         entry = (rest or "").strip()
-        if entry not in console.thering.template_dirs:
-            console.thering.template_dirs.append(entry)
+        if entry:
+            entry = console.abspath(entry)
+            if entry not in console.thering.template_dirs:
+                console.thering.template_loader.template_dirs.append(entry)
 
     def do_remove(self, console, cmd, rest, prev = None):
         """
@@ -141,4 +144,4 @@ class TemplatesCommandRunner(runner.CommandRunner):
         """
         entry = (rest or "").strip()
         if entry in console.thering.template_dirs:
-            del console.thering.template_dirs[console.thering.template_dirs.index(entry)]
+            del console.thering.template_loader.template_dirs[console.thering.template_dirs.index(entry)]

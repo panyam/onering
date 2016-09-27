@@ -20,13 +20,15 @@ class TemplateLoader(BaseLoader):
         final_path = template_name
         if not template_name.startswith("/"):
             for tdir in self.template_dirs:
-                full_path = os.path.join(tdir, name)
+                full_path = os.path.join(tdir, template_name)
                 if os.path.isfile(full_path):
                     final_path = full_path
+                    break
                 else:
-                    full_path = os.path.join(tdir, name + self.template_extension)
+                    full_path = os.path.join(tdir, template_name + self.template_extension)
                     if os.path.isfile(full_path):
                         final_path = full_path
+                        break
             else:
                 source = pkgutil.get_data("onering", "data/templates/" + template_name).decode('utf-8')
                 return source, final_path, lambda: True

@@ -26,7 +26,7 @@ class TypeViewModel(object):
         self.fields =  [ {
                     'field_name': arg.name, 
                     'field_type': arg.typeref,
-                    'annotations': arg.annotations } for arg in thetype.args ]
+                    'annotations': tlannotations.Annotations(arg.annotations) } for arg in thetype.args ]
 
 class TransformerGroupViewModel(object):
     def __init__(self, backend, tgroup, context, backend_annotation):

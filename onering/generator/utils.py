@@ -2,6 +2,7 @@
 import ipdb
 from typelib import annotations as tlannotations
 import importlib
+from onering.console.utils import logerror
 
 def evaluate_backend_platforms(annotatable, thering, target_platform = None):
     backend_annotations = []
@@ -9,7 +10,7 @@ def evaluate_backend_platforms(annotatable, thering, target_platform = None):
         backend_annotations = [tlannotations.Annotation("onering.backend", None, 
                                     {"platform": thering.default_platform})]
     if annotatable.has_annotation("onering.backend"):
-        backend_annotations = annotatable.get_annotations("onering.backend")
+        backend_annotations = [annotatable.get_annotation("onering.backend")]
 
     if target_platform:
         backend_annotations = [tlannotations.Annotation("onering.backend", None, 

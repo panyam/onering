@@ -148,8 +148,7 @@ def parse_expression(parser):
             source = parser.ensure_token(TokenType.NUMBER)
         else:
             source = parse_field_path(parser, allow_abs_path = False, allow_child_selection = False)
-        out = orexprs.VariableExpression(source,
-                source_type = exprs.VarSource.DEST_FIELD)
+        out = orexprs.VariableExpression(source, source_type = orexprs.VarSource.DEST_FIELD)
     elif parser.peeked_token_is(TokenType.IDENTIFIER):
         # See if we have a function call or a var or a field path
         source = parse_field_path(parser, allow_abs_path = False, allow_child_selection = False)
