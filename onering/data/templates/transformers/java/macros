@@ -1,34 +1,35 @@
 
 {% macro render_instruction(instruction) -%}
-{% if instruction.__class__.__name__ == "IfStatement" %}
+{% if instruction.__class__.__name__ == "IfStatement" -%}
     {{ render_if_instruction(instruction) }}
-{% elif instruction.__class__.__name__ == "SetFieldInstruction" %}
+{%- elif instruction.__class__.__name__ == "SetFieldInstruction" -%}
     {{ render_setfield_instruction(instruction) }}
-{% elif instruction.__class__.__name__ == "GetFieldInstruction" %}
+{%- elif instruction.__class__.__name__ == "GetFieldInstruction" -%}
     {{ render_getfield_instruction(instruction) }}
-{% elif instruction.__class__.__name__ == "CopyVarInstruction" %}
+{%- elif instruction.__class__.__name__ == "CopyVarInstruction" -%}
     {{ render_copyvar_instruction(instruction) }}
-{% elif instruction.__class__.__name__ == "FunctionCallInstruction" %}
+{%- elif instruction.__class__.__name__ == "FunctionCallInstruction" -%}
     {{ render_funccall_instruction(instruction) }}
-{% elif instruction.__class__.__name__ == "ContainsInstruction" %}
+{%- elif instruction.__class__.__name__ == "ContainsInstruction" -%}
     {{ render_contains_instruction(instruction) }}
-{% elif instruction.__class__.__name__ == "NewInstruction" %}
+{%- elif instruction.__class__.__name__ == "NewInstruction" -%}
     {{ render_new_instruction(instruction) }}
-{% endif %}
+{%- endif %}
 {%- endmacro %}
 
 {% macro render_if_instruction(if_instruction) -%}
-    if ({%if if_instruction.negate %}!{% endif %}{{render_instruction(if_instruction.condition_var)}}) {
+    if ({%if if_instruction.negate -%}!{% endif -%}{{render_instruction(if_instruction.condition_var)}}) {
         {% for instruction in if_instruction.body %}
         {{ render_instruction(instruction) }}
         {% endfor %}
-    {% if if_instruction.otherwise %}
-    } else {
-        {% for instruction in if_instruction.otherwise %}
-        {{ render_instruction(instruction) }}
-        {% endfor %}
-    {% endif %}
     }
+    {% if if_instruction.otherwise -%}
+    else {
+        {% for instruction in if_instruction.otherwise -%}
+        {{ render_instruction(instruction) }}
+        {%- endfor %}
+    }
+    {%- endif %}
 {%- endmacro %}
 
 {% macro render_getfield_instruction(instruction) -%}

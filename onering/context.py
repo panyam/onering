@@ -59,7 +59,7 @@ class OneringContext(object):
 
         for d2parent_fqn in self.parents_for_type(record2.fqn):
             if d2parent_fqn in d1set:
-                return self.type_registry.get_type(d2parent_fqn)
+                return self.type_registry.get_typeref(d2parent_fqn)
         return None
 
     def derived_from_type(self, record_fqn):
@@ -70,7 +70,7 @@ class OneringContext(object):
             deriv = self.get_derivation(record_fqn)
             if not deriv or not deriv.has_sources:
                 return None
-            return self.type_registry.get_type(deriv.source_aliases.values()[0])
+            return self.type_registry.get_typeref(deriv.source_aliases.values()[0])
 
     def parents_for_type(self, record_fqn):
         """

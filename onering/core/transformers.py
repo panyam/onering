@@ -114,8 +114,6 @@ class Transformer(Annotatable):
         share a common ancestor (or may be even at atmost 1 level).
         """
 
-        return []
-
         # Step 1: Find common "ancestor" of each of the records
         ancestor = context.find_common_ancestor(self.src_typeref, self.dest_typeref)
         if ancestor is not None:
