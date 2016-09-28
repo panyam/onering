@@ -50,7 +50,7 @@ class Transformer(Annotatable):
         self.src_fqn = src_fqn
         self.dest_fqn = dest_fqn
         self.group = group
-        self.temp_var_names = set()
+        self.temp_variables = {}
         # explicit transformer rules
         self._implicit_statements = []
         self._explicit_statements = []
@@ -62,7 +62,16 @@ class Transformer(Annotatable):
         return "<Transformer - ID: 0x%x, Name: %s (%s -> %s)>" % (id(self), self.fqn, self.src_fqn, self.dest_fqn)
 
     def is_temp_variable(self, varname):
-        return varname in self.temp_var_names
+        return varname in self.temp_variables
+
+    def temp_var_type(self, varname):
+        return self.temp_variables[str(varname)]
+
+    def register_temp_var(self, varname, vartype):
+        assert type(varname) in (str, unicode)
+        if self.is_temp_variable(varname) and self.temp_variables[varname] is not None:
+            raise errors.OneringException("Duplicate temporary variable declared: '%s'" % varname)
+        self.temp_variables[varname] = vartype
 
     @property
     def all_statements(self):
@@ -71,11 +80,6 @@ class Transformer(Annotatable):
     def add_statement(self, stmt):
         if not isinstance(stmt, orexprs.Statement):
             raise errors.OneringException("Transformer rule must be a let statement or a statement, Found: %s" % str(type(stmt)))
-        if stmt.is_temporary:
-            varname = stmt.target_variable.value
-            if self.is_temp_variable(varname):
-                raise errors.OneringException("Duplicate temporary variable declared: '%s'" % varname)
-            self.temp_var_names.add(varname)
         self._explicit_statements.append(stmt)
 
 

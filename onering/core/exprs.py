@@ -8,6 +8,7 @@ from onering.core.utils import FieldPath
 from typelib.annotations import Annotatable
 
 class VarSource(Enum):
+    AUTO            = -2
     LOCAL_VAR       = -1
     SOURCE_FIELD    = 0
     DEST_FIELD      = 1
@@ -17,19 +18,17 @@ class Statement(object):
         self.expressions = expressions
         self.target_variable = target_variable
         self.is_temporary = is_temporary
+        self.target_variable.is_lhs = False
         if self.is_temporary:
             self.target_variable.source_type = VarSource.LOCAL_VAR
         else:
-            # TODO: check if target_var already refers to something that is
-            # a previous defined local
-            self.target_variable.source_type = VarSource.DEST_FIELD
+            self.target_variable.source_type = VarSource.AUTO
 
     def resolve_types(self, transformer, context):
         """
         Processes an expressions and resolves name bindings and creating new local vars 
         in the process if required.
         """
-
         # If type is not temporary then evaluate target var type first
         # This will help us with type inference going backwards
         if not self.is_temporary:
@@ -46,6 +45,7 @@ class Statement(object):
             # Resolve field paths that should come from dest type
             # if self.is_temporary: ipdb.set_trace()
             self.target_variable.evaluated_typeref = last_expr.evaluated_typeref
+            transformer.register_temp_var(str(self.target_variable.value), last_expr.evaluated_typeref)
         else:
             # target variable type is set so verify that its type is same as the type of 
             # the "last" expression in the chain.
@@ -102,8 +102,9 @@ class LiteralExpression(Expression):
         return "<Literal - ID: 0x%x, Value: %s>" % (id(self), str(self.value))
 
 class VariableExpression(Expression):
-    def __init__(self, field_path, source_type = VarSource.SOURCE_FIELD):
+    def __init__(self, field_path, is_lhs, source_type = VarSource.SOURCE_FIELD):
         super(VariableExpression, self).__init__()
+        self.is_lhs = True
         self.source_type = source_type
         self.value = field_path
         assert type(field_path) is FieldPath and field_path.length > 0
@@ -125,9 +126,28 @@ class VariableExpression(Expression):
         Processes an expressions and resolves name bindings and creating new local vars 
         in the process if required.
         """
+        from onering.core.resolvers import resolve_path_from_record
+
         # This is a variable so resolve it to either a local var or a parent + field_path
+        if self.source_type == VarSource.AUTO:
+            # Then see if it matches a local var or the src or dest var
+            if self.is_lhs:
+                res_result = resolve_path_from_record(transformer.src_typeref, self.value, context.type_registry, None)
+                if res_result.is_valid:
+                    self.source_type = VarSource.SRC_FIELD
+                    print "Resource auto var: %s to source" % self.value
+            else:
+                res_result = resolve_path_from_record(transformer.dest_typeref, self.value, context.type_registry, None)
+                if res_result.is_valid:
+                    self.source_type = VarSource.DEST_FIELD
+                    print "Resource auto var: %s to dest" % self.value
+
+            if not res_result.is_valid:
+                self.source_type = VarSource.LOCAL_VAR
+                # get the value from the transformer's temp var table
+                self._evaluated_typeref = transformer.temp_var_type(self.value)
+
         if self.source_type != VarSource.LOCAL_VAR:
-            from onering.core.resolvers import resolve_path_from_record
             starting_type = transformer.src_typeref
             if self.source_type == VarSource.DEST_FIELD:
                 starting_type = transformer.dest_typeref
