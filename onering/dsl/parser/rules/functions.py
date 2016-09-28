@@ -54,9 +54,9 @@ def parse_bind(parser, annotations):
             parser.ensure_token(TokenType.OPEN_PAREN)
             while not parser.peeked_token_is(TokenType.CLOSE_PAREN):
                 input_types.append(parse_any_type_decl(parser))
-                if parser.peeked_token_is(TokenType.COMMA):
-                    parser.consume_token()
+                if parser.peeked_token_is(TokenType.CLOSE_PAREN):
                     break
+                parser.ensure_token(TokenType.COMMA)
             parser.ensure_token(TokenType.CLOSE_PAREN)
             inputs_need_inference = False
         elif not parser.peeked_token_is(TokenType.OPEN_BRACE):
