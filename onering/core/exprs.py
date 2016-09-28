@@ -210,11 +210,11 @@ class FunctionCallExpression(Expression):
         # Mark inputs as having been inferred
         function.inputs_known = True
 
-        if not function.inputs_need_inference:
+        if False and not function.inputs_need_inference:
             if len(self.func_args) != func_typeref.final_type.argcount:
                 ipdb.set_trace()
                 raise errors.OneringException("Function '%s' takes %d arguments, but encountered %d" %
-                                                (function.constructor, function.arglimit, len(self.func_args)))
+                                                (function.fqn, func_type.argcount, len(self.func_args)))
 
             for i in xrange(0, len(self.func_args)):
                 arg = self.func_args[i]
