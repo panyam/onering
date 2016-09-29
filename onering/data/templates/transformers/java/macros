@@ -17,8 +17,9 @@
 {%- endif %}
 {%- endmacro %}
 
-{% macro render_if_instruction(if_instruction) -%}
-    if ({%if if_instruction.negate -%}!{% endif -%}{{render_instruction(if_instruction.condition_var)}}) {
+{% macro render_if_instruction(if_instruction) %}
+    if ({%if if_instruction.negate -%}!{% endif -%}{{render_instruction(if_instruction.condition_var)}})
+    {
         {% for instruction in if_instruction.body %}
         {{ render_instruction(instruction) }}
         {% endfor %}
@@ -30,11 +31,11 @@
         {%- endfor %}
     }
     {%- endif %}
-{%- endmacro %}
+{% endmacro %}
 
-{% macro render_getfield_instruction(instruction) -%}
-{{instruction.target_var}} = {{instruction.source_var}}.get{{camel_case(instruction.field_key)}}();
-{%- endmacro %}
+{% macro render_getfield_instruction(instruction) %}
+    {{instruction.target_var}} = {{instruction.source_var}}.get{{camel_case(instruction.field_key)}}();
+{% endmacro %}
 
 {% macro render_copyvar_instruction(instruction) -%}
 {{instruction.target_var}} = {{instruction.source_var}};
