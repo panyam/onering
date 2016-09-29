@@ -53,6 +53,8 @@ class TransformerViewModel(object):
         self.name = transformer.fqn
         self.instructions, self.symtable = orgencore.generate_ir_for_transformer(transformer, self.context)
         self.src_name,self.src_namespace,self.src_fqn = utils.normalize_name_and_ns(transformer.src_fqn, "")
+        self.src_varname = transformer.src_varname
+        self.dest_varname = transformer.dest_varname
         self.dest_name,self.dest_namespace,self.dest_fqn = utils.normalize_name_and_ns(transformer.dest_fqn, "")
         self.all_statements = transformer.all_statements
 
