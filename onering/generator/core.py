@@ -8,16 +8,13 @@ from onering.core.exprs import Expression, LiteralExpression, ListExpression, Di
 This module is responsible for generating code for a statement and all parts of an expression tree.
 """
 
-SRC_MARKER_VAR = "source"
-DEST_MARKER_VAR = "dest"
-
 def generate_ir_for_transformer(transformer, context):
     instructions = []
     symtable = SymbolTable()
 
     # Set source and dest variables in symbol table
-    symtable.register_var(SRC_MARKER_VAR, transformer.src_typeref)
-    symtable.register_var(DEST_MARKER_VAR, transformer.dest_typeref)
+    symtable.register_var(transformer.src_varname, transformer.src_typeref)
+    symtable.register_var(transformer.dest_varname, transformer.dest_typeref)
     instructions, symtable, _ = generate_ir_for_statements(transformer.all_statements, context)
     return instructions, symtable
 
@@ -134,17 +131,12 @@ def generate_ir_for_function_call(expr, context, input_values, instructions, sym
     return instructions, symtable, newvar
 
 def generate_ir_for_variable(expr, context, input_values, instructions, symtable):
-    if expr.source_type == VarSource.LOCAL_VAR:
+    starting_var, field_path = expr.normalized_field_path.pop()
+    if expr.source_type == VarSource.LOCAL:
         starting_typeref = expr.evaluated_typeref
-        starting_var, field_path = expr.value.pop()
     else:
-        resolution_result = expr.resolution_result 
+        resolution_result = expr.field_resolution_result 
         starting_typeref = resolution_result.root_typeref
-        field_path = resolution_result.normalized_field_path
-
-        starting_var = SRC_MARKER_VAR
-        if expr.source_type == VarSource.DEST_FIELD:
-            starting_var = DEST_MARKER_VAR
 
     curr_typeref = starting_typeref
     curr_path = curr_var = starting_var
@@ -168,21 +160,16 @@ def generate_ir_for_variable(expr, context, input_values, instructions, symtable
 
 
 def generate_ir_for_setter(source_var, expr, instructions, symtable):
-    if expr.source_type == VarSource.LOCAL_VAR:
+    starting_var, field_path = expr.normalized_field_path.pop()
+    if expr.source_type == VarSource.LOCAL:
         starting_typeref = expr.evaluated_typeref
-        starting_var, field_path = expr.value.pop()
         if field_path.length == 0:
             # Do a direct copy as no nesting into a local var
             instructions.append(ir.CopyVarInstruction(source_var, starting_var))
             return instructions, symtable, None
     else:
-        resolution_result = expr.resolution_result 
+        resolution_result = expr.field_resolution_result 
         starting_typeref = resolution_result.root_typeref
-        field_path = resolution_result.normalized_field_path
-
-        starting_var = SRC_MARKER_VAR
-        if expr.source_type == VarSource.DEST_FIELD:
-            starting_var = DEST_MARKER_VAR
 
     curr_typeref = starting_typeref
     curr_path = curr_var = starting_var

@@ -8,37 +8,37 @@ from onering.core.utils import FieldPath
 from typelib.annotations import Annotatable
 
 class VarSource(Enum):
-    AUTO            = -2
-    LOCAL_VAR       = -1
-    SOURCE_FIELD    = 0
-    DEST_FIELD      = 1
+    AUTO        = -2
+    LOCAL       = 0
+    SOURCE      = -1
+    DEST        = 1
 
 class Statement(object):
-    def __init__(self, target_variable, expressions, is_temporary = False):
+    def __init__(self, expressions, target_variable, is_temporary = False):
         self.expressions = expressions
         self.target_variable = target_variable
         self.is_temporary = is_temporary
-        self.target_variable.is_lhs = False
+        self.target_variable.readonly = False
+        self.target_variable.source_type = VarSource.AUTO
         if self.is_temporary:
-            self.target_variable.source_type = VarSource.LOCAL_VAR
-        else:
-            self.target_variable.source_type = VarSource.AUTO
+            assert target_variable.value.length == 1, "A temporary variable cannot have nested field paths"
+            self.target_variable.source_type = VarSource.LOCAL
 
-    def resolve_types(self, transformer, context):
+    def resolve_bindings_and_types(self, transformer, context):
         """
         Processes an expressions and resolves name bindings and creating new local vars 
         in the process if required.
         """
-        # If type is not temporary then evaluate target var type first
+        # Resolve the target variable's binding.  This does'nt necessarily have
+        # to evaluate types.
         # This will help us with type inference going backwards
-        if not self.is_temporary:
-            self.target_variable.resolve_types(transformer, context)
+        self.target_variable.resolve_bindings_and_types(transformer, context)
 
         # Resolve all types in child expressions.  
         # Apart from just evaluating all child expressions, also make sure
         # Resolve field paths that should come from source type
         for expr in self.expressions:
-            expr.resolve_types(transformer, context)
+            expr.resolve_bindings_and_types(transformer, context)
 
         last_expr = self.expressions[-1]
         if self.is_temporary:
@@ -71,7 +71,7 @@ class Expression(object):
     def evaluated_typeref(self, vartype):
         self.set_evaluated_typeref(vartype)
 
-    def resolve_types(self, transformer, context):
+    def resolve_bindings_and_types(self, transformer, context):
         """
         Processes an expressions and resolves name bindings and creating new local vars 
         in the process if required.
@@ -102,9 +102,9 @@ class LiteralExpression(Expression):
         return "<Literal - ID: 0x%x, Value: %s>" % (id(self), str(self.value))
 
 class VariableExpression(Expression):
-    def __init__(self, field_path, is_lhs, source_type = VarSource.SOURCE_FIELD):
+    def __init__(self, field_path, readonly, source_type = VarSource.SOURCE):
         super(VariableExpression, self).__init__()
-        self.is_lhs = True
+        self.readonly = True
         self.source_type = source_type
         self.value = field_path
         assert type(field_path) is FieldPath and field_path.length > 0
@@ -113,51 +113,77 @@ class VariableExpression(Expression):
         return "<VarExp - ID: 0x%x, Value: %s>" % (id(self), str(self.value))
 
     def set_evaluated_typeref(self, vartype):
-        if self.source_type == VarSource.LOCAL_VAR:
+        if self.source_type == VarSource.LOCAL:
             self._evaluated_typeref = vartype
         else:
-            assert False, "cannot type evaluted type of a non local var"
+            assert False, "cannot get evaluted type of a non local var: %s" % self.value
 
     def check_types(self, context):
         if not self.is_field_path: return
 
-    def resolve_types(self, transformer, context):
+    def resolve_bindings_and_types(self, transformer, context):
         """
         Processes an expressions and resolves name bindings and creating new local vars 
         in the process if required.
         """
+        assert self._evaluated_typeref == None, "Type has already been resolved, should not have been called twice."
         from onering.core.resolvers import resolve_path_from_record
 
-        # This is a variable so resolve it to either a local var or a parent + field_path
+        if self.source_type == VarSource.LOCAL: # We have a local var declaration
+            # So add to transformer's temp var list if not a duplicate
+            transformer.register_temp_var(str(self.value), None)
+            self.normalized_field_path = self.value.copy()
+
         if self.source_type == VarSource.AUTO:
-            # Then see if it matches a local var or the src or dest var
-            if self.is_lhs:
-                res_result = resolve_path_from_record(transformer.src_typeref, self.value, context.type_registry, None)
-                if res_result.is_valid:
-                    self.source_type = VarSource.SRC_FIELD
-                    print "Resource auto var: %s to source" % self.value
+            # Find which variable to bind to:
+            # If it is readonly then also look at src/* first
+            # Now we should also look to dest/* locals/*
+            # If all fail, then do the same but 
+            first, tail_field_path = self.value.pop()
+
+            starting_type = None
+            for varname,vartype,varclass in transformer.local_variables(yield_src = self.readonly):
+                if varname == first:
+                    starting_type = vartype
+                    starting_varname = varname
+                    starting_source = varclass
+                    break
+
+            field_resolution_result = None
+            if starting_type:
+                # Then resolve the rest of the field path from here
+                # Then find the whole field path from one of the either source, dest or "current" local var only
+                # Depending on whether the var is writeable or not
+                field_resolution_result = resolve_path_from_record(starting_type, tail_field_path, context.type_registry, None)
+                if not field_resolution_result.is_valid:
+                    raise errors.OneringException("Invalid field path '%s' from '%s'" % (self.value, starting_varname))
+                else:
+                    self.source_type = starting_source
+                    self.normalized_field_path = self.value.copy()
+                    self._evaluated_typeref = field_resolution_result.resolved_typeref
             else:
-                res_result = resolve_path_from_record(transformer.dest_typeref, self.value, context.type_registry, None)
-                if res_result.is_valid:
-                    self.source_type = VarSource.DEST_FIELD
-                    print "Resource auto var: %s to dest" % self.value
+                # Could not resolve it explicitly, try doing so implicitly from source and dest (if readonly) or just dest.
+                # Note - no need to test for local as that would have been tested previous case when we tested
+                # for src, dest and locals
+                if self.readonly:
+                    self.source_type = VarSource.SOURCE
+                    field_resolution_result = resolve_path_from_record(transformer.src_typeref, self.value, context.type_registry, None)
+                if field_resolution_result is None or not field_resolution_result.is_valid:
+                    self.source_type = VarSource.DEST
+                    field_resolution_result = resolve_path_from_record(transformer.dest_typeref, self.value, context.type_registry, None)
 
-            if not res_result.is_valid:
-                self.source_type = VarSource.LOCAL_VAR
-                # get the value from the transformer's temp var table
-                self._evaluated_typeref = transformer.temp_var_type(self.value)
+                if not field_resolution_result.is_valid:
+                    self.source_type = VarSource.AUTO
+                    raise errors.OneringException("Invalid field path '%s'" % self.value)
+                else:
+                    self._evaluated_typeref = field_resolution_result.resolved_typeref
+                    if self.source_type == VarSource.SOURCE:
+                        self.normalized_field_path = self.value.push(transformer.src_varname)
+                    elif self.source_type == VarSource.DEST:
+                        self.normalized_field_path = self.value.push(transformer.dest_varname)
 
-        if self.source_type != VarSource.LOCAL_VAR:
-            starting_type = transformer.src_typeref
-            if self.source_type == VarSource.DEST_FIELD:
-                starting_type = transformer.dest_typeref
-            self.resolution_result = resolve_path_from_record(starting_type, self.value, context.type_registry, None)
-            if not self.resolution_result.is_valid:
-                raise errors.OneringException("Unable to resolve path '%s' in record '%s'" % (str(self.value), starting_type.fqn))
-            self._evaluated_typeref = self.resolution_result.resolved_typeref
-        else:
-            # TODO - Any thing special for a local var?
-            pass
+            self.field_resolution_result = field_resolution_result
+            return
 
 class ListExpression(Expression):
     def __init__(self, values):
@@ -191,7 +217,7 @@ class FunctionCallExpression(Expression):
         self.func_fqn = func_fqn
         self.func_args = func_args
 
-    def resolve_types(self, transformer, context):
+    def resolve_bindings_and_types(self, transformer, context):
         """
         Processes an expressions and resolves name bindings and creating new local vars 
         in the process if required.
@@ -202,15 +228,14 @@ class FunctionCallExpression(Expression):
 
         # This is a variable so resolve it to either a local var or a parent + field_path
         for arg in self.func_args:
-            arg.resolve_types(transformer, context)
-
+            arg.resolve_bindings_and_types(transformer, context)
             if function.inputs_need_inference and not function.inputs_known:
                 func_typeref.final_type.add_arg(arg.evaluated_typeref)
 
         # Mark inputs as having been inferred
         function.inputs_known = True
 
-        if False and not function.inputs_need_inference:
+        if not function.inputs_need_inference:
             if len(self.func_args) != func_typeref.final_type.argcount:
                 ipdb.set_trace()
                 raise errors.OneringException("Function '%s' takes %d arguments, but encountered %d" %

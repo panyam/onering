@@ -54,8 +54,21 @@ class FieldPath(object):
         """
         return self._parts[-1]
 
+    @property
+    def _children_copy(self):
+        if type(self.selected_children) is (str, unicode) or not self.selected_children:
+            return self.selected_children
+        else:
+            return self.selected_children[:]
+
+    def copy(self):
+        return FieldPath(self._parts[:], self._children_copy)
+
     def pop(self):
-        return self._parts[0], FieldPath(self._parts[1:], self.selected_children)
+        return self._parts[0], FieldPath(self._parts[1:], self._children_copy)
+
+    def push(self, part):
+        return FieldPath([part] + self._parts[:], self._children_copy)
 
     def get(self, index):
         """

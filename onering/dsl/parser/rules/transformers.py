@@ -44,13 +44,26 @@ def parse_transformer(parser, annotations, transformer_group = None):
     """
     Parses a single transformer declaration
 
-        transformer_name src_type_fqn<IDENT> "=> dest_type_fqn<IDENT> "{" transformer_rule * "}"
+        transformer_decl := transformer_name src_type_fqn<IDENT>
+                            ( "(" src_varname ")" ) ?
+                            "=> dest_type_fqn<IDENT>
+                            ( "(" dest_varname ")" ) ?
+                            "{" transformer_rule * "}"
     """
     transformer_name = parser.ensure_token(TokenType.IDENTIFIER)
 
     src_fqn = parser.ensure_fqn()
+    src_varname = None
+    if parser.next_token_is(TokenType.OPEN_PAREN):
+        src_varname = parser.ensure_token(TokenType.IDENTIFIER)
+        parser.ensure_token(TokenType.CLOSE_PAREN)
+
     parser.ensure_token(TokenType.STREAM)
     dest_fqn = parser.ensure_fqn()
+    dest_varname = None
+    if parser.next_token_is(TokenType.OPEN_PAREN):
+        dest_varname = parser.ensure_token(TokenType.IDENTIFIER)
+        parser.ensure_token(TokenType.CLOSE_PAREN)
 
     src_fqn = parser.normalize_fqn(src_fqn)
     dest_fqn = parser.normalize_fqn(dest_fqn)
@@ -59,7 +72,9 @@ def parse_transformer(parser, annotations, transformer_group = None):
 
     transformer = transformers.Transformer(fqn = transformer_name,
                                            src_fqn = src_fqn,
+                                           src_varname = src_varname,
                                            dest_fqn = dest_fqn,
+                                           dest_varname = dest_varname,
                                            group = transformer_group,
                                            annotations = annotations,
                                            docs = parser.last_docstring())
@@ -101,7 +116,7 @@ def parse_transformer_rule(parser):
         raise errors.OneringException("Final target of an expression MUST be a variable")
 
     parser.consume_tokens(TokenType.SEMI_COLON)
-    return orexprs.Statement(exprs[-1], exprs[:-1], is_temporary)
+    return orexprs.Statement(exprs[:-1], exprs[-1], is_temporary)
 
 def parse_expression_chain(parser):
     """
@@ -142,17 +157,10 @@ def parse_expression(parser):
         out = parse_struct_expression(parser)
     elif parser.peeked_token_is(TokenType.OPEN_PAREN):
         out = parse_tuple_expression(parser)
-    elif parser.next_token_is(TokenType.DOLLAR):
-        # then we MUST have an IDENTIFIER
-        if parser.peeked_token_is(TokenType.NUMBER):
-            source = parser.ensure_token(TokenType.NUMBER)
-        else:
-            source = parse_field_path(parser, allow_abs_path = False, allow_child_selection = False)
-        out = orexprs.VariableExpression(source, is_lhs = True, source_type = orexprs.VarSource.AUTO)
     elif parser.peeked_token_is(TokenType.IDENTIFIER):
         # See if we have a function call or a var or a field path
         source = parse_field_path(parser, allow_abs_path = False, allow_child_selection = False)
-        out = orexprs.VariableExpression(source, is_lhs = True)
+        out = orexprs.VariableExpression(source, readonly = True, source_type = orexprs.VarSource.AUTO)
 
         func_args = []
         if parser.peeked_token_is(TokenType.OPEN_PAREN):

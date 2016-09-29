@@ -43,10 +43,12 @@ class Transformer(Annotatable):
     """
     Transformers define how an instance of one type can be transformed to an instance of another.
     """
-    def __init__(self, fqn, src_fqn, dest_fqn, group = None, annotations = None, docs = ""):
+    def __init__(self, fqn, src_fqn, dest_fqn, src_varname = None, dest_varname = None, group = None, annotations = None, docs = ""):
         Annotatable.__init__(self, annotations, docs)
         self.resolution = ResolutionStatus()
         self.fqn = fqn
+        self.src_varname = src_varname or "src"
+        self.dest_varname = dest_varname or "dest"
         self.src_fqn = src_fqn
         self.dest_fqn = dest_fqn
         self.group = group
@@ -61,6 +63,15 @@ class Transformer(Annotatable):
     def __repr__(self):
         return "<Transformer - ID: 0x%x, Name: %s (%s -> %s)>" % (id(self), self.fqn, self.src_fqn, self.dest_fqn)
 
+    def local_variables(self, yield_src = True, yield_dest = True, yield_locals = True):
+        if yield_src:
+            yield self.src_varname, self.src_typeref, orexprs.VarSource.SOURCE
+        if yield_dest:
+            yield self.dest_varname, self.dest_typeref, orexprs.VarSource.DEST
+        if yield_locals:
+            for vname, vtype in self.temp_variables.iteritems():
+                yield vname, vtype, orexprs.VarSource.LOCAL
+
     def is_temp_variable(self, varname):
         return varname in self.temp_variables
 
@@ -69,7 +80,11 @@ class Transformer(Annotatable):
 
     def register_temp_var(self, varname, vartype):
         assert type(varname) in (str, unicode)
-        if self.is_temp_variable(varname) and self.temp_variables[varname] is not None:
+        if varname == self.src_varname:
+            raise errors.OneringException("Duplicate temporary variable '%s'.  Same as source." % varname)
+        elif varname == self.dest_varname:
+            raise errors.OneringException("Duplicate temporary variable '%s'.  Same as target." % varname)
+        elif self.is_temp_variable(varname) and self.temp_variables[varname] is not None:
             raise errors.OneringException("Duplicate temporary variable declared: '%s'" % varname)
         self.temp_variables[varname] = vartype
 
@@ -80,6 +95,7 @@ class Transformer(Annotatable):
     def add_statement(self, stmt):
         if not isinstance(stmt, orexprs.Statement):
             raise errors.OneringException("Transformer rule must be a let statement or a statement, Found: %s" % str(type(stmt)))
+        # Check types and variables in the statements
         self._explicit_statements.append(stmt)
 
 
@@ -109,7 +125,7 @@ class Transformer(Annotatable):
 
         # Now resolve all field paths appropriately
         for statement in self.all_statements:
-            statement.resolve_types(self, context)
+            statement.resolve_bindings_and_types(self, context)
 
     def _evaluate_implicit_statements(self, context):
         """
