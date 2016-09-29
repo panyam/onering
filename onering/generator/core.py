@@ -169,6 +169,8 @@ def generate_ir_for_setter(source_var, expr, instructions, symtable):
             return instructions, symtable, None
     else:
         resolution_result = expr.field_resolution_result 
+        if resolution_result == None:
+            ipdb.set_trace()
         starting_typeref = resolution_result.root_typeref
 
     curr_typeref = starting_typeref

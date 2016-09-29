@@ -154,13 +154,19 @@ class VariableExpression(Expression):
                 # Then resolve the rest of the field path from here
                 # Then find the whole field path from one of the either source, dest or "current" local var only
                 # Depending on whether the var is writeable or not
-                field_resolution_result = resolve_path_from_record(starting_type, tail_field_path, context.type_registry, None)
-                if not field_resolution_result.is_valid:
-                    raise errors.OneringException("Invalid field path '%s' from '%s'" % (self.value, starting_varname))
+                if tail_field_path.length > 0:
+                    field_resolution_result = resolve_path_from_record(starting_type, tail_field_path, context.type_registry, None)
+                    if not field_resolution_result.is_valid:
+                        ipdb.set_trace()
+                        raise errors.OneringException("Invalid field path '%s' from '%s'" % (self.value, starting_varname))
+                    else:
+                        self.source_type = starting_source
+                        self.normalized_field_path = self.value.copy()
+                        self._evaluated_typeref = field_resolution_result.resolved_typeref
                 else:
                     self.source_type = starting_source
                     self.normalized_field_path = self.value.copy()
-                    self._evaluated_typeref = field_resolution_result.resolved_typeref
+                    self._evaluated_typeref = starting_type
             else:
                 # Could not resolve it explicitly, try doing so implicitly from source and dest (if readonly) or just dest.
                 # Note - no need to test for local as that would have been tested previous case when we tested
