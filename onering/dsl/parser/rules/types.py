@@ -126,8 +126,7 @@ def parse_parametric_type_decl(parser, constructor, annotations = [], typereffed
         child_typerefs.append(parse_any_type_decl(parser))
     parser.ensure_token(TokenType.CLOSE_SQUARE)
 
-    ipdb.set_trace()
-    newtyperef.target_type = tlcore.TypeRef(tlcore.Type(None, constructor, child_typerefs, annotations = annotations, docs = docs), None)
+    newtyperef.target = tlcore.Type(None, constructor, child_typerefs, annotations = annotations, docs = docs)
     return newtyperef
 
 def parse_custom_type_decl(parser, constructor, annotations = [], typereffed_fqn = None):

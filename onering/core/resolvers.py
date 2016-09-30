@@ -86,7 +86,9 @@ class TypeStreamPathResolver(PathResolver):
         field_typeref = self.type_stream.field_path_resolution.resolved_typeref
         for index,param in enumerate(self.type_stream.param_names):
             if param == field_path.get(0):
-                child_typeref = field_typeref.final_type.arg_at(index).typeref
+                final_type = field_typeref.final_type
+                assert field_typeref.is_resolved, "Typeref for the source field must be resolved.  It is not!"
+                child_typeref = final_type.arg_at(index).typeref
                 if field_path.length == 1:
                     return ResolutionResult(field_typeref, field_typeref, index, field_path)
                 else:
