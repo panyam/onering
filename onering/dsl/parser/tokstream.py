@@ -20,6 +20,7 @@ class TokenStream(object):
         return self.lexer.column
 
     def unget_token(self, token):
+        assert type(token) is Token
         self.peeked_tokens.append(token)
 
     def peek_token(self):
