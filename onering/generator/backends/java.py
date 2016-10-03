@@ -28,10 +28,11 @@ class JavaTargetBackend(object):
         type_registry = context.type_registry
         record = orgenmodels.TypeViewModel(self, type_name, thetype, context, backend_annotation)
         templ = self.load_template(backend_annotation.first_value_of("template") or "backends/java/mutable_pojo")
-        print templ.render(record = record, backend = self)
 
-        with self.normalized_output_stream(context.output_dir, fqn) as outstream:
-            outstream.write(templ.render(record = record, backend = self))
+        with self.normalized_output_stream(context.output_dir, fqn) as output:
+            print "Writing '%s' to '%s'" % (type_name, output.output_path)
+            # print templ.render(record = record, backend = self)
+            output.outstream.write(templ.render(record = record, backend = self))
 
     def generate_transformer_group(self, tgroup):
         """
@@ -42,9 +43,10 @@ class JavaTargetBackend(object):
         normalized_tgroup = orgenmodels.TransformerGroupViewModel(self, tgroup, context, backend_annotation)
 
         templ = self.load_template(backend_annotation.first_value_of("template") or "transformers/java/default_transformer_group")
-        print templ.render(tgroup = normalized_tgroup, backend = self)
-        with self.normalized_output_stream(context.output_dir, tgroup.fqn) as outstream:
-            outstream.write(templ.render(tgroup = normalized_tgroup, backend = self))
+        with self.normalized_output_stream(context.output_dir, tgroup.fqn) as output:
+            print "Writing '%s' to '%s'" % (tgroup.fqn, output.output_path)
+            # print templ.render(tgroup = normalized_tgroup, backend = self)
+            output.outstream.write(templ.render(tgroup = normalized_tgroup, backend = self))
 
     def load_template(self, template_name):
         templ = self.context.template_loader.load_template(template_name)
@@ -68,7 +70,7 @@ class JavaTargetBackend(object):
                     self.outstream = open(self.output_path + ".java", "w")
 
             def __enter__(self):
-                return self.outstream
+                return self
 
             def __exit__(self, type, value, traceback):
                 if self.output_path:
