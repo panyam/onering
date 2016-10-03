@@ -111,6 +111,10 @@ def get_type_signature(thetyperef):
             return "Double"
         if thetyperef.fqn == "int":
             return "Int"
+        if thetyperef.fqn == "byte":
+            return "Byte"
+        if thetyperef.fqn == "boolean":
+            return "Boolean"
         if thetyperef.fqn == "float":
             return "Float"
         return thetyperef.fqn
@@ -157,6 +161,8 @@ def default_value_for_typeref(thetyperef):
         if thetyperef.fqn == "double":
             return "0.0"
         if thetyperef.fqn == "int":
+            return "0"
+        if thetyperef.fqn == "byte":
             return "0"
         if thetyperef.fqn == "float":
             return "0.0"
