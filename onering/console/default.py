@@ -96,7 +96,6 @@ class DefaultCommandRunner(runner.CommandRunner):
         """
         # Couple of more things to do here!
         # First, this should also pick up all derivations
-
         wildcards = []
         wildcards = [r.split(",") for r in rest.split(" ")]
         wildcards = filter(lambda x:x, reduce(lambda x,y:x+y, wildcards))
@@ -112,6 +111,38 @@ class DefaultCommandRunner(runner.CommandRunner):
             source_typeref = console.type_registry.get_typeref(source_fqn)
             orgenutils.generate_schemas(source_typeref, console.thering, target_platform, target_template)
 
+        for deriv in source_derivations:
+            source_typeref = console.type_registry.get_typeref(deriv)
+            orgenutils.generate_schemas(source_typeref, console.thering, target_platform, target_template)
+
+    def do_gend(self, console, cmd, rest, prev):
+        """
+        Generate code or schemas for given derivations.
+
+        Usage:
+            gen     <types>
+            gen     <types>      with    <platform> <template>
+
+            <types>     Is a list of (space seperated) wild cards
+            <platform>  If a platform is specified then the generated output is for the particular platform.
+                        If the platform is not specified then the platform specified in the type's 
+                        "onering.backend" annotation is used.
+                        If this annotation is not specified then the default platform is used. Otherwise
+                        an error is thrown.
+            <template>  Same for templates, specifed -> annotation -> default
+        """
+        # Couple of more things to do here!
+        # First, this should also pick up all derivations
+        wildcards = []
+        wildcards = [r.split(",") for r in rest.split(" ")]
+        wildcards = filter(lambda x:x, reduce(lambda x,y:x+y, wildcards))
+        wildcards, _, param_args = split_list_at(lambda x:x == "with", wildcards)
+        target_platform = param_args[0] if len(param_args) > 0 else None
+        target_template = param_args[1] if len(param_args) > 1 else None
+
+        source_derivations = console.thering.derivations_for_wildcards(wildcards)
+
+        # Awwwwright resolutions succeeded so now generate them!
         for deriv in source_derivations:
             source_typeref = console.type_registry.get_typeref(deriv)
             orgenutils.generate_schemas(source_typeref, console.thering, target_platform, target_template)

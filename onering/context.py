@@ -86,6 +86,7 @@ class OneringContext(object):
         """
         Return all derivations that match any of the given wildcards.
         """
+        if type(wildcards) in (str, unicode): wildcards = [wildcards]
         for tw in wildcards:
             # Now resolve all derivations
             for derivation in self.all_derivations:
@@ -104,6 +105,8 @@ class OneringContext(object):
         """
         Return all transformer groups that match any of the given wildcards.
         """
+        if type(wildcards) in (str, unicode): wildcards = [wildcards]
+
         out = set()
         for tw in wildcards:
             # Now resolve all derivations
