@@ -30,7 +30,7 @@ def generate_ir_for_statements(statements, context, instructions = None, symtabl
     for statement in (statements):
         if statement.is_temporary:
             # Register var if this is temporary
-            symtable.register_var(statement.target_variable.value, statement.target_variable.evaluated_typeref)
+            symtable.register_var(statement.target_variable.value.get(0), statement.target_variable.evaluated_typeref)
         generate_ir_for_statement(statement, context, instructions, symtable)
     return instructions, symtable, None
 
@@ -159,42 +159,45 @@ def generate_ir_for_variable(expr, context, input_values, instructions, symtable
 
 
 
-def generate_ir_for_setter(source_var, expr, instructions, symtable):
-    starting_var, field_path = expr.normalized_field_path.pop()
-    if expr.source_type == VarSource.LOCAL:
-        starting_typeref = expr.evaluated_typeref
+def generate_ir_for_setter(source_var, target_var, instructions, symtable):
+    starting_var, field_path = target_var.normalized_field_path.pop()
+    if target_var.source_type == VarSource.LOCAL:
+        starting_typeref = target_var.evaluated_typeref
         if field_path.length == 0:
             # Do a direct copy as no nesting into a local var
             instructions.append(ir.CopyVarInstruction(source_var, starting_var))
             return instructions, symtable, None
     else:
-        resolution_result = expr.field_resolution_result 
-        if resolution_result == None:
-            ipdb.set_trace()
+        assert field_path.length > 0, "Source or Destination variables cannot be overwritten"
+        resolution_result = target_var.field_resolution_result 
+        if resolution_result == None: ipdb.set_trace()
         starting_typeref = resolution_result.root_typeref
 
     curr_typeref = starting_typeref
     curr_path = curr_var = starting_var
 
-    while field_path.length > 0:
+    while field_path.length > 1:
+        # At each level of the remaining field paths, keep finding and setting
+        # fields if they are null
         next_field_name, tail_path = field_path.pop()
         next_path = curr_path + "/" + next_field_name
         next_typeref = curr_typeref.final_type.arg_for(next_field_name).typeref
         next_var = symtable.get_var_for_path(next_path, next_typeref)
 
-        if tail_path.length == 0:
-            # Means we have a single entry in the path left
-            # so the value can be directly set
-            instructions.append(ir.SetFieldInstruction(source_var, next_field_name, next_var))
-        else:
-            # Get the next var and store into the var
-            contains_instr = ir.ContainsInstruction(curr_var, next_field_name)
-            set_default_instr = ir.NewInstruction(curr_typeref, next_var)
-            if_stmt = ir.IfStatement(contains_instr, [ set_default_instr ], None, negate = True)
-            instructions.append(if_stmt)
+        # Get the next var and store into the var
+        contains_instr = ir.ContainsInstruction(curr_var, next_field_name)
+        set_default_instr = ir.NewInstruction(curr_typeref, next_var)
+        if_stmt = ir.IfStatement(contains_instr, [ set_default_instr ], None, negate = True)
+        instructions.append(if_stmt)
 
-            get_instr = ir.GetFieldInstruction(curr_var, next_field_name, next_var)
-            instructions.append(get_instr)
+        get_instr = ir.GetFieldInstruction(curr_var, next_field_name, next_var)
+        instructions.append(get_instr)
 
         curr_path, curr_var, field_path = next_path, next_var, tail_path
+
+    assert field_path.length <= 1
+    # Means we have a single entry in the path left
+    # so the value can be directly set
+    instructions.append(ir.SetFieldInstruction(source_var, field_path.get(0), curr_var))
+
     return instructions, symtable, None

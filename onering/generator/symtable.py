@@ -28,9 +28,12 @@ class SymbolTable(object):
         Given a type object, returns the next register/variable name for that type.
         """
         varname = "var_%d" % self.counter.next()
+        while varname in self._types_for_names:
+            varname = "var_%d" % self.counter.next()
         return self.register_var(varname, typeref)
 
     def register_var(self, varname, typeref):
+        assert type(varname) in (str, unicode)
         if varname in self._types_for_names:
             assert False, "Variable with name '%s' varname already exists"
         self._types_for_names[varname] = typeref

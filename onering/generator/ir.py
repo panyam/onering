@@ -48,7 +48,9 @@ class CopyVarInstruction(object):
 
 class SetFieldInstruction(object):
     """
-    Set the value of a field in target variable from source variable
+    Set the value of a field in target variable from source variable, Akin to:
+
+        target_var.set<field_key>(source_var)
     """
     def __init__(self, source_var, field_key, target_var):
         self.source_var = source_var
