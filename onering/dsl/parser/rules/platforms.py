@@ -52,6 +52,11 @@ def parse_platform_type_bindings(parser, platform, annotations):
     """
     docs = parser.last_docstring()
 
+    type_decl = parse_any_type_decl(parser, register = False, templatized = True)
+    parser.ensure_token(TokenType.STREAM)
+    native_fqn = parser.ensure_token(TokenType.STRING)
+    platform.add_type(type_decl, native_fqn)
+
 def parse_platform_function_bindings(parser, platform, annotations):
     """
     Parses a function binding in a platform.
@@ -65,7 +70,6 @@ def parse_platform_function_bindings(parser, platform, annotations):
     function_signature = parse_function_signature(parser)
 
     parser.ensure_token(TokenType.STREAM)
-
     native_fqn = parser.ensure_token(TokenType.STRING)
 
     # Create a function of a given type and register it
