@@ -16,6 +16,7 @@ class TokenType(Enum):
 
     # Special chars/operators etc
     DOLLAR              = "$"
+    ARROW               = "->"
     STREAM              = "=>"
     EQUALS              = "="
     COLON               = ":"
@@ -227,6 +228,8 @@ class Lexer(object):
                 # We have a parser directive
                 curr_tok_value = self.read_till("\n", include = False)
                 return make_token(TokenType.HASH, curr_tok_value)
+            elif self.matches_symbol('->'):
+                return make_token(TokenType.ARROW)
             elif self.matches_symbol('=>'):
                 return make_token(TokenType.STREAM)
             elif self.matches_symbol('='):

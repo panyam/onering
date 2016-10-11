@@ -1,11 +1,11 @@
 
 namespace org.example
 
-bind simplify string => string {
+bind simplify string -> string {
     "java" = "simplify"
 }
 
-bind capitalize ? => string {
+bind capitalize ? -> string {
     "java" = "capitalize"
 }
 

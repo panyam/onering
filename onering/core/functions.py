@@ -1,11 +1,13 @@
 
 from typelib.annotations import Annotatable
 
-class PlatformBinding(Annotatable):
-    def __init__(self, platform, native_fqn, annotations = None, docs = ""):
-        Annotatable.__init__(self, annotations, docs)
-        self.platform = platform
-        self.native_fqn = native_fqn
+class Signature(object):
+    def __init__(self, input_types = None, output_type = None,
+                 inputs_need_inference = True, output_needs_inference = True):
+        self.input_types = input_types or [] 
+        self.output_type = output_type
+        self.inputs_need_inference = inputs_need_inference
+        self.output_needs_inference = output_needs_inference
 
 class Function(Annotatable):
     """
@@ -15,7 +17,8 @@ class Function(Annotatable):
     def __init__(self, fqn, typeref,
                  inputs_need_inference,
                  output_needs_inference,
-                 annotations = None, docs = ""):
+                 annotations = None,
+                 docs = ""):
         Annotatable.__init__(self, annotations, docs)
         self.fqn = fqn
         self.inputs_need_inference = inputs_need_inference
@@ -23,10 +26,6 @@ class Function(Annotatable):
         self.inputs_known = not inputs_need_inference
         self.output_known = not output_needs_inference
         self.typeref = typeref
-        self.platform_bindings = {}
-
-    def add_platform(self, platform_binding):
-        self.platform_bindings[platform_binding.platform] = platform_binding
 
     @property
     def final_type(self):

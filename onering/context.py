@@ -12,6 +12,7 @@ class OneringContext(object):
         self.entity_resolver = resolver.EntityResolver("pdsc")
         self._derivations = {}
         self._functions = {}
+        self._platforms = {}
         self._transformer_groups = {}
 
         self.output_dir = "./gen"
@@ -114,6 +115,15 @@ class OneringContext(object):
                 if fnmatch.fnmatch(tg.fqn, tw):
                     out.add(tg.fqn)
         return out
+
+    def get_or_register_platform(self, name, annotations = None, docs = ""):
+        """
+        Get a platform binding container by its name.
+        """
+        if name not in self._platforms:
+            from onering.core import platforms
+            self._platforms[name] = platforms.Platform(name, annotations, docs)
+        return self._platforms[name]
 
     def get_function(self, fqn):
         """

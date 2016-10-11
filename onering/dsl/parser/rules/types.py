@@ -30,6 +30,9 @@ def parse_type_decl(parser):
     elif type_class == "bind":
         from onering.dsl.parser.rules.functions import parse_bind
         return parse_bind(parser, annotations)
+    elif type_class == "platform":
+        from onering.dsl.parser.rules.platforms import parse_platform
+        return parse_platform(parser, annotations)
     elif type_class == "___transformer___": # Disable for now
         parser.next_token()     # consume it
         from onering.dsl.parser.rules.transformers import parse_transformer
@@ -39,7 +42,7 @@ def parse_type_decl(parser):
         parse_transformer_group(parser, annotations)
     else:
         out = parse_complex_type_decl(parser, annotations)
-        assert out
+        assert out is not None
         return out
 
 
