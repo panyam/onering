@@ -125,11 +125,14 @@ class OneringContext(object):
             self._platforms[name] = platforms.Platform(name, annotations, docs)
         return self._platforms[name]
 
-    def get_function(self, fqn):
+    def get_function(self, fqn, ignore_missing = False):
         """
         Get a function by its fqn.
         """
-        return self._functions[fqn]
+        if ignore_missing:
+            return self._functions.get(fqn, None)
+        else:
+            return self._functions[fqn]
 
     def register_function(self, function):
         """

@@ -97,7 +97,7 @@ def parse_function_signature(parser):
                 parser.ensure_token(TokenType.COMMA)
             parser.ensure_token(TokenType.CLOSE_PAREN)
             inputs_need_inference = False
-        elif not parser.peeked_token_is(TokenType.OPEN_BRACE):
+        elif parser.peeked_token_is(TokenType.IDENTIFIER):
             input_types.append(parse_any_type_decl(parser))
             inputs_need_inference = False
 

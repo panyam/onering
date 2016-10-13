@@ -8,12 +8,13 @@ from onering.core import functions, platforms
 from onering.dsl.errors import SourceException, UnexpectedTokenException
 from onering.dsl.lexer import Token, TokenType
 from onering.dsl.parser.rules.annotations import parse_annotations
+from onering.dsl.parser.rules.functions import parse_function_signature
 
 ########################################################################
 ##          Platform bindings parsing rules
 ########################################################################
 
-def parse_bind(parser, annotations):
+def parse_platform(parser, annotations):
     """
     Parses a platform binding to a single platform:
 
@@ -24,7 +25,7 @@ def parse_bind(parser, annotations):
     parser.ensure_token(TokenType.IDENTIFIER, "platform")
     platform_name = parser.ensure_token(TokenType.IDENTIFIER)
     platform = parser.onering_context.get_or_register_platform(platform_name, annotations,
-                                                               parser.last_docstring()
+                                                               parser.last_docstring())
 
     print "Parsing new platform bindings: '%s'" % platform_name
 
@@ -43,15 +44,15 @@ def parse_bind(parser, annotations):
         parser.consume_tokens(TokenType.COMMA)
     parser.ensure_token(TokenType.CLOSE_BRACE)
 
-def parse_platform_function_bindings(parser, platform, annotations):
+def parse_platform_function_binding(parser, platform, annotations):
     """
     Parses a function binding in a platform.
 
-        function_binding := "func" func_name<IDENT> function_signature "=>" native_func<STRING>
+        function_binding := "func" func_fqn<FQN> function_signature "=>" native_func<STRING>
     """
     docs = parser.last_docstring()
 
-    func_name = parser.ensure_token(TokenType.STRING)
+    func_fqn = parser.ensure_fqn()
     # Type signature
     function_signature = parse_function_signature(parser)
 
@@ -61,22 +62,28 @@ def parse_platform_function_bindings(parser, platform, annotations):
     # Create a function of a given type and register it
     func_type = tlcore.FunctionType(function_signature.input_types,
                                     function_signature.output_type, annotations, docs)
-    func_typeref = parser.register_type(fqn, func_type)
+    # TODO - If a function is registered twice - say for different platforms
+    # We should ignore one if types are the same and throw errors if different platforms
+    # have different type signatures
+    func_typeref = parser.register_type(func_fqn, func_type)
 
     # create the function object
-    function = parser.onering_context.get_function(fqn)
+    function = parser.onering_context.get_function(func_fqn, ignore_missing = True)
     if not function:
-        function = functions.Function(fqn, func_typeref,
+        function = functions.Function(func_fqn, func_typeref,
                                       function_signature.inputs_need_inference,
                                       function_signature.output_needs_inference,
                                       annotations, docs)
         parser.onering_context.register_function(function)
+    else:
+        ipdb.set_trace()
+        pass
 
     platform.add_function(function, native_fqn)
     return function
 
 
-def parse_platform_type_bindings(parser, platform, annotations):
+def parse_platform_type_binding(parser, platform, annotations):
     """
     Parses a type binding in a platform.  This is slightly different from a normal type declaration.
     A normal type declaration has no parametrized type arguments (this is what gets unified in GADT!!)
