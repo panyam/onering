@@ -33,3 +33,19 @@ class Platform(Annotatable):
 
         # TODO - return None on missing?
         self._functions[function_fqn]["fqn"]
+
+    def add_type_binding(self, type_binding, native_template, annotations = None, docs = ""):
+        # TODO - Order things around and check for duplicates
+        self._types.append({"type": type_binding, "template": native_template})
+
+class TypeBinding(object):
+    def __init__(self, fqn):
+        self.fqn = fqn
+        self.args = None
+
+    def matches_typeref(self, typeref, type_registry):
+        """
+        Given a typeref returns True along with all the "bound" type parameters.
+        Otherwise returns False,None.
+        """
+        pass

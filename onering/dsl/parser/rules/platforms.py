@@ -4,7 +4,7 @@ import ipdb
 from typelib import core as tlcore
 from onering import utils
 from onering.dsl.parser.rules.types import parse_any_type_decl
-from onering.core import functions
+from onering.core import functions, platforms
 from onering.dsl.errors import SourceException, UnexpectedTokenException
 from onering.dsl.lexer import Token, TokenType
 from onering.dsl.parser.rules.annotations import parse_annotations
@@ -43,20 +43,6 @@ def parse_bind(parser, annotations):
         parser.consume_tokens(TokenType.COMMA)
     parser.ensure_token(TokenType.CLOSE_BRACE)
 
-
-def parse_platform_type_bindings(parser, platform, annotations):
-    """
-    Parses a type binding in a platform.
-
-        type_binding := "type" type_declaration "=>" native_type_template<STRING>
-    """
-    docs = parser.last_docstring()
-
-    type_decl = parse_any_type_decl(parser, register = False, templatized = True)
-    parser.ensure_token(TokenType.STREAM)
-    native_fqn = parser.ensure_token(TokenType.STRING)
-    platform.add_type(type_decl, native_fqn)
-
 def parse_platform_function_bindings(parser, platform, annotations):
     """
     Parses a function binding in a platform.
@@ -88,3 +74,35 @@ def parse_platform_function_bindings(parser, platform, annotations):
 
     platform.add_function(function, native_fqn)
     return function
+
+
+def parse_platform_type_bindings(parser, platform, annotations):
+    """
+    Parses a type binding in a platform.  This is slightly different from a normal type declaration.
+    A normal type declaration has no parametrized type arguments (this is what gets unified in GADT!!)
+
+        type_binding := "type" type_declaration "=>" native_type_template<STRING>
+
+        type_declaration := FQN
+                |   FQN "[" type_arg ( "," type_arg ) * "]"
+
+        type_arg := "$" name<IDENT> | type_declaration
+    """
+    docs = parser.last_docstring()
+
+    # Get the fqn
+    type_fqn = parser.ensure_fqn()
+
+    type_binding = platforms.TypeBinding(type_fqn)
+
+    if parser.next_token_is(TokenType.OPEN_SQUARE):
+        while not parser.peeked_token_is(TokenType.CLOSE_SQUARE) or \
+              parser.peeked_token_is(TokenType.COMMA):
+            parser.next_token_if(TokenType.COMMA)
+            arg = parse_type_binding_arg(parser)
+            type_binding.add_argument(arg)
+        parser.ensure_token(TokenType.CLOSE_SQUARE)
+        parser.ensure_token(TokenType.STREAM)
+
+    native_template = parser.ensure_token(TokenType.STRING)
+    platform.add_type(type_binding, native_template)

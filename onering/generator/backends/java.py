@@ -30,7 +30,7 @@ class JavaTargetBackend(object):
         templ = self.load_template(backend_annotation.first_value_of("template") or "backends/java/mutable_pojo")
 
         with self.normalized_output_stream(context.output_dir, fqn) as output:
-            print "Writing '%s' to '%s'" % (type_name, output.output_path)
+            print "Writing '%s'     ====>    '%s'" % (type_name, output.output_path)
             # print templ.render(record = record, backend = self)
             output.outstream.write(templ.render(record = record, backend = self))
 
@@ -44,7 +44,7 @@ class JavaTargetBackend(object):
 
         templ = self.load_template(backend_annotation.first_value_of("template") or "transformers/java/default_transformer_group")
         with self.normalized_output_stream(context.output_dir, tgroup.fqn) as output:
-            print "Writing '%s' to '%s'" % (tgroup.fqn, output.output_path)
+            print "Writing '%s'     ====>    '%s'" % (tgroup.fqn, output.output_path)
             # print templ.render(tgroup = normalized_tgroup, backend = self)
             output.outstream.write(templ.render(tgroup = normalized_tgroup, backend = self))
 
