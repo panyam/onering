@@ -1,5 +1,6 @@
 
 from __future__ import absolute_import
+import sys
 import ipdb
 from onering import errors
 from typelib import errors as tlerrors
@@ -387,7 +388,8 @@ class SimpleFieldProjection(SingleFieldProjection):
             # TODO: Dont do anything here as even though the projected type is unresolved
             # It is only being referenced and not dereferenced.  Only fail on an unresolved
             # type if it is being unpacked for its fields.
-            print "Unresolved Type: ", self.projected_typeref
+            print >> sys.stderr, "Unresolved Type: "
+            print >> sys.stderr,  self.projected_typeref
 
         projected_typeref = self.projected_typeref or self.field_path_resolution.resolved_typeref
 
