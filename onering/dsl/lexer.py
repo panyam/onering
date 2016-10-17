@@ -9,6 +9,7 @@ from enum import Enum
 class TokenType(Enum):
     EOS                 = "<EOS>"
 
+    DOLLAR_LITERAL      = "<DLIT>"
     IDENTIFIER          = "<IDENT>"
     STRING              = "<STR>"
     NUMBER              = "<NUM>"
@@ -163,6 +164,16 @@ class Lexer(object):
                     self.next_col = 0
         return (out, curr_pos, curr_line, curr_col)
 
+    def read_while(self, match_rule):
+        """
+        Read until the character matches a particular rule as defined in the function.
+        """
+        curr_tok_value = ""
+        while self.matches_func(match_rule):
+            nextch,_,_,_ = self.get_chars()
+            curr_tok_value += nextch
+        return curr_tok_value
+
     def read_till(self, delim_str, include):
         """
         Reads and returns everything until the delimiter string is countered.  If include is true then the delimiter string is also included in the output.
@@ -235,7 +246,12 @@ class Lexer(object):
             elif self.matches_symbol('='):
                 return make_token(TokenType.EQUALS)
             elif self.matches_symbol('$'):
-                return make_token(TokenType.DOLLAR)
+                # Then read while we have _ or alnum
+                curr_tok_value = self.read_while(lambda x: x == "_" or x.isalnum())
+                if curr_tok_value == "":
+                    return make_token(TokenType.DOLLAR)
+                else:
+                    return make_token(TokenType.DOLLAR_LITERAL, curr_tok_value)
             elif self.matches_symbol(':'):
                 return make_token(TokenType.COLON)
             elif self.matches_symbol(';'):
@@ -245,14 +261,10 @@ class Lexer(object):
             elif self.matches_symbol('*'):
                 return make_token(TokenType.STAR)
             elif self.matches_func(str.isdigit):
-                while self.matches_func(str.isdigit):
-                    nextch,_,_,_ = self.get_chars()
-                    curr_tok_value += nextch
+                curr_tok_value += self.read_while(str.isdigit)
                 if self.matches_symbol("."):
                     curr_tok_value += "."
-                while self.matches_func(str.isdigit):
-                    nextch,_,_,_ = self.get_chars()
-                    curr_tok_value += nextch
+                curr_tok_value += self.read_while(str.isdigit)
                 try:
                     number_value = int(curr_tok_value)
                 except ValueError, ve:

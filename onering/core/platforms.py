@@ -1,4 +1,6 @@
 
+from __future__ import absolute_import
+import ipdb
 from typelib.annotations import Annotatable
 from onering.core import functions
 
@@ -42,6 +44,11 @@ class TypeBinding(object):
     def __init__(self, fqn):
         self.fqn = fqn
         self.args = None
+
+    def add_argument(self, arg):
+        if not self.args:
+            self.args = []
+        self.args.append(arg)
 
     def matches_typeref(self, typeref, type_registry):
         """

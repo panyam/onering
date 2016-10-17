@@ -4,5 +4,9 @@ platform java {
     func capitalize ? -> string => "capitalize"
     func getPopulationCounts => "getPopulationCounts"
     func getPopulationRaces => "getPopulationRaces"
+
+    type array[byte] => "byte[]"
+    type array[Int] => "int[]"
+    type array[$1] => "List<$1>"
 }
 

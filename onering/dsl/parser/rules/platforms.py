@@ -95,21 +95,35 @@ def parse_platform_type_binding(parser, platform, annotations):
 
         type_arg := "$" name<IDENT> | type_declaration
     """
+
+
+    def parse_type_binding_arg(parser, root = None):
+        """
+        Parses a type binding argument in a type binding.  See "type_arg" rule above.
+        """
+        if root and parser.peeked_token_is(TokenType.DOLLAR_LITERAL):
+            # then we have a parametric argument
+            return parser.next_token().value
+        elif parser.peeked_token_is(TokenType.IDENTIFIER):
+            # Have type declaration here.   See "type_declaration" rule above
+            type_fqn = parser.ensure_fqn()
+            type_binding = platforms.TypeBinding(type_fqn)
+            if not root:
+                root = type_binding
+
+            if parser.next_token_is(TokenType.OPEN_SQUARE):
+                while not parser.peeked_token_is(TokenType.CLOSE_SQUARE):
+                    arg = parse_type_binding_arg(parser, root)
+                    type_binding.add_argument(arg)
+                    if parser.peeked_token_is(TokenType.COMMA):
+                        parser.next_token()
+                parser.ensure_token(TokenType.CLOSE_SQUARE)
+                parser.ensure_token(TokenType.STREAM)
+            return type_binding
+        else:
+            raise UnexpectedTokenException(parser.peek_token(), TokenType.IDENTIFIER, TokenType.DOLLAR_LITERAL)
+
     docs = parser.last_docstring()
-
-    # Get the fqn
-    type_fqn = parser.ensure_fqn()
-
-    type_binding = platforms.TypeBinding(type_fqn)
-
-    if parser.next_token_is(TokenType.OPEN_SQUARE):
-        while not parser.peeked_token_is(TokenType.CLOSE_SQUARE) or \
-              parser.peeked_token_is(TokenType.COMMA):
-            parser.next_token_if(TokenType.COMMA)
-            arg = parse_type_binding_arg(parser)
-            type_binding.add_argument(arg)
-        parser.ensure_token(TokenType.CLOSE_SQUARE)
-        parser.ensure_token(TokenType.STREAM)
-
+    type_binding = parse_type_binding_arg(parser)
     native_template = parser.ensure_token(TokenType.STRING)
-    platform.add_type(type_binding, native_template)
+    platform.add_type_binding(type_binding, native_template)
