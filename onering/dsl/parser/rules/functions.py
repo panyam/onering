@@ -47,8 +47,8 @@ def parse_bind(parser, annotations):
         platform = parser.ensure_token(TokenType.STRING)
         parser.ensure_token(TokenType.EQUALS)
         native_fqn = parser.ensure_token(TokenType.STRING)
-        platform = parser.onering_context.get_or_register_platform(platform)
-        platform.add_function(function, native_fqn, annotations, parser.last_docstring)
+        platform = parser.onering_context.get_platform(platform, register = True)
+        platform.add_function(function, native_fqn, annotations = annotations, docs = parser.last_docstring)
         parser.consume_tokens(TokenType.COMMA)
     parser.ensure_token(TokenType.CLOSE_BRACE)
 

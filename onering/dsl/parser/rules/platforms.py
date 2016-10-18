@@ -24,8 +24,8 @@ def parse_platform(parser, annotations):
     """
     parser.ensure_token(TokenType.IDENTIFIER, "platform")
     platform_name = parser.ensure_token(TokenType.IDENTIFIER)
-    platform = parser.onering_context.get_or_register_platform(platform_name, annotations,
-                                                               parser.last_docstring())
+    platform = parser.onering_context.get_platform(platform_name, register = True,
+                                                   annotations = annotations, docs = parser.last_docstring())
 
     print "Parsing new platform bindings: '%s'" % platform_name
 
@@ -121,7 +121,9 @@ def parse_platform_type_binding(parser, platform, annotations):
                 parser.ensure_token(TokenType.STREAM)
             return type_binding
         else:
-            raise UnexpectedTokenException(parser.peek_token(), TokenType.IDENTIFIER, TokenType.DOLLAR_LITERAL)
+            raise UnexpectedTokenException(parser.peek_token(),
+                                           TokenType.IDENTIFIER,
+                                           TokenType.DOLLAR_LITERAL)
 
     docs = parser.last_docstring()
     type_binding = parse_type_binding_arg(parser)

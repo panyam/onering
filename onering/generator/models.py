@@ -23,10 +23,13 @@ class TypeViewModel(object):
         self.namespace = ns
         self.import_types = []
         self.annotations = tlannotations.Annotations(thetype.annotations)
-        self.fields =  [ {
-                    'field_name': arg.name, 
-                    'field_type': arg.typeref,
-                    'annotations': tlannotations.Annotations(arg.annotations) } for arg in thetype.args ]
+        self.fields =  [ TypeArgViewModel(arg.name, arg.typeref, tlannotations.Annotations(arg.annotations)) for arg in thetype.args ]
+
+class TypeArgViewModel(object):
+    def __init__(self, field_name, field_type, annotations):
+        self.field_name = field_name
+        self.field_type = field_type
+        self.annotations = annotations
 
 class TransformerGroupViewModel(object):
     def __init__(self, backend, tgroup, context, backend_annotation):

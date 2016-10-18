@@ -116,13 +116,14 @@ class OneringContext(object):
                     out.add(tg.fqn)
         return out
 
-    def get_or_register_platform(self, name, annotations = None, docs = ""):
+    def get_platform(self, name, register = False, annotations = None, docs = ""):
         """
         Get a platform binding container by its name.
         """
-        if name not in self._platforms:
-            from onering.core import platforms
-            self._platforms[name] = platforms.Platform(name, annotations, docs)
+        if register:
+            if name not in self._platforms:
+                from onering.core import platforms
+                self._platforms[name] = platforms.Platform(name, annotations, docs)
         return self._platforms[name]
 
     def get_function(self, fqn, ignore_missing = False):
