@@ -96,7 +96,14 @@ class JavaTargetBackend(object):
         if isinstance(target, tlcore.TypeRef):
             thetyperef = target
         elif isinstance(target, orgenmodels.TypeArgViewModel):
-            # TODO - Inspect the annotation that coerces a "raw" type string
+            # Inspect the annotation that coerces a "raw" type string
+            rawtype_annotation = target.annotations.get("onering.rawtype")
+            if rawtype_annotation and \
+                    self.current_platform.name == rawtype_annotation.first_value_of("platform"):
+                if rawtype_annotation.first_value_of("type"):
+                    return rawtype_annotation.first_value_of("type")
+
+            # Otherwise infer field type normally
             thetyperef = target.field_type
         else:
             assert False, "Unknown target type requiring signature."
