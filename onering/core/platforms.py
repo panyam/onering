@@ -54,7 +54,7 @@ class Platform(Annotatable):
         for tbdict in self._type_bindings:
             tb = tbdict["type"]
             bound_params = tb.matches_typeref(typeref)
-            if bound_params:
+            if bound_params is not None:
                 return tb, tbdict["template"], bound_params
         return None, None, None
 
