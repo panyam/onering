@@ -103,7 +103,7 @@ def parse_platform_type_binding(parser, platform, annotations):
         """
         if root and parser.peeked_token_is(TokenType.DOLLAR_LITERAL):
             # then we have a parametric argument
-            return parser.next_token().value
+            return platforms.TypeBinding(parser.next_token().value, is_param = True)
         elif parser.peeked_token_is(TokenType.IDENTIFIER):
             # Have type declaration here.   See "type_declaration" rule above
             type_fqn = parser.ensure_fqn()
@@ -118,7 +118,6 @@ def parse_platform_type_binding(parser, platform, annotations):
                     if parser.peeked_token_is(TokenType.COMMA):
                         parser.next_token()
                 parser.ensure_token(TokenType.CLOSE_SQUARE)
-                parser.ensure_token(TokenType.STREAM)
             return type_binding
         else:
             raise UnexpectedTokenException(parser.peek_token(),
@@ -127,5 +126,6 @@ def parse_platform_type_binding(parser, platform, annotations):
 
     docs = parser.last_docstring()
     type_binding = parse_type_binding_arg(parser)
+    parser.ensure_token(TokenType.STREAM)
     native_template = parser.ensure_token(TokenType.STRING)
     platform.add_type_binding(type_binding, native_template)

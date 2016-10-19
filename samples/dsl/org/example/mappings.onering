@@ -5,8 +5,31 @@ platform java {
     func getPopulationCounts => "getPopulationCounts"
     func getPopulationRaces => "getPopulationRaces"
 
+    type map[string, byte] => "Map<String, Byte>"
+    type map[string, char] => "Map<String, Char>"
+    type map[string, float] => "Map<String, Float>"
+    type map[string, double] => "Map<String, Double>"
+    type map[string, int] => "Map<String, Integer>"
+    type map[string, long] => "Map<String, Long>"
+    type map[string, $1] => "Map<String, $1>"
+    type map[$1, int] => "Map<$1, Integer>"
+    type map[$1, long] => "Map<$1, Long>"
+    type map[$1, $2] => "Map<$1, $2>"
+
     type array[byte] => "byte[]"
-    type array[Int] => "int[]"
+    type array[int] => "int[]"
+    type array[boolean] => "List<Boolean>"
+    type array[char] => "List<Char>"
+    type array[float] => "List<Float>"
+    type array[double] => "List<Double>"
     type array[$1] => "List<$1>"
+
+    type string => "String"
+    type int => "int"
+    type byte => "byte"
+    type char => "char"
+    type double => "double"
+    type float => "float"
+    type boolean => "boolean"
 }
 

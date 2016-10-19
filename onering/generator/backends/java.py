@@ -2,6 +2,7 @@
 import ipdb
 import os
 import sys
+import re
 
 from typelib import annotations as tlannotations
 from typelib import core as tlcore
@@ -77,7 +78,7 @@ class JavaTargetBackend(object):
     def load_template(self, template_name):
         templ = self.onering_context.template_loader.load_template(template_name)
         templ.globals["camel_case"] = orgencommon.camel_case
-        templ.globals['debug'] = orgencommon.debug_print
+        templ.globals["debug"] = orgencommon.debug_print
         templ.globals["signature"] = self.get_type_signature
         return templ
 
@@ -95,48 +96,43 @@ class JavaTargetBackend(object):
         if isinstance(target, tlcore.TypeRef):
             thetyperef = target
         elif isinstance(target, orgenmodels.TypeArgViewModel):
+            # TODO - Inspect the annotation that coerces a "raw" type string
             thetyperef = target.field_type
         else:
-            ipdb.set_trace()
+            assert False, "Unknown target type requiring signature."
+
+        type_binding, template_string, bound_params = self.current_platform.match_typeref_binding(thetyperef)
+        if template_string:
+            return self.render_binding_template(type_binding, template_string, bound_params)
 
         if thetyperef.fqn:
-            if thetyperef.fqn == "string":
-                return "String"
-            if thetyperef.fqn == "double":
-                return "Double"
-            if thetyperef.fqn == "int":
-                return "Int"
-            if thetyperef.fqn == "byte":
-                return "Byte"
-            if thetyperef.fqn == "boolean":
-                return "Boolean"
-            if thetyperef.fqn == "float":
-                return "Float"
             return thetyperef.fqn
 
         thetype = thetyperef.final_type
-        if thetype.constructor == "string":
-            return "String"
-        if thetype.constructor == "double":
-            return "Double"
         if thetype.constructor in ("record", "union"):
             ipdb.set_trace()
             return thetype.fqn
-        if thetype.constructor in ("list", "array"):
-            value_type = self.get_type_signature(thetype.arg_at(0).typeref)
-            if value_type is None:
-                ipdb.set_trace()
-            return "List<" + value_type + ">" 
-        if thetype.constructor == "map":
-            key_type = self.get_type_signature(thetype.arg_at(0).typeref)
-            value_type = self.get_type_signature(thetype.arg_at(1).typeref)
-            if value_type is None or key_type is None:
-                ipdb.set_trace()
-            return "Map<" + key_type + ", " + value_type + ">"
-        if thetype.constructor == "set":
-            value_type = self.get_type_signature(thetype.arg_at(0).typeref)
-            if value_type is None:
-                ipdb.set_trace()
-            return "Set<" + value_type + ">" 
+
         ipdb.set_trace()
         assert False
+
+    def render_binding_template(self, type_binding, template_string, bound_params):
+        out = ""
+        while template_string:
+            match = re.search("\$[\w\d]+", template_string)
+            if not match:
+                out += template_string
+                template_string = None
+            else:
+                argname = match.group()[1:]
+                out += template_string[:match.start()]
+                # now render the arg too
+                if argname not in bound_params:
+                    raise errors.OneringException("Binding for param '%s' not found" % match.group())
+                child_sig = self.get_type_signature(bound_params[argname])
+                if not child_sig:
+                    ipdb.set_trace()
+                out += child_sig
+                template_string = template_string[match.end():]
+
+        return out
