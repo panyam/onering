@@ -20,6 +20,7 @@ class Statement(object):
         self.is_temporary = is_temporary
         self.target_variable.readonly = False
         self.target_variable.source_type = VarSource.AUTO
+        self.is_implicit = False
         if self.is_temporary:
             assert target_variable.value.length == 1, "A temporary variable cannot have nested field paths"
             self.target_variable.source_type = VarSource.LOCAL

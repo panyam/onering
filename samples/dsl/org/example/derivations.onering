@@ -75,6 +75,7 @@ derive TrollKingdom : Kingdom {
 derive Town : City {
     name
     wonders
+    populationByRace as populations2
     populationByRace as populations [race, count] => array[ {
         // Get all fields within the race, flattened to the populations level.
         race / (*)

@@ -1,10 +1,12 @@
 
+from __future__ import absolute_import
 import ipdb
 from enum import Enum
 from onering import errors
 from onering.utils import ResolutionStatus
 from onering.core.utils import FieldPath
 from onering.core import exprs as orexprs
+from onering.core.projections import SimpleFieldProjection
 from typelib.annotations import Annotatable
 
 class TransformerGroup(Annotatable):
@@ -134,15 +136,48 @@ class Transformer(Annotatable):
         share a common ancestor (or may be even at atmost 1 level).
         """
 
+        implicit_statements = []
         # Step 1: Find common "ancestor" of each of the records
-        ancestor = context.find_common_ancestor(self.src_typeref, self.dest_typeref)
+        ancestor, path1, path2 = context.find_common_ancestor(self.src_typeref, self.dest_typeref)
         if ancestor is not None:
-            # If the two types have no common ancestor then we cannot have auto rules
-            pass
+            # Here see which fields from the root still exist in the leaf (even if it has been retyped or renamed or streamed).
+            remaining_fields1 = context.surviving_fields_from_root_to_child(ancestor, path1)
+            remaining_fields2 = context.surviving_fields_from_root_to_child(ancestor, path2)
 
-            # Variables are "locations" - a location is either a temp variable, or a (record + field_path)
-            # Expressions are functions of locations:
-            #   Function(multiple locations) results in locations being set
-            #   Compound blocks are a collection of expressions that also get/set variables at a function scope
-        return []
+            # At this point:
+            # RF1 contains all field that have gone from ancestor to src type
+            # RF2 contains all field that have gone from ancestor to dest type
+            # The fields of interest will be the intersection of these two
+            src_fields = {key : value for (key,value) in remaining_fields1.iteritems() if key in remaining_fields2}
+            dest_fields = {key : value for (key,value) in remaining_fields2.iteritems() if key in remaining_fields1}
 
+            # Now the fun begins
+            # It could be that a field in src maps to multiplel fields in dest
+            # Here we can do a couple of things.
+            # 1. Ignore all projections in src and dest types that are anything but simple renaming of fields and use only those
+            # 2. Use "same" types from src and dest, mapping those and use each unique src type to map to equivalent ones in dest.
+            #    Later is a lot more work and value is limited - so ignore for now
+            for sfield_name, sfields in src_fields.iteritems():
+                # find any field in src_field that is a simple mapping (ie only renaming allowed at most)
+                source_field = None
+                for sfield in sfields:
+                    if type(sfield.projection) is SimpleFieldProjection and sfield.projection.projected_typeref is None:
+                        source_field = sfield
+                        break
+
+                if source_field:
+                    # we have a source field (that was derived from ancestor without any transformation) so it is
+                    # a good candidate to copy from.  
+                    #
+                    # Now look for all destination fields this can be mapped and add implicit rules for these
+                    dfields = dest_fields[sfield_name]
+                    for dfield in dfields:
+                        if type(dfield.projection) is SimpleFieldProjection and dfield.projection.projected_typeref is None:
+                            src_field_path = FieldPath([source_field.field_name])
+                            dest_field_path = FieldPath([dfield.field_name])
+                            src_var = orexprs.VariableExpression(src_field_path, readonly = True, source_type = orexprs.VarSource.AUTO)
+                            dest_var = orexprs.VariableExpression(dest_field_path, readonly = False, source_type = orexprs.VarSource.AUTO)
+                            new_stmt = orexprs.Statement([src_var], dest_var)
+                            new_stmt.is_implicit = True
+                            implicit_statements.append(new_stmt)
+        return implicit_statements

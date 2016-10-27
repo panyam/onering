@@ -1,6 +1,8 @@
 
 
+from __future__ import absolute_import
 import ipdb
+from collections import defaultdict
 import fnmatch
 from typelib import registry 
 from onering import resolver
@@ -56,22 +58,37 @@ class OneringContext(object):
         is an ancestor of the other in which case this one is returned.
         """
         # Go through derivation1 and get a list of all parents 
-        d1set = set(self.parents_for_type(record1.fqn))
+        d1list = list(self.parents_for_type(record1.fqn))
+        d1set = set(d1list)
 
-        for d2parent_fqn in self.parents_for_type(record2.fqn):
+        path2 = []
+        for index,d2parent_fqn in enumerate(self.parents_for_type(record2.fqn)):
             if d2parent_fqn in d1set:
-                return self.type_registry.get_typeref(d2parent_fqn)
-        return None
+                path1 = d1list[:d1list.index(d2parent_fqn)]
+                path1.reverse() ; path2.reverse()
+                ancestor = self.type_registry.get_typeref(d2parent_fqn)
+                return ancestor, path1, path2
+            else:
+                path2.append(d2parent_fqn)
+        return None, None, None
 
-    def derived_from_type(self, record_fqn):
-        """
-        Given a fqn of a record, returns the record from this record could have been derived from (if any)
-        """
-        if record_fqn:
-            deriv = self.get_derivation(record_fqn)
-            if not deriv or not deriv.has_sources:
-                return None
-            return self.type_registry.get_typeref(deriv.source_aliases.values()[0])
+    def surviving_fields_from_root_to_child(self, ancestor, path_to_child):
+        remaining_fields = dict([(arg.name, [arg]) for arg in ancestor.final_type.args])
+
+        # now as we we go down each derivation for source drop off fields that are 
+        # not present in each derivation (when "negation" is implemented this will be richer)
+        for fqn in path_to_child:
+            curr = self.type_registry.get_typeref(fqn)
+            curr_args = curr.final_type.args
+            args2 = defaultdict(list)
+            for field in curr_args:
+                if field.projection is not None and field.projection.field_path_resolution.child_key in remaining_fields:
+                    args2[field.projection.field_path_resolution.child_key].append(field)
+
+            # Swap out remaining fields as it may have extraneous fields - also this way "new" fields wont make it through
+            remaining_fields = args2
+
+        return remaining_fields 
 
     def parents_for_type(self, record_fqn):
         """
@@ -82,6 +99,16 @@ class OneringContext(object):
             record_fqn = self.derived_from_type(record_fqn)
             if record_fqn:
                 record_fqn = record_fqn.fqn
+
+    def derived_from_type(self, record_fqn):
+        """
+        Given a fqn of a record, returns the record from this record could have been derived from (if any)
+        """
+        if record_fqn:
+            deriv = self.get_derivation(record_fqn)
+            if not deriv or not deriv.has_sources:
+                return None
+            return self.type_registry.get_typeref(deriv.source_aliases.values()[0])
 
     def derivations_for_wildcards(self, wildcards):
         """

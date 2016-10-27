@@ -268,6 +268,7 @@ class FieldProjection(Projection):
             arg = starting_type.arg_for(field_name)
             newfield = Field(field_name,
                              starting_type.arg_for(field_name).typeref,
+                             projection = self,
                              field_path = self.source_field_path.with_child(field_name),
                              is_optional = arg.is_optional,
                              default_value = arg.default_value,
@@ -368,6 +369,7 @@ class SimpleFieldProjection(SingleFieldProjection):
         else:
             newfield = Field(self.source_field_path.get(0),
                              self.projected_typeref,
+                             projection = self,
                              field_path = self.source_field_path,
                              is_optional = self.is_optional,
                              default_value = self.default_value,
@@ -395,6 +397,7 @@ class SimpleFieldProjection(SingleFieldProjection):
 
         newfield = Field(self.projected_name or self.field_path_resolution.field_name,
                          projected_typeref,
+                         projection = self,
                          field_path = self.source_field_path,
                          is_optional = self.projected_is_optional,
                          default_value = self.projected_default_value,
@@ -435,6 +438,7 @@ class InlineDerivation(SingleFieldProjection):
 
         newfield = Field(self.projected_name or self.field_path_resolution.field_name,
                          self.child_derivation.resolved_recordref,
+                         projection = self,
                          field_path = self.source_field_path,
                          is_optional = self.projected_is_optional,
                          default_value = self.projected_default_value,
@@ -491,6 +495,7 @@ class TypeStream(SingleFieldProjection):
 
         newfield = Field(self.projected_name or self.field_path_resolution.field_name,
                          field_typeref,
+                         projection = self,
                          field_path = self.source_field_path,
                          is_optional = self.projected_is_optional,
                          default_value = self.projected_default_value,
@@ -533,7 +538,7 @@ class Field(records.FieldTypeArg):
     """
     Holds all information about a field within a record.
     """
-    def __init__(self, name, field_typeref, field_path,
+    def __init__(self, name, field_typeref, field_path, projection,
                  is_optional = False, default_value = None, docs = "", annotations = None):
         """
         Creates a new Field as the result of a projection.
@@ -543,6 +548,7 @@ class Field(records.FieldTypeArg):
             name            -   Name of the field to be created
             field_type      -   Type of the field to be created
             field_path      -   If the field is a result of a projection then this stores the field path (either relative or absolute)
+            projection      -   The projection with which this Field is being created
             optional        -   Whether the field is optional
             default         -   Whether the field has a default value
             docs            -   Documentation for the field
@@ -550,7 +556,9 @@ class Field(records.FieldTypeArg):
         """
         records.FieldTypeArg.__init__(self, name, field_typeref, is_optional, default_value, annotations, docs)
         assert not field_path.has_children, "Field path of a single derived field cannot have children"
+        assert projection is not None
         self.field_path = field_path
+        self.projection = projection
 
     def __json__(self):
         out = super(Field, self).__json__()
