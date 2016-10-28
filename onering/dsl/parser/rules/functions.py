@@ -22,7 +22,7 @@ def parse_bind(parser, annotations):
     docs = parser.last_docstring()
 
     parser.ensure_token(TokenType.IDENTIFIER, "bind")
-    fqn = utils.FQN(parser.ensure_token(TokenType.IDENTIFIER), parser.document.namespace).fqn
+    fqn = utils.FQN(parser.ensure_token(TokenType.IDENTIFIER), parser.namespace).fqn
 
     print "Parsing new function binding: '%s'" % fqn
 

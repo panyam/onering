@@ -55,7 +55,7 @@ def parse_typeref_decl(parser, annotations):
     docstring = parser.last_docstring()
     parser.ensure_token(TokenType.IDENTIFIER, "typeref")
     name = parser.ensure_token(TokenType.IDENTIFIER)
-    fqn = utils.FQN(name, parser.document.namespace).fqn
+    fqn = utils.FQN(name, parser.namespace).fqn
 
     parser.ensure_token(TokenType.EQUALS)
     target_typeref = parse_any_type_decl(parser, typereffed_fqn = fqn)
@@ -105,7 +105,7 @@ def parse_newtyperef_preamble(parser, constructor, typereffed_fqn, force_fqn_if_
     if parser.peeked_token_is(TokenType.IDENTIFIER) or (fqn is None and force_fqn_if_missing):
         # we have a name
         n = parser.ensure_token(TokenType.IDENTIFIER)
-        ns = parser.document.namespace
+        ns = parser.namespace
         fqn = utils.FQN(n, ns).fqn
 
     if fqn:

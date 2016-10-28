@@ -21,7 +21,7 @@ def parse_derivation(parser, annotations = []):
     """
     parser.ensure_token(TokenType.IDENTIFIER, "derive")
 
-    fqn = utils.FQN(parser.ensure_token(TokenType.IDENTIFIER), parser.document.namespace).fqn
+    fqn = utils.FQN(parser.ensure_token(TokenType.IDENTIFIER), parser.namespace).fqn
     print "Parsing new derivation: '%s'" % fqn
 
     derivation = projections.RecordDerivation(fqn, annotations = annotations, docs = parser.last_docstring())
@@ -129,7 +129,7 @@ def parse_projection_target(parser, parent_derivation, field_path):
         new_record_fqn = None
         if parser.peeked_token_is(TokenType.IDENTIFIER):
             n = parser.next_token().value
-            ns = parser.document.namespace
+            ns = parser.namespace
             new_record_fqn = utils.FQN(n, ns).fqn
 
         derivation = projections.RecordDerivation(new_record_fqn)

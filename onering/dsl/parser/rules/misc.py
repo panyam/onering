@@ -9,7 +9,7 @@ def parse_namespace(parser):
     Parse the namespace for the current document.
     """
     if parser.next_token_is(TokenType.IDENTIFIER, tok_value = "namespace"):
-        parser.document.namespace = parser.ensure_fqn()
+        parser.namespace = parser.ensure_fqn()
     parser.consume_tokens(TokenType.SEMI_COLON)
 
 def parse_declaration(parser):

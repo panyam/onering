@@ -86,9 +86,10 @@ class Lexer(object):
     """
     Tokenizers an input stream containing Onering records and returns the tokens.
     """
-    def __init__(self, instream):
+    def __init__(self, instream, source_uri):
         if type(instream) in (str, unicode):
             instream = cStringIO.StringIO(instream)
+        self.source_uri = source_uri
         self.instream = instream
         self.next_pos = 0
         self.next_line = 1

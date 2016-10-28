@@ -20,7 +20,7 @@ def parse_transformer_group(parser, annotations):
         transformers name<IDENT>    "{" transformer_decl * "}"
     """
     parser.ensure_token(TokenType.IDENTIFIER, "transformers")
-    fqn = utils.FQN(parser.ensure_token(TokenType.IDENTIFIER), parser.document.namespace).fqn
+    fqn = utils.FQN(parser.ensure_token(TokenType.IDENTIFIER), parser.namespace).fqn
     print "Parsing new transformer group: '%s'" % fqn
 
     transformer_group = transformers.TransformerGroup(fqn, annotations = annotations, docs = parser.last_docstring())

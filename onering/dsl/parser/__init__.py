@@ -15,7 +15,7 @@ class Parser(TokenStream):
     """
     Parses a Onering compilation unit and extracts all records define in it.
     """
-    def __init__(self, instream, context):
+    def __init__(self, lexer_or_stream, context):
         """
         Creates a parser.
 
@@ -24,9 +24,12 @@ class Parser(TokenStream):
             instream    -   The input stream from which onering entities will be parsed and registered.
             context     -   The onering context into which all loaded entities will be registered into.
         """
+        lexer_or_stream
         from onering.dsl import lexer
-        super(Parser, self).__init__(lexer.Lexer(instream))
-        self.document = core.Document()
+        if type(lexer_or_stream) is not lexer.Lexer:
+            lexer_or_stream = lexer.Lexer(lexer_or_stream, source_uri = None)
+        super(Parser, self).__init__(lexer_or_stream)
+        self.namespace = None
         self.imports = []
         self._last_docstring = ""
         self.injections = {}
@@ -48,14 +51,14 @@ class Parser(TokenStream):
 
             if not tref:
                 # Try with the namespace as well
-                fqn = utils.FQN(fqn, self.document.namespace, ensure_namespaces_are_equal=False).fqn
+                fqn = utils.FQN(fqn, self.namespace, ensure_namespaces_are_equal=False).fqn
                 tref = self.onering_context.type_registry.get_typeref(fqn, nothrow = True)
                 if not tref:
                     tref = self.onering_context.type_registry.register_type(fqn, None)
         return tref
 
     def register_type(self, name, newtype):
-        return self.onering_context.type_registry.register_type(name, newtype)
+        return self.onering_context.type_registry.register_type(name, newtype, overwrite = True)
 
     def normalize_fqn(self, fqn):
         if "." in fqn:
@@ -65,7 +68,7 @@ class Parser(TokenStream):
             if imp.endswith("." + fqn):
                 return imp
 
-        fqn = utils.FQN(fqn, self.document.namespace).fqn
+        fqn = utils.FQN(fqn, self.namespace).fqn
         return fqn
 
     def add_import(self, fqn):

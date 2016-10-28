@@ -6,6 +6,7 @@ platform list
 platform default java
 
 onering load ./dsl/org/example/master
+onering load ./dsl/org/example/master
 onering load ./dsl/org/example/derivations
 onering load ./dsl/org/example/transformers
 onering load ./dsl/org/example/functions
