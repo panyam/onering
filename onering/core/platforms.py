@@ -35,7 +35,6 @@ class Platform(Annotatable):
         if type(function_or_fqn) is functions.Function:
             function_fqn = function_or_fqn.fqn
 
-        # TODO - return None on missing?
         self._functions[function_fqn]["fqn"]
 
     def add_type_binding(self, type_binding, native_template, annotations = None, docs = ""):
@@ -48,8 +47,6 @@ class Platform(Annotatable):
         Given a starting typeref, matches the template that should be used along with all 
         the bound parameter names (and their value typerefs) that should be passed to 
         the template string for rendering.
-
-        TODO: Decide whether we also want to render the template too
         """
         for tbdict in self._type_bindings:
             tb = tbdict["type"]

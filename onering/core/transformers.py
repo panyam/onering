@@ -147,6 +147,7 @@ class Transformer(Annotatable):
             # TODO - Checking for implicit statements when more than one sources are given requires 
             # that the "sources" of dest are all the ones provided here.  This is the case where
             # in the derivation itself a record derivation from more than one model
+            ipdb.set_trace()
             return []
 
         implicit_statements = []

@@ -122,9 +122,9 @@ class RecordDerivation(Projection):
         # Step 2
         self._resolve_sources(type_registry)
 
-        # Step 3: TODO - Create the Resolver to take into account this derivation's source record(s) if any (eg in a type stream, the derivation wont have sources)
+        # Step 3: TODO - Create the Resolver to take into account this derivation's 
+        # source record(s) if any (eg in a type stream, the derivation wont have sources)
         if self.source_aliases:
-            # TODO - create new resolver
             from onering.core.resolvers import DerivationPathResolver
             resolver = DerivationPathResolver(resolver, self, type_registry)
         else:
