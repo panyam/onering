@@ -48,7 +48,7 @@ class Parser(TokenStream):
 
             if not tref:
                 # Try with the namespace as well
-                n,ns,fqn = utils.normalize_name_and_ns(fqn, self.document.namespace, ensure_namespaces_are_equal=False)
+                fqn = utils.FQN(fqn, self.document.namespace, ensure_namespaces_are_equal=False).fqn
                 tref = self.onering_context.type_registry.get_typeref(fqn, nothrow = True)
                 if not tref:
                     tref = self.onering_context.type_registry.register_type(fqn, None)
@@ -65,7 +65,7 @@ class Parser(TokenStream):
             if imp.endswith("." + fqn):
                 return imp
 
-        n,ns,fqn = utils.normalize_name_and_ns(fqn, self.document.namespace)
+        fqn = utils.FQN(fqn, self.document.namespace).fqn
         return fqn
 
     def add_import(self, fqn):

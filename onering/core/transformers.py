@@ -45,13 +45,13 @@ class Transformer(Annotatable):
     """
     Transformers define how an instance of one type can be transformed to an instance of another.
     """
-    def __init__(self, fqn, src_fqn, dest_fqn, src_varname = None, dest_varname = None, group = None, annotations = None, docs = ""):
+    def __init__(self, fqn, source_variables, dest_fqn, dest_varname = None, group = None, annotations = None, docs = ""):
         Annotatable.__init__(self, annotations, docs)
         self.resolution = ResolutionStatus()
         self.fqn = fqn
-        self.src_varname = src_varname or "src"
+        self.src_varnames = [src_varname if src_varname else "src%d" % index for (index,(src_fqn,src_varname)) in enumerate(source_variables)]
+        self.src_fqns = [src_fqn for (src_fqn,src_varname) in source_variables]
         self.dest_varname = dest_varname or "dest"
-        self.src_fqn = src_fqn
         self.dest_fqn = dest_fqn
         self.group = group
         self.temp_variables = {}
@@ -67,7 +67,8 @@ class Transformer(Annotatable):
 
     def local_variables(self, yield_src = True, yield_dest = True, yield_locals = True):
         if yield_src:
-            yield self.src_varname, self.src_typeref, orexprs.VarSource.SOURCE
+            for src_varname, src_typeref in self.source_variables:
+                yield src_varname, src_typeref, orexprs.VarSource.SOURCE
         if yield_dest:
             yield self.dest_varname, self.dest_typeref, orexprs.VarSource.DEST
         if yield_locals:
@@ -82,13 +83,18 @@ class Transformer(Annotatable):
 
     def register_temp_var(self, varname, vartype):
         assert type(varname) in (str, unicode)
-        if varname == self.src_varname:
+        if varname in self.src_varnames:
             raise errors.OneringException("Duplicate temporary variable '%s'.  Same as source." % varname)
         elif varname == self.dest_varname:
             raise errors.OneringException("Duplicate temporary variable '%s'.  Same as target." % varname)
         elif self.is_temp_variable(varname) and self.temp_variables[varname] is not None:
             raise errors.OneringException("Duplicate temporary variable declared: '%s'" % varname)
         self.temp_variables[varname] = vartype
+
+    @property
+    def source_variables(self):
+        from itertools import izip
+        return izip(self.src_varnames, self.src_typerefs)
 
     @property
     def all_statements(self):
@@ -119,7 +125,7 @@ class Transformer(Annotatable):
             2. All expressions have their evaluated types set
         """
         type_registry = context.type_registry
-        self.src_typeref = type_registry.get_typeref(self.src_fqn)
+        self.src_typerefs = map(type_registry.get_typeref, self.src_fqns)
         self.dest_typeref = type_registry.get_typeref(self.dest_fqn)
 
         # First make sure we have implicit rules taken from the derivations if any
@@ -136,9 +142,15 @@ class Transformer(Annotatable):
         share a common ancestor (or may be even at atmost 1 level).
         """
 
+        if len(self.src_typerefs) > 1:
+            # TODO - Checking for implicit statements when more than one sources are given requires 
+            # that the "sources" of dest are all the ones provided here.  This is the case where
+            # in the derivation itself a record derivation from more than one model
+            return []
+
         implicit_statements = []
         # Step 1: Find common "ancestor" of each of the records
-        ancestor, path1, path2 = context.find_common_ancestor(self.src_typeref, self.dest_typeref)
+        ancestor, path1, path2 = context.find_common_ancestor(self.src_typerefs[0], self.dest_typeref)
         if ancestor is not None:
             # Here see which fields from the root still exist in the leaf (even if it has been retyped or renamed or streamed).
             remaining_fields1 = context.surviving_fields_from_root_to_child(ancestor, path1)

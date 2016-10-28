@@ -7,7 +7,7 @@ from typelib import errors as tlerrors
 from typelib import core as tlcore
 from typelib.annotations import Annotatable
 from typelib import records
-from onering.utils import normalize_name_and_ns, ResolutionStatus
+from onering.utils import FQN, ResolutionStatus
 from onering.core.utils import FieldPath
 
 class Projection(Annotatable):
@@ -56,11 +56,11 @@ class RecordDerivation(Projection):
 
     @property
     def name(self):
-        return normalize_name_and_ns(self.fqn, "")[0]
+        return FQN(self.fqn, "").name
 
     @property
     def namespace(self):
-        return normalize_name_and_ns(self.fqn, "")[1]
+        return FQN(self.fqn, "").namespace
     
     @property
     def fqn(self):
@@ -89,9 +89,9 @@ class RecordDerivation(Projection):
         """
         Add a new source record that this record derives from.
         """
-        n,ns,fqn = normalize_name_and_ns(source_fqn, None)
-        alias = alias or n
-        self.source_aliases[alias] = fqn
+        fqn = FQN(source_fqn, None)
+        alias = alias or fqn.name
+        self.source_aliases[alias] = fqn.fqn
 
     def has_source(self, source_fqn):
         return source_fqn in self.source_aliases.values()
@@ -283,7 +283,7 @@ def _auto_generate_projected_typeref_name(registry, derivation_or_typeref, paren
         if derivation_or_typeref.fqn is None:
             parent_fqn = parent_derivation.fqn
             field_name = field_path_resolution.field_name
-            parent_name,ns,parent_fqn = normalize_name_and_ns(parent_fqn, None)
+            parent_fqn = FQN(parent_fqn, None).fqn
             derivation_or_typeref.fqn = parent_fqn + "_" + field_name
 
 

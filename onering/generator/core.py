@@ -13,7 +13,8 @@ def generate_ir_for_transformer(transformer, context):
     symtable = SymbolTable()
 
     # Set source and dest variables in symbol table
-    symtable.register_var(transformer.src_varname, transformer.src_typeref)
+    for src_varname,src_typeref in transformer.source_variables:
+        symtable.register_var(src_varname, src_typeref)
     symtable.register_var(transformer.dest_varname, transformer.dest_typeref)
     instructions, symtable, _ = generate_ir_for_statements(transformer.all_statements, context)
     return instructions, symtable

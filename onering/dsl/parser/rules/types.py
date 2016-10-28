@@ -55,7 +55,7 @@ def parse_typeref_decl(parser, annotations):
     docstring = parser.last_docstring()
     parser.ensure_token(TokenType.IDENTIFIER, "typeref")
     name = parser.ensure_token(TokenType.IDENTIFIER)
-    name, namespace, fqn = utils.normalize_name_and_ns(name, parser.document.namespace)
+    fqn = utils.FQN(name, parser.document.namespace).fqn
 
     parser.ensure_token(TokenType.EQUALS)
     target_typeref = parse_any_type_decl(parser, typereffed_fqn = fqn)
@@ -106,7 +106,7 @@ def parse_newtyperef_preamble(parser, constructor, typereffed_fqn, force_fqn_if_
         # we have a name
         n = parser.ensure_token(TokenType.IDENTIFIER)
         ns = parser.document.namespace
-        n,ns,fqn = utils.normalize_name_and_ns(n, ns)
+        fqn = utils.FQN(n, ns).fqn
 
     if fqn:
         print "Registering new %s: '%s'" % (constructor, fqn)

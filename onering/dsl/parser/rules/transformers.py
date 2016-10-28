@@ -20,9 +20,7 @@ def parse_transformer_group(parser, annotations):
         transformers name<IDENT>    "{" transformer_decl * "}"
     """
     parser.ensure_token(TokenType.IDENTIFIER, "transformers")
-    n = parser.ensure_token(TokenType.IDENTIFIER)
-    ns = parser.document.namespace
-    n,ns,fqn = utils.normalize_name_and_ns(n, ns)
+    fqn = utils.FQN(parser.ensure_token(TokenType.IDENTIFIER), parser.document.namespace).fqn
     print "Parsing new transformer group: '%s'" % fqn
 
     transformer_group = transformers.TransformerGroup(fqn, annotations = annotations, docs = parser.last_docstring())
@@ -44,35 +42,45 @@ def parse_transformer(parser, annotations, transformer_group = None):
     """
     Parses a single transformer declaration
 
-        transformer_decl := transformer_name src_type_fqn<IDENT>
+        transformer_decl := transformer_name ( src_type_fqn | src_type_fqn_list )
                             ( "(" src_varname ")" ) ?
                             "=> dest_type_fqn<IDENT>
                             ( "(" dest_varname ")" ) ?
                             "{" transformer_rule * "}"
+
+        src_type_fqn_list := src_type_fqn | src_type_fqn ( "," src_type_fqn ) *
+
+        src_type_fqn := FQN ( "as" var_name<IDENT> ) ?
     """
     transformer_name = parser.ensure_token(TokenType.IDENTIFIER)
 
-    src_fqn = parser.ensure_fqn()
-    src_varname = None
-    if parser.next_token_is(TokenType.OPEN_PAREN):
-        src_varname = parser.ensure_token(TokenType.IDENTIFIER)
-        parser.ensure_token(TokenType.CLOSE_PAREN)
+    # Parse the source variables
+    source_variables = []
+
+    def parse_src_fqn(parser):
+        src_fqn = parser.ensure_fqn()
+        src_fqn = parser.normalize_fqn(src_fqn)
+        src_varname = None
+        if parser.next_token_is(TokenType.IDENTIFIER, "as"):
+            src_varname = parser.ensure_token(TokenType.IDENTIFIER)
+        return src_fqn, src_varname
+
+    source_variables.append(parse_src_fqn(parser))
+    while parser.next_token_is(TokenType.COMMA):
+        source_variables.append(parse_src_fqn(parser))
 
     parser.ensure_token(TokenType.STREAM)
     dest_fqn = parser.ensure_fqn()
     dest_varname = None
-    if parser.next_token_is(TokenType.OPEN_PAREN):
+    if parser.next_token_is(TokenType.IDENTIFIER, "as"):
         dest_varname = parser.ensure_token(TokenType.IDENTIFIER)
-        parser.ensure_token(TokenType.CLOSE_PAREN)
 
-    src_fqn = parser.normalize_fqn(src_fqn)
     dest_fqn = parser.normalize_fqn(dest_fqn)
 
-    print "Parsing new transformer '%s': %s -> %s" % (transformer_name, src_fqn, dest_fqn)
+    print "Parsing new transformer '%s': %s -> %s" % (transformer_name, ", ".join(map(lambda x: x[0], source_variables)), dest_fqn)
 
     transformer = transformers.Transformer(fqn = transformer_name,
-                                           src_fqn = src_fqn,
-                                           src_varname = src_varname,
+                                           source_variables = source_variables,
                                            dest_fqn = dest_fqn,
                                            dest_varname = dest_varname,
                                            group = transformer_group,

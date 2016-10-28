@@ -174,7 +174,19 @@ class VariableExpression(Expression):
                 # for src, dest and locals
                 if self.readonly:
                     self.source_type = VarSource.SOURCE
-                    field_resolution_result = resolve_path_from_record(transformer.src_typeref, self.value, context.type_registry, None)
+                    last_resolved = None
+                    field_resolution_result = None
+                    resolved_src_name = None
+                    for src_varname, src_typeref in transformer.source_variables:
+                        field_resolution_result = resolve_path_from_record(src_typeref, self.value, context.type_registry, None)
+                        if field_resolution_result.is_valid:
+                            if not last_resolved:
+                                last_resolved = field_resolution_result
+                                resolved_src_name = src_varname
+                            else:
+                                raise errors.OneringException("More than one source resolves: '%s'" % self.value)
+
+                    # We should have exactly one source that resolves otherwise we have an error
                 if field_resolution_result is None or not field_resolution_result.is_valid:
                     self.source_type = VarSource.DEST
                     field_resolution_result = resolve_path_from_record(transformer.dest_typeref, self.value, context.type_registry, None)
@@ -185,7 +197,7 @@ class VariableExpression(Expression):
                 else:
                     self._evaluated_typeref = field_resolution_result.resolved_typeref
                     if self.source_type == VarSource.SOURCE:
-                        self.normalized_field_path = self.value.push(transformer.src_varname)
+                        self.normalized_field_path = self.value.push(resolved_src_name)
                     elif self.source_type == VarSource.DEST:
                         self.normalized_field_path = self.value.push(transformer.dest_varname)
 

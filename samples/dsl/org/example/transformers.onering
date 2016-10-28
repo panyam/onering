@@ -26,7 +26,7 @@ transformers Town2VillageUtility {
     }
 
     // A transformer with some custom rules
-    transformer Town2VillageManual Town => Village {
+    transformer Town2VillageManual Town as town => Village {
         0 => dest/numHuts
         name => chiefsHut
         getPopulationCounts(populations) => populationCounts

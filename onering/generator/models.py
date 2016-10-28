@@ -14,7 +14,7 @@ class TypeViewModel(object):
         self.backend = backend
         self.context = context
         self.backend_annotations = backend_annotation
-        n,ns,fqn = utils.normalize_name_and_ns(type_name, "")
+        n,ns,fqn = utils.FQN(type_name, "").parts
         self.thetype = thetype
         if backend_annotation.has_param("namespace"):
             ns = backend_annotation.first_value_of("namespace")
@@ -36,7 +36,7 @@ class TransformerGroupViewModel(object):
         self.backend = backend
         self.context = context
         self.backend_annotations = backend_annotation
-        n,ns,fqn = utils.normalize_name_and_ns(tgroup.fqn, "")
+        n,ns,fqn = utils.FQN(tgroup.fqn, "").parts
         self.tgroup = tgroup
         if backend_annotation.has_param("namespace"):
             ns = backend_annotation.first_value_of("namespace")
@@ -55,10 +55,10 @@ class TransformerViewModel(object):
         self.tgroupvm = tgroupvm
         self.name = transformer.fqn
         self.instructions, self.symtable = orgencore.generate_ir_for_transformer(transformer, self.context)
-        self.src_name,self.src_namespace,self.src_fqn = utils.normalize_name_and_ns(transformer.src_fqn, "")
-        self.src_varname = transformer.src_varname
+        src_fqns = [utils.FQN(fqn, "").fqn for fqn in transformer.src_fqns]
+        self.src_variables = zip(src_fqns, transformer.src_varnames)
         self.dest_varname = transformer.dest_varname
-        self.dest_name,self.dest_namespace,self.dest_fqn = utils.normalize_name_and_ns(transformer.dest_fqn, "")
+        self.dest_name,self.dest_namespace,self.dest_fqn = utils.FQN(transformer.dest_fqn, "").parts
         self.all_statements = [StatementViewModel(stmt, self, backend) for stmt in  transformer.all_statements]
 
     def render(self):

@@ -29,7 +29,7 @@ class JavaTargetBackend(object):
         Generates the files for a particular type.
         """
         context, backend_annotation = self.onering_context, self.backend_annotation
-        n,ns,fqn = utils.normalize_name_and_ns(type_name, "")
+        fqn = utils.FQN(type_name, "").fqn
         type_registry = context.type_registry
         record = orgenmodels.TypeViewModel(self, type_name, thetype, context, backend_annotation)
         templ = self.load_template(backend_annotation.first_value_of("template") or "backends/java/mutable_pojo")
