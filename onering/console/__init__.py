@@ -58,6 +58,11 @@ class OneringConsoleBase(dirutils.DirPointer):
     def reset(self):
         self.thering.reset()
 
+    def load_string(self, source_string):
+        import onering.dsl as dsl
+        context = self.thering
+        dsl.parser.Parser(source_string, context).parse()
+
     def load_script(self, script_path):
         if not self.isfile(script_path):
             logerror("Invalid script file: %s, from path: %s" % (script_path, self.curdir))
@@ -111,8 +116,27 @@ class OneringConsole(code.InteractiveConsole, OneringConsoleBase):
         self.locals["type_registry"] = self.type_registry
         self.needs_more_input = False
         self.command_runner = default.DefaultCommandRunner()
+        self.rawmode = False
+        self.rawlines = []
+
+    def enter_rawmode(self, endword):
+        self.rawmode = True
+        self.rawlines = []
+        self.rawmode_end = endword
+
+    def exit_rawmode(self):
+        self.rawmode = False
+        self.load_string("\n".join(self.rawlines))
 
     def push(self, line):
+        if self.rawmode or self.needs_more_input:
+            if line == self.rawmode_end:
+                self.exit_rawmode()
+                return False
+            else:
+                self.rawlines.append(line)
+                return True
+
         line = line.strip()
         if line and not line.startswith("#"):
             lexer = shlex.shlex(line)
@@ -144,7 +168,10 @@ class OneringConsole(code.InteractiveConsole, OneringConsoleBase):
             return self.needs_more_input
 
     def raw_input(self, prompt):
-        return code.InteractiveConsole.raw_input(self, self.prompt)
+        if self.rawmode:
+            return code.InteractiveConsole.raw_input(self, " ... ")
+        else:
+            return code.InteractiveConsole.raw_input(self, self.prompt)
 
     def onecmd(self, line):
         self.push(line)

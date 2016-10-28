@@ -21,6 +21,7 @@ class OneringContext(object):
         self.platform_aliases = {
             "java": "onering.generator.backends.java.JavaTargetBackend"
         }
+        self.default_platform = "java"
         self.template_dirs = []
 
         from onering.templates import loader as tplloader

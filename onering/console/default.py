@@ -48,6 +48,26 @@ class DefaultCommandRunner(runner.CommandRunner):
             return logerror("load command requires a script file to be loaded and executed")
         console.load_script(script)
 
+    def do_loadtill(self, console, cmd, rest, prev):
+        """
+        Loads until a given string is provided on its own line.  This is useful for inline defining 
+        schemas to be parsed instead of having to load from a file, eg:
+
+            ```
+            loadtill EOF
+
+            record A {
+                field1: string                        
+            }
+
+            derive B : A { }
+
+            EOF
+            ```
+        """
+        console.enter_rawmode(rest.strip())
+        return True
+
     def do_set(self, console, cmd, rest, prev):
         """
         Set the value of particular configuration variables.

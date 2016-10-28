@@ -22,7 +22,7 @@ class JavaTargetBackend(object):
         self.onering_context = onering_context
         self.backend_annotation = backend_annotation 
         self.platform_name = backend_annotation.first_value_of("platform")
-        self.current_platform = self.onering_context.get_platform(self.platform_name)
+        self.current_platform = self.onering_context.get_platform(self.platform_name, register = True)
 
     def generate_schema(self, type_name, thetype):
         """
