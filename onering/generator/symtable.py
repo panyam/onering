@@ -35,7 +35,7 @@ class SymbolTable(object):
     def register_var(self, varname, typeref):
         assert type(varname) in (str, unicode)
         if varname in self._types_for_names:
-            assert False, "Variable with name '%s' varname already exists"
+            assert False, "Variable with name '%s' varname already exists" % varname
         self._types_for_names[varname] = typeref
         self._children.append(varname)
         return varname

@@ -28,11 +28,16 @@ def generate_ir_for_statements(statements, context, instructions = None, symtabl
     if not symtable:
         symtable = SymbolTable()
 
-    for statement in (statements):
+    # Generate all "temp" vars across all statements first
+    for index,statement in enumerate(statements):
         if statement.is_temporary:
             # Register var if this is temporary
             symtable.register_var(statement.target_variable.value.get(0), statement.target_variable.evaluated_typeref)
+
+    # Now do the normal generation
+    for index,statement in enumerate(statements):
         generate_ir_for_statement(statement, context, instructions, symtable)
+
     return instructions, symtable, None
 
 def generate_ir_for_statement(statement, context, instructions, symtable):
