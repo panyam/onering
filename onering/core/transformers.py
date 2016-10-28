@@ -132,7 +132,8 @@ class Transformer(Annotatable):
         self._implicit_statements = self._evaluate_implicit_statements(context)
 
         # Now resolve all field paths appropriately
-        for statement in self.all_statements:
+        for index,statement in enumerate(self.all_statements):
+            print "Resolving statement %s, Implicit: %s" % (index, str(statement.is_implicit))
             statement.resolve_bindings_and_types(self, context)
 
     def _evaluate_implicit_statements(self, context):
