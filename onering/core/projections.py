@@ -43,7 +43,8 @@ class RecordDerivation(Projection):
             fqn     Fully qualified name of the record.  Records should have names unless they are inline derivations where names will be derived.
         """
         super(RecordDerivation, self).__init__(annotations, docs)
-        self.source_aliases = {}
+        self.source_aliases = set()
+        self.source_fqns = {}
         self.source_types = {}
         self.field_projections = []
         self.fqn = fqn
@@ -90,11 +91,17 @@ class RecordDerivation(Projection):
         Add a new source record that this record derives from.
         """
         fqn = FQN(source_fqn, None)
+        if alias and alias in self.source_aliases:
+            raise errors.OneringException("A source with the alias '%s' already exist.  Please choose a different alias." % alias)
+        if not alias and fqn.name in self.source_aliases:
+            raise errors.OneringException("Please provide an aliase for '%s' as another type already exists" % fqn.fqn)
+
         alias = alias or fqn.name
-        self.source_aliases[alias] = fqn.fqn
+        self.source_aliases.add(alias)
+        self.source_fqns[alias] = fqn.fqn
 
     def has_source(self, source_fqn):
-        return source_fqn in self.source_aliases.values()
+        return source_fqn in self.source_fqns
 
     @property
     def has_sources(self):
@@ -136,7 +143,7 @@ class RecordDerivation(Projection):
 
     def _resolve_sources(self, registry):
         unresolved_types = set()
-        for (alias,fqn) in self.source_aliases.iteritems():
+        for (fqn, alias) in self.source_fqns.iteritems():
             source_rec_typeref = registry.get_typeref(fqn)
             if source_rec_typeref is None:
                 # TODO - Is this another derivation that needs resolution first?
