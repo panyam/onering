@@ -6,7 +6,6 @@ from onering.dsl.parser.tokstream import TokenStream
 from onering.dsl.errors import SourceException, UnexpectedTokenException
 from typelib import utils
 from onering.dsl.lexer import Token, TokenType
-from onering.dsl import core
 from onering import errors
 
 from onering.dsl.parser.rules.misc import parse_namespace, parse_declaration
