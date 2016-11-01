@@ -14,7 +14,8 @@ class VarSource(Enum):
     DEST        = 1
 
 class Statement(object):
-    def __init__(self, expressions, target_variable, is_temporary = False):
+    def __init__(self, transformer, expressions, target_variable, is_temporary = False):
+        self.transformer = transformer
         self.expressions = expressions
         self.target_variable = target_variable
         self.is_temporary = is_temporary

@@ -190,7 +190,7 @@ class Transformer(Annotatable):
                             dest_field_path = FieldPath([dfield.field_name])
                             src_var = orexprs.VariableExpression(src_field_path, readonly = True, source_type = orexprs.VarSource.AUTO)
                             dest_var = orexprs.VariableExpression(dest_field_path, readonly = False, source_type = orexprs.VarSource.AUTO)
-                            new_stmt = orexprs.Statement([src_var], dest_var)
+                            new_stmt = orexprs.Statement(self, [src_var], dest_var)
                             new_stmt.is_implicit = True
                             implicit_statements.append(new_stmt)
         return implicit_statements

@@ -90,13 +90,13 @@ def parse_transformer(parser, annotations, transformer_group = None):
     parser.ensure_token(TokenType.OPEN_BRACE)
     while not parser.peeked_token_is(TokenType.CLOSE_BRACE):
         # read a transformer
-        statement = parse_transformer_rule(parser)
+        statement = parse_transformer_rule(parser, transformer)
         transformer.add_statement(statement)
     parser.ensure_token(TokenType.CLOSE_BRACE)
     parser.consume_tokens(TokenType.SEMI_COLON)
     return transformer
 
-def parse_transformer_rule(parser):
+def parse_transformer_rule(parser, transformer):
     """
     Parses a single transformer rule.
 
@@ -124,7 +124,7 @@ def parse_transformer_rule(parser):
         raise errors.OneringException("Final target of an expression MUST be a variable")
 
     parser.consume_tokens(TokenType.SEMI_COLON)
-    return orexprs.Statement(exprs[:-1], exprs[-1], is_temporary)
+    return orexprs.Statement(transformer, exprs[:-1], exprs[-1], is_temporary)
 
 def parse_expression_chain(parser):
     """
