@@ -63,7 +63,7 @@ class Transformer(Annotatable):
         self._vartable = {}
 
     def __repr__(self):
-        return "<Transformer - ID: 0x%x, Name: %s (%s -> %s)>" % (id(self), self.fqn, self.src_fqn, self.dest_fqn)
+        return "<Transformer - ID: 0x%x, Name: %s (%s -> %s)>" % (id(self), self.fqn, ",".join(self.src_fqns), self.dest_fqn)
 
     def local_variables(self, yield_src = True, yield_dest = True, yield_locals = True):
         if yield_src:

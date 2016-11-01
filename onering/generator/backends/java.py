@@ -79,6 +79,10 @@ class JavaTargetBackend(object):
         templ = self.onering_context.template_loader.load_template(template_name)
         templ.globals["camel_case"] = orgencommon.camel_case
         templ.globals["debug"] = orgencommon.debug_print
+        templ.globals["map"] = map
+        templ.globals["str"] = str
+        templ.globals["type"] = type
+        templ.globals["filter"] = filter
         templ.globals["signature"] = self.get_type_signature
         return templ
 

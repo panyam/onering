@@ -9,30 +9,27 @@ This module is responsible for generating code for a statement and all parts of 
 """
 
 def generate_ir_for_transformer(transformer, context):
-    instructions = []
     symtable = SymbolTable()
 
     # Set source and dest variables in symbol table
     for src_varname,src_typeref in transformer.source_variables:
-        symtable.register_var(src_varname, src_typeref)
-    symtable.register_var(transformer.dest_varname, transformer.dest_typeref)
-    instructions, symtable, _ = generate_ir_for_statements(transformer.all_statements, context)
+        symtable.register_var(src_varname, src_typeref, False)
+    symtable.register_var(transformer.dest_varname, transformer.dest_typeref, False)
+    instructions, symtable, _ = generate_ir_for_statements(transformer.all_statements, context, symtable = symtable)
     return instructions, symtable
 
 def generate_ir_for_statements(statements, context, instructions = None, symtable = None):
     """
     Generates the IR for a bunch of statements and returns the instruction list as well as the final symbol table required.
     """
-    if not instructions:
-        instructions = []
-    if not symtable:
-        symtable = SymbolTable()
+    if not instructions: instructions = []
+    if not symtable: symtable = SymbolTable()
 
     # Generate all "temp" vars across all statements first
     for index,statement in enumerate(statements):
         if statement.is_temporary:
             # Register var if this is temporary
-            symtable.register_var(statement.target_variable.value.get(0), statement.target_variable.evaluated_typeref)
+            symtable.register_var(statement.target_variable.value.get(0), statement.target_variable.evaluated_typeref, True)
 
     # Now do the normal generation
     for index,statement in enumerate(statements):
@@ -75,10 +72,10 @@ def generate_ir_for_statement(statement, context, instructions, symtable):
     last_return = None
     for expr in statement.expressions:
         # Call the the generator for the expression with the last return value as its inputs
-        instructions, symtable, last_var = generate_ir_for_expression(expr, context, last_return, instructions, symtable)
+        instructions, symtable, last_register = generate_ir_for_expression(expr, context, last_return, instructions, symtable)
 
     # Generate a setter instruction too
-    generate_ir_for_setter(last_var, statement.target_variable, instructions, symtable)
+    generate_ir_for_setter(last_register, statement.target_variable, instructions, symtable)
 
     # Statements dont have return values
     return instructions, symtable, None
@@ -132,9 +129,9 @@ def generate_ir_for_function_call(expr, context, input_values, instructions, sym
     for arg in expr.func_args:
         instructions, symtable, value = generate_ir_for_expression(arg, context, None, instructions, symtable)
         arg_values.append(value)
-    newvar = symtable.next_var(expr.evaluated_typeref)
-    instructions.append(ir.FunctionCallInstruction(expr.func_fqn, arg_values, newvar))
-    return instructions, symtable, newvar
+    new_register = symtable.next_register(expr.evaluated_typeref)
+    instructions.append(ir.FunctionCallInstruction(expr.func_fqn, arg_values, new_register))
+    return instructions, symtable, new_register
 
 def generate_ir_for_variable(expr, context, input_values, instructions, symtable):
     starting_var, field_path = expr.normalized_field_path.pop()
@@ -145,33 +142,35 @@ def generate_ir_for_variable(expr, context, input_values, instructions, symtable
         starting_typeref = resolution_result.root_typeref
 
     curr_typeref = starting_typeref
-    curr_path = curr_var = starting_var
+    curr_path = starting_var
+    curr_register = symtable.get_register_for_path(starting_var)
     curr_instrs = instructions
     while field_path.length > 0:
         next_field_name, tail_path = field_path.pop()
         next_path = curr_path + "/" + next_field_name
         next_typeref = curr_typeref.final_type.arg_for(next_field_name).typeref
-        next_var = symtable.get_var_for_path(next_path, next_typeref)
+        next_register = symtable.get_register_for_path(next_path, next_typeref)
 
         # Get the next var and store into the var
-        contains_instr = ir.ContainsInstruction(curr_var, next_field_name)
-        get_instr = ir.GetFieldInstruction(curr_var, next_field_name, next_var)
+        contains_instr = ir.ContainsInstruction(curr_register, next_field_name)
+        get_instr = ir.GetFieldInstruction(curr_register, next_field_name, next_register)
         if_stmt = ir.IfStatement(contains_instr, [ get_instr ], None)
         curr_instrs.append(if_stmt)
         curr_instrs = if_stmt.body
-        curr_path, curr_var, field_path = next_path, next_var, tail_path
+        curr_path, curr_register, field_path = next_path, next_register, tail_path
 
-    return instructions, symtable, curr_var
+    return instructions, symtable, curr_register
 
 
 
-def generate_ir_for_setter(source_var, target_var, instructions, symtable):
+def generate_ir_for_setter(source_register, target_var, instructions, symtable):
     starting_var, field_path = target_var.normalized_field_path.pop()
+    starting_register = symtable.get_register_for_path(starting_var)
     if target_var.source_type == VarSource.LOCAL:
         starting_typeref = target_var.evaluated_typeref
         if field_path.length == 0:
             # Do a direct copy as no nesting into a local var
-            instructions.append(ir.CopyVarInstruction(source_var, starting_var))
+            instructions.append(ir.CopyVarInstruction(source_register, starting_register))
             return instructions, symtable, None
     else:
         assert field_path.length > 0, "Source or Destination variables cannot be overwritten"
@@ -180,7 +179,8 @@ def generate_ir_for_setter(source_var, target_var, instructions, symtable):
         starting_typeref = resolution_result.root_typeref
 
     curr_typeref = starting_typeref
-    curr_path = curr_var = starting_var
+    curr_path = starting_var
+    curr_register = starting_register
 
     while field_path.length > 1:
         # At each level of the remaining field paths, keep finding and setting
@@ -188,22 +188,22 @@ def generate_ir_for_setter(source_var, target_var, instructions, symtable):
         next_field_name, tail_path = field_path.pop()
         next_path = curr_path + "/" + next_field_name
         next_typeref = curr_typeref.final_type.arg_for(next_field_name).typeref
-        next_var = symtable.get_var_for_path(next_path, next_typeref)
+        next_register = symtable.get_register_for_path(next_path, next_typeref)
 
-        # Get the next var and store into the var
-        contains_instr = ir.ContainsInstruction(curr_var, next_field_name)
-        set_default_instr = ir.NewInstruction(curr_typeref, next_var)
+        # Get the next register and store into the register
+        contains_instr = ir.ContainsInstruction(curr_register, next_field_name)
+        set_default_instr = ir.NewInstruction(curr_typeref, next_register)
         if_stmt = ir.IfStatement(contains_instr, [ set_default_instr ], None, negate = True)
         instructions.append(if_stmt)
 
-        get_instr = ir.GetFieldInstruction(curr_var, next_field_name, next_var)
+        get_instr = ir.GetFieldInstruction(curr_register, next_field_name, next_register)
         instructions.append(get_instr)
 
-        curr_path, curr_var, field_path = next_path, next_var, tail_path
+        curr_path, curr_register, field_path = next_path, next_register, tail_path
 
     assert field_path.length <= 1
     # Means we have a single entry in the path left
     # so the value can be directly set
-    instructions.append(ir.SetFieldInstruction(source_var, field_path.get(0), curr_var))
+    instructions.append(ir.SetFieldInstruction(source_register, field_path.get(0), curr_register))
 
     return instructions, symtable, None

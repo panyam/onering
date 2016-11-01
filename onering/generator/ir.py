@@ -27,69 +27,69 @@ class GetFieldInstruction(object):
     """
     An instruction to get the value of a field path from a starting variable and set it into a particular register.
     """
-    def __init__(self, source_var, field_key, target_var):
-        self.source_var = source_var
+    def __init__(self, source_register, field_key, target_register):
+        self.source_register = source_register
         self.field_key = field_key
-        self.target_var = target_var
+        self.target_register = target_register
 
     def __repr__(self):
-        return "GET %s[%s] -> %s" % (self.source_var, self.field_key, self.target_var)
+        return "GET %s[%s] -> %s" % (self.source_register, self.field_key, self.target_register)
 
 class CopyVarInstruction(object):
     """
     An instruction to get the value of a local var and set it into another var.
     """
-    def __init__(self, source_var, target_var):
-        self.source_var = source_var
-        self.target_var = target_var
+    def __init__(self, source_register, target_register):
+        self.source_register = source_register
+        self.target_register = target_register
 
     def __repr__(self):
-        return "GET %s -> %s" % (self.source_var , self.target_var)
+        return "GET %s -> %s" % (self.source_register , self.target_register)
 
 class SetFieldInstruction(object):
     """
     Set the value of a field in target variable from source variable, Akin to:
 
-        target_var.set<field_key>(source_var)
+        target_register.set<field_key>(source_register)
     """
-    def __init__(self, source_var, field_key, target_var):
-        self.source_var = source_var
-        self.target_var = target_var
+    def __init__(self, source_register, field_key, target_register):
+        self.source_register = source_register
+        self.target_register = target_register
         self.field_key = field_key
 
     def __repr__(self):
-        return "SET %s -> %s[%s]" % (self.source_var, self.target_var, self.field_key)
+        return "SET %s -> %s[%s]" % (self.source_register, self.target_register, self.field_key)
 
 class FunctionCallInstruction(object):
     """
     An instruction to call a particular function with the arguments as the values from a particular register
     and then set the output into the output_register.
     """
-    def __init__(self, func_fqn, input_vars, output_var):
+    def __init__(self, func_fqn, input_registers, output_register):
         self.func_fqn = func_fqn
-        self.input_vars = input_vars
-        self.output_var = output_var
+        self.input_registers = input_registers
+        self.output_register = output_register
 
     def __repr__(self):
-        return "CALL %s [(%s) -> %s]" % (self.func_fqn, ", ".join(self.input_vars), self.output_var)
+        return "CALL %s [(%s) -> %s]" % (self.func_fqn, ", ".join(self.input_registers), self.output_register)
 
 
 class IfStatement(object):
     """
     An instruction to keep track of if statements.
     """
-    def __init__(self, condition_var, body, otherwise = None, negate = False):
-        self.condition_var = condition_var
+    def __init__(self, condition_expr, body, otherwise = None, negate = False):
+        self.condition_expr = condition_expr
         self.negate = negate
         self.body = body or []
         self.otherwise = otherwise or []
 
 class ContainsInstruction(object):
-    def __init__(self, var, field_name):
-        self.source_var = var
+    def __init__(self, register, field_name):
+        self.source_register = register
         self.field_name = field_name
 
 class NewInstruction(object):
-    def __init__(self, value_typeref, target_var):
+    def __init__(self, value_typeref, target_register):
         self.value_typeref = value_typeref
-        self.target_var = target_var
+        self.target_register = target_register

@@ -187,7 +187,7 @@ class VariableExpression(Expression):
                             else:
                                 raise errors.OneringException("More than one source resolves: '%s'" % self.value)
 
-                    # We should have exactly one source that resolves otherwise we have an error
+                # We should have exactly one source that resolves otherwise we have an error
                 if field_resolution_result is None or not field_resolution_result.is_valid:
                     self.source_type = VarSource.DEST
                     field_resolution_result = resolve_path_from_record(transformer.dest_typeref, self.value, context.type_registry, None)

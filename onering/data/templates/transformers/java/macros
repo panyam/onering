@@ -18,7 +18,7 @@
 {%- endmacro %}
 
 {% macro render_if_instruction(if_instruction) %}
-    if ({%if if_instruction.negate -%}!{% endif -%}{{render_instruction(if_instruction.condition_var)}})
+    if ({%if if_instruction.negate -%}!{% endif -%}{{render_instruction(if_instruction.condition_expr)}})
     {
         {% for instruction in if_instruction.body %}
         {{ render_instruction(instruction) }}
@@ -34,25 +34,25 @@
 {% endmacro %}
 
 {% macro render_getfield_instruction(instruction) %}
-    {{instruction.target_var}} = {{instruction.source_var}}.get{{camel_case(instruction.field_key)}}();
+    {{instruction.target_register.label}} = {{instruction.source_register.label}}.get{{camel_case(instruction.field_key)}}();
 {% endmacro %}
 
 {% macro render_copyvar_instruction(instruction) -%}
-{{instruction.target_var}} = {{instruction.source_var}};
+{{instruction.target_register.label}} = {{instruction.source_register.label}};
 {%- endmacro %}
 
 {% macro render_setfield_instruction(instr) -%}
-{{instr.target_var}}.set{{camel_case(instr.field_key)}}({{instr.source_var}});
+{{instr.target_register.label}}.set{{camel_case(instr.field_key)}}({{instr.source_register.label}});
 {%- endmacro %}
 
 {% macro render_funccall_instruction(funcinst) -%}
-{{funcinst.output_var}} = {{funcinst.func_fqn}}({{ ", ".join(funcinst.input_vars) }});
+{{funcinst.output_register.label}} = {{funcinst.func_fqn}}({{ ", ".join(map(str, funcinst.input_registers)) }});
 {%- endmacro %}
 
 {% macro render_contains_instruction(instruction) -%}
-{{instruction.source_var}}.has{{camel_case(instruction.field_name)}}()
+{{instruction.source_register.label}}.has{{camel_case(instruction.field_name)}}()
 {%- endmacro %}
 
 {% macro render_new_instruction(instruction) -%}
-{{instruction.target_var}} = {{default_value(instruction.value_typeref)}};
+{{instruction.target_register.label}} = {{default_value(instruction.value_typeref)}};
 {%- endmacro %}
