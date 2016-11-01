@@ -22,7 +22,7 @@ transformer Town2Village Town => Village {
  */
 transformers Town2VillageUtility {
     // A Default transformer
-    // transformer Town2Village Town => Village { }
+    transformer Town2Village Town => Village { }
 
     // A transformer with some custom rules
     transformer Town2VillageManual Town as town => Village {
