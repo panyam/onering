@@ -109,7 +109,7 @@ class OneringContext(object):
             deriv = self.get_derivation(record_fqn)
             if not deriv or not deriv.has_sources:
                 return None
-            return self.type_registry.get_typeref(deriv.source_aliases.values()[0])
+            return self.type_registry.get_typeref(deriv.source_fqn_at(0))
 
     def derivations_for_wildcards(self, wildcards):
         """

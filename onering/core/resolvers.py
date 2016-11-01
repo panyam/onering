@@ -52,9 +52,9 @@ class DerivationPathResolver(PathResolver):
         """
         # get the first source ...
         result = None
-        if len(self.derivation.source_aliases.keys()) == 1:
+        if self.derivation.source_count == 1:
             # If there are more than sources then we MUST use a key to start the path with
-            source_fqn = self.derivation.source_aliases.values()[0]
+            source_fqn = self.derivation.source_fqn_at(0)
             starting_typeref = self.type_registry.get_typeref(source_fqn)
 
             # TODO: We should consider generalizing this.  Is it better to have "multiple" named sources here?
@@ -63,9 +63,9 @@ class DerivationPathResolver(PathResolver):
 
         if (not result or not result.is_valid) and field_path.length > 0:
             # Then try it with as if the first part of the fieldpath is a source itself
-            for src in self.derivation.source_aliases.keys():
+            for src in self.derivation._source_aliases:
                 if src == field_path.get(0):
-                    src = self.derivation.source_aliases[src]
+                    src = self.derivation.source_fqn_for(src)
                     starting_typeref = self.type_registry.get_typeref(source_fqn)
                     result = resolve_path_from_record(starting_typeref, field_path.pop()[1], self.type_registry, self)
                     break
