@@ -43,8 +43,9 @@ class RecordDerivation(Projection):
             fqn     Fully qualified name of the record.  Records should have names unless they are inline derivations where names will be derived.
         """
         super(RecordDerivation, self).__init__(annotations, docs)
-        self.source_aliases = set()
-        self.source_fqns = {}
+        self._source_aliases = set()
+        self._source_fqns_by_alias = {}
+        self._source_fqns = []
         self.source_types = {}
         self.field_projections = []
         self.fqn = fqn
@@ -91,25 +92,32 @@ class RecordDerivation(Projection):
         Add a new source record that this record derives from.
         """
         fqn = FQN(source_fqn, None)
-        if alias and alias in self.source_aliases:
+        if alias and alias in self._source_aliases:
             raise errors.OneringException("A source with the alias '%s' already exist.  Please choose a different alias." % alias)
-        if not alias and fqn.name in self.source_aliases:
+        if not alias and fqn.name in self._source_aliases:
             raise errors.OneringException("Please provide an aliase for '%s' as another type already exists" % fqn.fqn)
 
         alias = alias or fqn.name
-        self.source_aliases.add(alias)
-        self.source_fqns[alias] = fqn.fqn
+        self._source_aliases.add(alias)
+        self._source_fqns_by_alias[alias] = fqn.fqn
+        self._source_fqns.append(fqn.fqn)
 
     def has_source(self, source_fqn):
-        return source_fqn in self.source_fqns
+        return source_fqn in self._source_fqns_by_alias
 
     @property
     def has_sources(self):
         return self.source_count > 0
 
+    def source_fqn_for(self, alias):
+        return self._source_fqns_by_alias[alias]
+
+    def source_fqn_at(self, index):
+        return self._source_fqns[index]
+
     @property
     def source_count(self):
-        return len(self.source_aliases)
+        return len(self._source_aliases)
 
     def _resolve(self, type_registry, resolver):
         """
@@ -131,7 +139,7 @@ class RecordDerivation(Projection):
 
         # Step 3: TODO - Create the Resolver to take into account this derivation's 
         # source record(s) if any (eg in a type stream, the derivation wont have sources)
-        if self.source_aliases:
+        if self._source_aliases:
             from onering.core.resolvers import DerivationPathResolver
             resolver = DerivationPathResolver(resolver, self, type_registry)
         else:
@@ -143,7 +151,7 @@ class RecordDerivation(Projection):
 
     def _resolve_sources(self, registry):
         unresolved_types = set()
-        for (fqn, alias) in self.source_fqns.iteritems():
+        for (alias, fqn) in self._source_fqns_by_alias.iteritems():
             source_rec_typeref = registry.get_typeref(fqn)
             if source_rec_typeref is None:
                 # TODO - Is this another derivation that needs resolution first?

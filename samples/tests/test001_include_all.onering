@@ -1,0 +1,19 @@
+
+loadtill THEEND
+
+record Kingdom {
+    name : string
+    ruler : string
+    founded : Datetime
+}
+
+derive MyKingdom : Kingdom {
+    name
+    ruler
+    numberOfCities : Int
+}
+
+THEEND
+
+gen *
+gent *
