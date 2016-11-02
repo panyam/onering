@@ -52,6 +52,7 @@ class TransformerViewModel(object):
     def __init__(self, transformer, tgroupvm, backend):
         self.backend = backend
         self.context = tgroupvm.context
+        self.transformer = transformer
         self.tgroupvm = tgroupvm
         self.name = transformer.fqn
         self.instructions, self.symtable = orgencore.generate_ir_for_transformer(transformer, self.context)
@@ -62,7 +63,11 @@ class TransformerViewModel(object):
         self.all_statements = [StatementViewModel(stmt, self, backend) for stmt in  transformer.all_statements]
 
     def render(self):
-        templ = self.backend.load_template(self.backend.backend_annotation.first_value_of("template") or "transformers/java/default_transformer")
+        template_name = "transformers/java/default_transformer"
+        for annotation in self.transformer.annotations:
+            if annotation.name == "onering.backend" and annotation.first_value_of("platform") == self.backend.platform_name:
+                template_name = annotation.first_value_of("template") or "transformers/java/default_transformer"
+        templ = self.backend.load_template(template_name )
         out = templ.render(transformer = self, tgroup = self.tgroupvm, backend = self.backend)
         return out
 
