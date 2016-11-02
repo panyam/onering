@@ -93,9 +93,10 @@ def generate_ir_for_expression(expr, context, input_values, instructions, symtab
 
 def generate_ir_for_literal(expr, context, input_values, instructions, symtable):
     # So there are no explicit "inputs", just locations or values that something is bound to
-    # then why the rigmore of passing input_values?   This means our values should either
-    # be const values, or addresses and the bindings should give us this.  Also input_values does not make sense
-    # because you could refer to values that are coming from a "global"ish scope ie variables local to a function
+    # then why the rigmoral of passing input_values?   This means our values should either
+    # be const values, or addresses and the bindings should give us this.  Also input_values 
+    # does not make sense because you could refer to values that are coming from a "global"ish
+    # scope ie variables local to a function
     return instructions, symtable, ir.ValueOrVar(expr.value, True)
 
 def generate_ir_for_tuple(expr, context, input_values, instructions, symtable):
