@@ -13,7 +13,7 @@ def parse_annotations(parser):
     out = []
     while parser.peeked_token_is(TokenType.AT):
         out.append(parse_annotation(parser))
-    return out
+    return tlannotations.Annotations(out)
 
 def parse_annotation(parser):
     """

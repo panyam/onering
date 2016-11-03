@@ -101,7 +101,7 @@ class JavaTargetBackend(object):
             thetyperef = target
         elif isinstance(target, orgenmodels.TypeArgViewModel):
             # Inspect the annotation that coerces a "raw" type string
-            rawtype_annotation = target.annotations.get("onering.rawtype")
+            rawtype_annotation = target.annotations.get_first("onering.rawtype")
             if rawtype_annotation and \
                     self.current_platform.name == rawtype_annotation.first_value_of("platform"):
                 if rawtype_annotation.first_value_of("type"):
