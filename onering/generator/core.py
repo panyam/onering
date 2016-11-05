@@ -55,19 +55,19 @@ def generate_ir_for_statement(statement, context, instructions, symtable):
         var = expr3(expr2(expr1(None)))
 
     In async/callback world:
-        expr1(None).then(function(result1) {
-            expr2(result1).then(function(result2) {
-                expr3(result2).then(function(result3) {
+        expr1(None, function(result1) {
+            expr2(result1, function(result2) {
+                expr3(result2, function(result3) {
                     var = result3;
                 })
             })
         })
 
-        In promise land:
-            expr1(None)
-            .then(expr2)
-            .then(expr3)
-            .then(assign(var));
+    In promise land:
+        expr1(None)
+        .then(expr2)
+        .then(expr3)
+        .then(assign(var));
     """
     last_return = None
     for expr in statement.expressions:
