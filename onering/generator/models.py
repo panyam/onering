@@ -63,10 +63,11 @@ class TransformerViewModel(object):
         self.all_statements = [StatementViewModel(stmt, self, backend) for stmt in  transformer.all_statements]
 
     def render(self):
-        template_name = "transformers/java/default_transformer"
+        template_name = "transformers/%s/to_mutable_pojo" % self.backend.platform_name
         for annotation in self.transformer.annotations:
             if annotation.name == "onering.backend" and annotation.first_value_of("platform") == self.backend.platform_name:
-                template_name = annotation.first_value_of("template") or "transformers/java/default_transformer"
+                template_name = annotation.first_value_of("template") or template_name
+                break
         templ = self.backend.load_template(template_name )
         out = templ.render(transformer = self, tgroup = self.tgroupvm, backend = self.backend)
         return out
