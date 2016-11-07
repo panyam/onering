@@ -1,0 +1,38 @@
+
+record Transformer {
+    statements : array[Statement]
+}
+
+record Statement {
+    is_temporary : boolean
+    expression : Expression
+    target : Variable
+}
+
+union Variable {
+    FieldPath
+    LocalVar
+}
+
+typeref LocalVar = string
+
+record FieldPath {
+    components : array[string]
+}
+
+union Expression {
+    FunctionCall
+    Literal
+    FieldPath
+}
+
+record FunctionCall {
+    func_name : FQN
+    arguments : array[Expression]
+}
+
+union Literal {
+    Number,
+    string,
+    boolean
+}

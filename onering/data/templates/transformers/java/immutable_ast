@@ -1,0 +1,61 @@
+
+record Transformer {
+    statements : array[Statement]
+}
+
+union Statement {
+    VariableDeclaration
+    ValueAssignment
+    IfStatement
+    ReturnStatement
+}
+
+record IfStatement {
+    condition : Expression
+    body : array[Statement]
+    otherwise : array[Statement]
+}
+
+record VariableDeclaration {
+    varname : string
+    vartype : Type
+    initial_value : Expression ?
+}
+
+record ValueAssignment {
+    varname : string
+    value : Expression
+}
+
+record ReturnStatement {
+    retvalue : Expression
+}
+
+union Expression {
+    FunctionCall
+    Literal
+    Variable
+    Getter
+    Constructor
+}
+
+record Constructor {
+    datatype : Type
+    arguments : array[Expression]
+}
+
+record FunctionCall {
+    func_name : FQN
+    arguments : array[Expression]
+}
+
+union Literal {
+    Number,
+    string,
+    boolean
+}
+
+record Getter {
+    source : Expression
+    field_name : string
+}
