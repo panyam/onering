@@ -506,7 +506,7 @@ class TypeStream(SingleFieldProjection):
 
         # Now we create the field that is of the type of the constructor provided to us
         type_args = [cp.resolved_typerefs[0] for cp in self.child_projections]
-        field_typeref = tlcore.TypeRef(tlcore.Type(None, self.constructor, type_args), None)
+        field_typeref = tlcore.TypeRef(tlcore.Type(None, self.constructor, type_params = None, type_args = type_args), None)
 
         newfield = Field(self.projected_name or self.field_path_resolution.field_name,
                          field_typeref,
