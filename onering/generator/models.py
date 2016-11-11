@@ -62,6 +62,10 @@ class TransformerViewModel(object):
         self.dest_name,self.dest_namespace,self.dest_fqn = utils.FQN(transformer.dest_fqn, "").parts
         self.all_statements = [StatementViewModel(stmt, self, backend) for stmt in  transformer.all_statements]
 
+        self.deduped_statements = {}
+        for stmt in self.all_statements:
+            self.deduped_statements[str(stmt.statement.target_variable.normalized_field_path)] = stmt
+
     def render(self):
         template_name = "transformers/%s/to_mutable_pojo" % self.backend.platform_name
         for annotation in self.transformer.annotations:

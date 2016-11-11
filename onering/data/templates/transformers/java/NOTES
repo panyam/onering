@@ -1,0 +1,77 @@
+
+The three AST files sum up how we start with and where we want to go.   So what would a tree walkter that goes from say source -> mutable AST look like (so we dont need all the code in or/generators/core.py)?
+
+May be tree walker entry point should be a Py file to begin with?   Or somehow joined into backend/platform?
+
+def transform_tree(input):
+    output = oast.Transformer()
+    for stmt in input.Statements:
+        # registers only generate "locations" where values of certain expression can be set and referred to
+        # The idea is first the register allocation is done 
+        generate_registers_for_expression(stmt.expr, input, output)
+        if stmt.target_variable.len == 1:
+            generate_val_assignment(stmt.target_variable}}, {{stmt.expr.register}}")
+        else:
+            if stmt.target_variable.first.writeable:
+                for var in target_variable.parts[1:-1]
+                    generate_registers_for_variable(var)
+                generate_setter_node(target_variable[-2], target_variable[-1], register_for_expr(stmt.expr))
+            else:
+                # Requires a constructor call here - note that constructors
+                # Should be applied at the "end" becuase eash setter only
+                # denotes a single field so doing multiple constructors 
+                # just overwrites previous values
+                # NOTE: we are doing is_writeable and not path here
+                # but in reality those would be two different functions and
+                # two different templates
+                
+
+eg a/b/c -> d
+
+would look like:
+
+if a.hasB():
+    if a.getB().hasC():
+        d = a.getB().getC()
+
+or
+
+if a.hasB():
+    b = a.getB()
+    if b.hasC()
+        c = b.getC()
+        d = c
+
+In the second case we have registers for a, b and c (d is written so it wont need it)
+We should allow a rule that only declares a variable for a register (instead of rendering the entire expression associated with as is) if its read count is greater than a particular threshold.
+
+So for the above if the threshold == 1 then a and b will be declared but c wont be.
+
+A first pass of the above would look like:
+
+ensure_register("a")        -> may result in R0 (if not a source var) with refcount = 1
+ensure_register("a/b")      -> Results in R1 (ref count = 2 - for the getB and hasC calls)
+ensure_register("a/b/c")    -> Results in R2 (ref count = 1 - for the getC call)
+
+eg a/b/c -> d/x/y
+
+d.setX(a.getB().getC())
+
+Setter("d", "x", Getter(Getter("a", "b"), "c"))
+
+d.setX(a.getB().getC())
+
+// But we want to do checks, so what does that look like?
+
+R0 = a.getB()   # R0.write count = 1, R0.read count = 0
+R1 = R0.getC()  # R1.write count = 1, R0.read count = 1
+if not d.hasX():
+    d.setX(new X())
+else
+    d.setX(new X())
+    R2 = d.getX()   # R2.wc = 1, R2.rc = 0 (also R2.scope will be the IfStmt node and not the parent)
+R2.setY(R1)     # R2.rc = 1, R1.rc = 1
+
+// Now we have a bunch of nodes that declare "intent" - and can even do "duplicate" variable declarations and we can group/clean them up in 
+// the next pass by moving each var decl to the common ancestor node.
+

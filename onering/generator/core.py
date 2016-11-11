@@ -38,37 +38,6 @@ def generate_ir_for_statements(statements, context, instructions = None, symtabl
     return instructions, symtable, None
 
 def generate_ir_for_statement(statement, context, instructions, symtable):
-    """
-    Given the statement of the form:
-
-        expr1 => expr2 => expr3 => var
-
-    Each expression is really a function that takes result of previous expression and returns a result 
-    (could be empty result - and results written directly to symbol table), so could could be:
-
-        output1 = gen_code(expr1, input = None)
-        output2 = gen_code(expr2, input = output1)
-        output3 = gen_code(expr3, input = output2)
-        assign(output3, var)
-
-    In sync/functional world this is equivalent to:
-        var = expr3(expr2(expr1(None)))
-
-    In async/callback world:
-        expr1(None).then(function(result1) {
-            expr2(result1).then(function(result2) {
-                expr3(result2).then(function(result3) {
-                    var = result3;
-                })
-            })
-        })
-
-        In promise land:
-            expr1(None)
-            .then(expr2)
-            .then(expr3)
-            .then(assign(var));
-    """
     last_return = None
     for expr in statement.expressions:
         # Call the the generator for the expression with the last return value as its inputs

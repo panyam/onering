@@ -1,0 +1,116 @@
+
+namespace transformers
+
+import org.example.Town
+import org.example.Village
+import org.example.getPopulationCounts
+import org.example.getPopulationRaces
+import org.example.capitalize
+import org.example.simplify
+
+/**
+ * This creates a transformer group since it has not source or dest and destination at the top level.
+ * This node is expected to contain a bunch of transformer functions.
+ */
+transformers Town2VillageUtility {
+    // A transformer with some custom rules
+    transformer Town2VillageManual Town as town => Village {
+        // What is the function signature of "skip" here?
+        populations 
+            => skip(10)     // This should return a "block" that can skip 10 things
+            => take(5)      // This should return a "block" that takes 5 and does nothing else
+            => [K, V] { 
+                if K == 2 break
+                emit somefunc(K)        // Note this is not a "return"
+                emit somefunc2(K)
+                emit somefunc3(V)
+            }
+            => [Value] {    // This works with values emitted from previous stages
+                // Say we want to "batch" items - ie collect/reduce
+                // how to collect?  we could do something like:
+            }
+
+        // Above is equivalent to:
+        populations
+            => [K,V] {
+                if $count < 10 break        // Break is like a "filter"
+                emit K,V
+            }
+            => [K,V] {
+                if $count >= 5 stop         // stop - stops the chains and tells bits before to stop giving it 
+                                            // data and bits "after" to finish consuming data.
+                emit K,V
+            }
+            => [K, V] { 
+                if K == 2 break
+                emit somefunc(K)        // Note this is not a "return"
+                emit somefunc2(K)
+                emit somefunc3(V)
+            }
+            => [Value] {    // This works with values emitted from previous stages
+                // Say we want to "batch" items - ie collect/reduce
+                // how to collect?  we could do something like:
+            }
+
+        // if skip and take are "functions" that are provided - we want these to show that they are streamables.
+        // perhaps skip and drop function signatures could be:
+        // func skip = [*] -> [*]     ([] indicates a streamable type)
+        
+        // How about functions that generate a stream?, ie:
+        // func seconds = Int -> [Long]
+        // so technically the "$count" is not required as we can do the following but then the problem
+        // is to explicitly pass on an index variable each time and having to invoke a sequence element
+        // Note - that this should technically be invalid because a sequence creator function must be
+        // at the start of a chain otherwise the source of the chain will have its values never reaching
+        // the other consumers
+        // type of sequence here should be (and is actually a Generator rather than function):
+        //
+        // func sequence = Int -> [Int]
+        populations
+            => [K,V] sequence((K,V), 0)
+            => [(K,V), index] {
+                if $index < 10 break        // Break is like a "filter"
+                emit K,V, index
+            }
+            => [K,V,index] {
+                if $count >= 5 stop         // stop - stops the chains and tells bits before to stop giving it 
+                                            // data and bits "after" to finish consuming data.
+                emit K,V,index
+            }
+            => [K, V, index] { 
+                if K == 2 break
+                emit somefunc(K)        // Note this is not a "return"
+                emit somefunc2(K)
+                emit somefunc3(V)
+            }
+            => [Value] {    // This works with values emitted from previous stages
+                // Say we want to "batch" items - ie collect/reduce
+                // how to collect?  we could do something like:
+            }
+
+        // Another way to do the following could be:
+        // with zip being:
+        // func zip = ([$A], [$B]) -> [$A, $B]
+        // $A and $B denote parametric types where as Int denotes concrete type
+        zip(sequence(0), populations)
+            => [index, (K,V)] {     // $A = Int, $B = (K, V)
+                if $index < 10 break        // Break is like a "filter"
+                emit K,V, index
+            }
+            => [K,V,index] {
+                if $count >= 5 stop         // stop - stops the chains and tells bits before to stop giving it 
+                emit K,V,index
+            }
+            => [K, V, index] { 
+                if K == 2 break
+                emit somefunc(K)        // Note this is not a "return"
+                emit somefunc2(K)
+                emit somefunc3(V)
+            }
+            => [Value] {    // This works with values emitted from previous stages
+                // Say we want to "batch" items - ie collect/reduce
+                // how to collect?  we could do something like:
+            }
+    }
+}
+
