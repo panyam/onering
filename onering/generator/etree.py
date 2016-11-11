@@ -7,7 +7,7 @@ class Node(object):
     arbitrary node transformations to mean different things and have different rendering
     implementations.
     """
-    def __init__(self, node_type, **properties = None):
+    def __init__(self, node_type, **properties):
         self._node_type = node_type
         self._parent = None
         self._properties = properties
