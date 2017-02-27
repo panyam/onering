@@ -13,3 +13,23 @@
         {% endfor %}
     }
 
+
+# if we had pattern matching that applied nodes recursive?
+
+Given, Output{a}, Input{x,w}
+a.b.c.d = f1(x.y.z)
+a.b.c.d.e = f2(w.x.y)
+
+# For mutable:
+if (!a.hasB()) {
+    a.setB(new B())
+}
+if (!a.getB().hasC()) {
+    a.getB().setC(new C())
+}
+a.getB().getC().setD(... final register value of f1(x.y.z) ....)
+
+
+get_rules(FP x:[]) = [ ]
+get_rules(FP x:y:[]) = [ Getter x y ]
+get_rules(FP x:y:rest) = (Getter x y) : get_rules(FP y:rest)

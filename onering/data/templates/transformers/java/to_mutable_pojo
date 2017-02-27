@@ -2,6 +2,7 @@
 {% import "transformers/java/macros" as macros %}
 
     public static void {{transformer.name}}({% for fqn,varname in transformer.src_variables %}{{fqn}} {{varname}}, {%endfor%}{{transformer.dest_fqn}} {{transformer.dest_varname}}) {
+
         // Declare the local and temp vars first
         {% for varname, vartyperef in transformer.symtable.declarations %}
         {{ signature(vartyperef) }} {{ varname }};
