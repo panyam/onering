@@ -7,8 +7,9 @@ import fnmatch
 from typelib import registry 
 from onering import resolver
 from onering import errors
+from onering import dirutils
 
-class OneringContext(object):
+class OneringContext(dirutils.DirPointer):
     def __init__(self):
         self.type_registry = registry.TypeRegistry()
         self.entity_resolver = resolver.EntityResolver("pdsc")

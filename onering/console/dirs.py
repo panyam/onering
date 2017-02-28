@@ -4,25 +4,16 @@ import ipdb
 import runner
 from onering import resolver
 from onering import utils as orutils
+from onering.actions import dirs as diractions
 from utils import logerror
 
 class JarsCommandRunner(runner.CommandRunner):
     """
     Manage directories in which jars (that contain archived pegasus schemas) are searched for.
     """
-
     @property
     def aliases(self):
         return { "ls": "list", "rm": "remove" }
-
-    @classmethod
-    def collector(cls, console, path):
-        if console.isdir(path):
-            return [resolver.ZipFilePathEntityResolver(jar_file, "pegasus") for jar_file in orutils.collect_jars(console.abspath(path))]
-        elif console.isfile(path):
-            return [ resolver.ZipFilePathEntityResolver(console.abspath(path), "pegasus") ]
-        else:
-            logerror("Invalid jar path: %s" % path)
 
     def do_list(self, console, cmd, rest, prev = None):
         """
@@ -41,9 +32,7 @@ class JarsCommandRunner(runner.CommandRunner):
         Usage:
             add     <jar/dir>   Add one or more space seperated jar files or directory containing jars.
         """
-        entry = (rest or "").strip()
-        for resolver in JarsCommandRunner.collector(console, entry):
-            console.entity_resolver.add_resolver(resolver)
+        return diractions.JarActions(console.thering).add(rest)
 
     def do_remove(self, console, cmd, rest, prev = None):
         """
@@ -52,11 +41,7 @@ class JarsCommandRunner(runner.CommandRunner):
         Usage:
             remove  <dir/dir>   Remove one or more space seperated jar files or directory containing jars.
         """
-        entry = (rest or "").strip()
-        entry = console.abspath(entry)
-        for resolver in JarsCommandRunner.collector(console, entry):
-            console.entity_resolver.remove_resolver(resolver)
-
+        return diractions.JarActions(console.thering).remove(rest)
 
 class DirsCommandRunner(runner.CommandRunner):
     """
@@ -65,16 +50,6 @@ class DirsCommandRunner(runner.CommandRunner):
     @property
     def aliases(self):
         return { "ls": "list", "rm": "remove" }
-
-    @classmethod
-    def collector(cls, console, path):
-        if console.isdir(path):
-            return [resolver.FilePathEntityResolver(console.abspath(path))]
-        elif console.isfile(path):
-            logerror("Cannot add a single file as a schema path")
-        else:
-            logerror("Invalid path: %s" % path)
-        return []
 
     def do_list(self, console, cmd, rest, prev = None):
         """
@@ -93,9 +68,7 @@ class DirsCommandRunner(runner.CommandRunner):
         Usage:
             add         <dir>   Add one or more space seperated directories containing schemas.
         """
-        entry = (rest or "").strip()
-        for resolver in DirsCommandRunner.collector(console, entry):
-            console.entity_resolver.add_resolver(resolver)
+        return diractions.DirActions(console.thering).add(rest)
 
     def do_remove(self, console, cmd, rest, prev = None):
         """
@@ -104,9 +77,7 @@ class DirsCommandRunner(runner.CommandRunner):
         Usage:
             remove/rm   <dir>   Remove one or more space seperated schema directory schemas.
         """
-        entry = (rest or "").strip()
-        for resolver in DirsCommandRunner.collector(console, entry):
-            console.entity_resolver.remove_resolver(resolver)
+        return diractions.DirActions(console.thering).remove(rest)
 
 class TemplatesCommandRunner(runner.CommandRunner):
     """
@@ -129,11 +100,7 @@ class TemplatesCommandRunner(runner.CommandRunner):
         Usage:
             add         <dir>   Add one or more space seperated template directories
         """
-        entry = (rest or "").strip()
-        if entry:
-            entry = console.abspath(entry)
-            if entry not in console.thering.template_dirs:
-                console.thering.template_loader.template_dirs.append(entry)
+        return diractions.TemplateActions(console.thering).add(rest)
 
     def do_remove(self, console, cmd, rest, prev = None):
         """
@@ -142,6 +109,4 @@ class TemplatesCommandRunner(runner.CommandRunner):
         Usage:
             remove/rm   <dir>   Remove one or more space seperated template directories.
         """
-        entry = (rest or "").strip()
-        if entry in console.thering.template_dirs:
-            del console.thering.template_loader.template_dirs[console.thering.template_dirs.index(entry)]
+        return diractions.TemplateActions(console.thering).remove(rest)
