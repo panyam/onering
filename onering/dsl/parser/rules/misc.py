@@ -25,8 +25,8 @@ def parse_declaration(parser):
     if next.tok_type == TokenType.IDENTIFIER and next.value == "import":
         parse_import_decl(parser)
     else:
-        from onering.dsl.parser.rules.types import parse_type_decl
-        parse_type_decl(parser)
+        from onering.dsl.parser.rules.types import parse_entity
+        parse_entity(parser)
     parser.consume_tokens(TokenType.SEMI_COLON)
     return True
 

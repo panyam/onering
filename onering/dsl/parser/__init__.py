@@ -30,9 +30,38 @@ class Parser(TokenStream):
         super(Parser, self).__init__(lexer_or_stream)
         self.namespace = None
         self.imports = []
+        self._entity_parsers = {}
         self._last_docstring = ""
         self.injections = {}
         self.onering_context = context
+        self.use_default_parsers()
+
+    def use_default_parsers(self):
+        from onering.dsl.parser.rules.types import parse_typeref_decl
+        self.register_entity_parser("typeref", parse_typeref_decl)
+
+        from onering.dsl.parser.rules.interfaces import parse_interface
+        self.register_entity_parser("interface", parse_interface)
+
+        from onering.dsl.parser.rules.derivations import parse_derivation
+        self.register_entity_parser("derive", parse_derivation)
+
+        from onering.dsl.parser.rules.functions import parse_bind
+        self.register_entity_parser("bind", parse_bind)
+
+        from onering.dsl.parser.rules.platforms import parse_platform
+        self.register_entity_parser("platform", parse_platform)
+
+        from onering.dsl.parser.rules.transformers import parse_transformer_group
+        self.register_entity_parser("transformers", parse_transformers)
+
+    def get_entity_parser(self, entity_class):
+        return self._entity_parsers.get(entity_class, None)
+
+    def register_entity_parser(self, keyword, parser):
+        if keyword in ("import", "namespace"):
+            raise Exception("Keyword '%s' is a reserved keyword" % keyword)
+        self._entity_parsers[keyword] = parser
 
     def get_typeref(self, fqn):
         """

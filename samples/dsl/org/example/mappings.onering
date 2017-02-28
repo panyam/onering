@@ -1,7 +1,7 @@
 
 platform java {
-    func simplify string -> string => "simplify"
-    func capitalize ? -> string => "capitalize"
+    func simplify(string) : string => "simplify"
+    func capitalize(?) : string => "capitalize"
     func getPopulationCounts => "getPopulationCounts"
     func getPopulationRaces => "getPopulationRaces"
 

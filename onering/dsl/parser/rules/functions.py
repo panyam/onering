@@ -3,7 +3,7 @@ from __future__ import absolute_import
 import ipdb
 from typelib import core as tlcore
 from onering import utils
-from onering.dsl.parser.rules.types import parse_any_type_decl
+from onering.dsl.parser.rules.types import ensure_typeref
 from onering.core import functions, platforms
 from onering.dsl.errors import SourceException, UnexpectedTokenException
 from onering.dsl.lexer import Token, TokenType
@@ -89,14 +89,14 @@ def parse_function_signature(parser):
         if parser.peeked_token_is(TokenType.OPEN_PAREN):
             parser.ensure_token(TokenType.OPEN_PAREN)
             while not parser.peeked_token_is(TokenType.CLOSE_PAREN):
-                input_types.append(parse_any_type_decl(parser))
+                input_types.append(ensure_typeref(parser))
                 if parser.peeked_token_is(TokenType.CLOSE_PAREN):
                     break
                 parser.ensure_token(TokenType.COMMA)
             parser.ensure_token(TokenType.CLOSE_PAREN)
             inputs_need_inference = False
         elif parser.peeked_token_is(TokenType.IDENTIFIER):
-            input_types.append(parse_any_type_decl(parser))
+            input_types.append(ensure_typeref(parser))
             inputs_need_inference = False
 
     # Read output types in the signature if any
@@ -105,6 +105,6 @@ def parse_function_signature(parser):
             output_needs_inference = True
         else:
             output_needs_inference = False
-            output_type = parse_any_type_decl(parser)
+            output_type = ensure_typeref(parser)
 
     return functions.Signature(input_types, output_type, inputs_need_inference, output_needs_inference)

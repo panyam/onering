@@ -119,8 +119,8 @@ def parse_projection_target(parser, parent_derivation, field_path):
     # Check if we have a mutation or a type declaration            
     if parser.next_token_is(TokenType.COLON):
         if parser.peeked_token_is(TokenType.IDENTIFIER):
-            from onering.dsl.parser.rules.types import parse_any_type_decl
-            projected_type = parse_any_type_decl(parser)
+            from onering.dsl.parser.rules.types import ensure_typeref
+            projected_type = ensure_typeref(parser)
             return projections.SimpleFieldProjection(parent_derivation, field_path, projected_typeref = projected_type)
         else:
             raise UnexpectedTokenException(parser.peek_token(), TokenType.IDENTIFIER)
