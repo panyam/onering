@@ -17,6 +17,7 @@ class OneringContext(dirutils.DirPointer):
         self._functions = {}
         self._platforms = {}
         self._transformer_groups = {}
+        self._interfaces = {}
 
         self.output_dir = "./gen"
         self.platform_aliases = {
@@ -41,6 +42,9 @@ class OneringContext(dirutils.DirPointer):
             raise errors.OneringException("Duplicate derivation found: %s" % derivation.fqn)
         self._derivations[derivation.fqn] = derivation
 
+    def get_transformer_group(self, fqn):
+        return self._transformer_groups.get(fqn, None)
+
     @property
     def all_transformer_groups(self):
         return self._transformer_groups.values()
@@ -50,8 +54,17 @@ class OneringContext(dirutils.DirPointer):
             raise errors.OneringException("Duplicate transformer_group found: %s" % transformer_group.fqn)
         self._transformer_groups[transformer_group.fqn] = transformer_group
 
-    def get_transformer_group(self, fqn):
-        return self._transformer_groups.get(fqn, None)
+    def get_interface(self, fqn):
+        return self._interfaces.get(fqn, None)
+
+    @property
+    def all_interfaces(self):
+        return self._interfaces.values()
+
+    def register_interface(self, interface):
+        if interface.fqn in self._interfaces:
+            raise errors.OneringException("Duplicate interface found: %s" % interface.fqn)
+        self._interfaces[interface.fqn] = interface
 
     def find_common_ancestor(self, record1, record2):
         """
@@ -125,11 +138,23 @@ class OneringContext(dirutils.DirPointer):
 
         source_derivations = set()
         for tw in wildcards:
-            # Now resolve all derivations
             for derivation in self.all_derivations:
                 if fnmatch.fnmatch(derivation.fqn, tw):
                     source_derivations.add(derivation.fqn)
         return source_derivations
+
+    def interfaces_for_wildcards(self, wildcards):
+        """
+        Return all interfaces that match any of the given wildcards.
+        """
+        if type(wildcards) in (str, unicode): wildcards = [wildcards]
+
+        out = set()
+        for tw in wildcards:
+            for tg in self.all_interfaces:
+                if fnmatch.fnmatch(tg.fqn, tw):
+                    out.add(tg.fqn)
+        return out
 
     def transformer_groups_for_wildcards(self, wildcards):
         """
@@ -139,7 +164,6 @@ class OneringContext(dirutils.DirPointer):
 
         out = set()
         for tw in wildcards:
-            # Now resolve all derivations
             for tg in self.all_transformer_groups:
                 if fnmatch.fnmatch(tg.fqn, tw):
                     out.add(tg.fqn)
