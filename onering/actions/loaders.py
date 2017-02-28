@@ -82,3 +82,4 @@ class LoaderActions(ActionGroup):
                 dsl.parser.Parser(open(f), context).parse()
         else:
             raise Exception("Invalid path: %s" % abspath)
+
