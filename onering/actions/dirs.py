@@ -1,10 +1,27 @@
 
-
 import os, sys
 import ipdb
 from onering import resolver
 from onering import utils as orutils
 from onering.actions.base import ActionGroup
+
+def jar_collector(context, path):
+    if context.isdir(path):
+        return [ resolver.ZipFilePathEntityResolver(jar_file, "pegasus")
+                        for jar_file in orutils.collect_jars(context.abspath(path)) ]
+    elif context.isfile(path):
+        return [ resolver.ZipFilePathEntityResolver(context.abspath(path), "pegasus") ]
+    else:
+        raise Exception("Invalid jar path: %s" % path)
+
+def dir_collector(context, path):
+    if context.isdir(path):
+        return [resolver.FilePathEntityResolver(context.abspath(path))]
+    elif context.isfile(path):
+        raise Exception("Cannot add a single file as a schema path")
+    else:
+        raise Exception("Invalid path: %s" % path)
+    return []
 
 class JarActions(ActionGroup):
     """
@@ -13,16 +30,6 @@ class JarActions(ActionGroup):
     """
     def __init__(self, context):
         ActionGroup.__init__(context)
-
-    def collector(self, path):
-        context = self.context
-        if context.isdir(path):
-            return [ resolver.ZipFilePathEntityResolver(jar_file, "pegasus")
-                            for jar_file in orutils.collect_jars(context.abspath(path)) ]
-        elif context.isfile(path):
-            return [ resolver.ZipFilePathEntityResolver(context.abspath(path), "pegasus") ]
-        else:
-            raise Exception("Invalid jar path: %s" % path)
 
     def add(self, *paths):
         """
@@ -35,7 +42,7 @@ class JarActions(ActionGroup):
         context = self.context
         for entry in paths:
             entry = entry.strip()
-            for resolver in self.collector(entry):
+            for resolver in jar_collector(context, entry):
                 context.entity_resolver.add_resolver(resolver)
 
     def remove(self, *paths):
@@ -50,7 +57,7 @@ class JarActions(ActionGroup):
         for entry in paths:
             entry = entry.strip()
             entry = context.abspath(entry)
-            for resolver in self.collector(entry):
+            for resolver in jar_collector(context, entry):
                 context.entity_resolver.remove_resolver(resolver)
 
 
@@ -61,16 +68,6 @@ class DirActions(ActionGroup):
     """
     def __init__(self, context):
         ActionGroup.__init__(context)
-
-    def collector(self, path):
-        context = self.context
-        if context.isdir(path):
-            return [resolver.FilePathEntityResolver(context.abspath(path))]
-        elif context.isfile(path):
-            raise Exception("Cannot add a single file as a schema path")
-        else:
-            raise Exception("Invalid path: %s" % path)
-        return []
 
     def add(self, *paths):
         """
@@ -83,7 +80,7 @@ class DirActions(ActionGroup):
         context = self.context
         for entry in paths:
             entry = entry.strip()
-            for resolver in self.collector(entry):
+            for resolver in dir_collector(context, entry):
                 context.entity_resolver.add_resolver(resolver)
 
     def remove(self, *paths):
@@ -98,7 +95,7 @@ class DirActions(ActionGroup):
         for entry in paths:
             entry = entry.strip()
             entry = context.abspath(entry)
-            for resolver in self.collector(entry):
+            for resolver in dir_collector(context, entry):
                 context.entity_resolver.remove_resolver(resolver)
 
 class TemplateActions(ActionGroup):

@@ -26,21 +26,9 @@ class JarsCommandRunner(runner.CommandRunner):
         print "\n".join(resolvers)
 
     def do_add(self, console, cmd, rest, prev = None):
-        """
-        Add a jar file or directory contain jars that contain schemas (structured in a hierarchy reflecting the fully qualified names).
-
-        Usage:
-            add     <jar/dir>   Add one or more space seperated jar files or directory containing jars.
-        """
         return diractions.JarActions(console.thering).add(rest)
 
     def do_remove(self, console, cmd, rest, prev = None):
-        """
-        Remove a jar file or directory contain jars that contain schemas (structured in a hierarchy reflecting the fully qualified names).
-
-        Usage:
-            remove  <dir/dir>   Remove one or more space seperated jar files or directory containing jars.
-        """
         return diractions.JarActions(console.thering).remove(rest)
 
 class DirsCommandRunner(runner.CommandRunner):
@@ -62,21 +50,9 @@ class DirsCommandRunner(runner.CommandRunner):
         print "\n".join(resolvers)
 
     def do_add(self, console, cmd, rest, prev = None):
-        """
-        Add a directory containing schemas (structured in a hierarchy reflecting the fully qualified names).
-
-        Usage:
-            add         <dir>   Add one or more space seperated directories containing schemas.
-        """
         return diractions.DirActions(console.thering).add(rest)
 
     def do_remove(self, console, cmd, rest, prev = None):
-        """
-        Remove a directory containing schemas (structured in a hierarchy reflecting the fully qualified names).
-
-        Usage:
-            remove/rm   <dir>   Remove one or more space seperated schema directory schemas.
-        """
         return diractions.DirActions(console.thering).remove(rest)
 
 class TemplatesCommandRunner(runner.CommandRunner):
@@ -94,19 +70,7 @@ class TemplatesCommandRunner(runner.CommandRunner):
         print "\n".join(console.thering.template_dirs)
 
     def do_add(self, console, cmd, rest, prev = None):
-        """
-        Add a directory containing schemas (structured in a hierarchy reflecting the fully qualified names).
-
-        Usage:
-            add         <dir>   Add one or more space seperated template directories
-        """
         return diractions.TemplateActions(console.thering).add(rest)
 
     def do_remove(self, console, cmd, rest, prev = None):
-        """
-        Remove a directory containing schemas (structured in a hierarchy reflecting the fully qualified names).
-
-        Usage:
-            remove/rm   <dir>   Remove one or more space seperated template directories.
-        """
         return diractions.TemplateActions(console.thering).remove(rest)
