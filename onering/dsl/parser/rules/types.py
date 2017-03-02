@@ -28,7 +28,7 @@ def parse_entity(parser, typereffed_fqn = None):
     else:
         return parse_parametric_type(parser, annotations = annotations, typereffed_fqn = typereffed_fqn)
 
-def parse_typeref_decl(parser, annotations):
+def parse_typeref_decl(parser, annotations, **kwargs):
     """
     Parses typeref declaration of the form:
 
