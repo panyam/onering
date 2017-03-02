@@ -40,6 +40,7 @@ def parse_typeref_decl(parser, annotations, **kwargs):
     fqn = utils.FQN(name, parser.namespace).fqn
 
     parser.ensure_token(TokenType.EQUALS)
+    ipdb.set_trace()
     target_typeref = parse_entity(parser, typereffed_fqn = fqn)
     if not isinstance(target_typeref, tlcore.TypeRef):
         ipdb.set_trace()

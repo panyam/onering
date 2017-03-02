@@ -3,7 +3,7 @@ from __future__ import absolute_import
 import ipdb
 from enum import Enum
 from onering import errors
-from onering.utils import ResolutionStatus
+from onering.utils import ResolutionStatus, FQN
 from onering.core.utils import FieldPath
 from onering.core import exprs as orexprs
 from onering.core.projections import SimpleFieldProjection
@@ -30,10 +30,10 @@ class Interface(Annotatable):
 
     def add_interface(self, interface):
         """Adds a child/nested interface to this interface."""
-        ipdb.set_trace()
-        if interface.fqn in self._children:
-            raise errors.OneringException("Duplicate interface found: %s" % interface.fqn)
-        self._children[interface.fqn] = interface
+        name = FQN(interface.fqn, None).name
+        if name in self._children:
+            raise errors.OneringException("Duplicate interface found: %s" % name)
+        self._children[name] = interface
 
     def add_function(self, func_type):
         """Adds a function to this interface."""
