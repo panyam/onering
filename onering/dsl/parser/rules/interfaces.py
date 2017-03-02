@@ -7,7 +7,7 @@ from onering.dsl.lexer import Token, TokenType
 from onering.core import interfaces
 from onering.core import exprs as orexprs
 from onering.dsl.parser.rules.annotations import parse_annotations
-from onering.dsl.parser.rules.misc import parse_field_path
+from onering.dsl.parser.rules.functions import parse_function
 
 ########################################################################
 ##          Interface Parsing Rules
@@ -32,9 +32,9 @@ def parse_interface(parser, annotations, typereffed_fqn = None, parent_interface
     while not parser.peeked_token_is(TokenType.CLOSE_BRACE):
         # We can have functions or interfaces here
         annotations = parse_annotations(parser)
-        if parser.peeked_token_is(TokenType.IDENTIFIER, "func"):
+        if parser.peeked_token_is(TokenType.IDENTIFIER, "fun"):
             # parse a function that goes in this interface
-            interface.add_function(parse_named_function(parser, annotations))
+            interface.add_function(parse_function(parser, annotations))
         else:
             # parse a child interface
             interface.add_child(parse_interface(parser, annotations, interface))
@@ -42,11 +42,3 @@ def parse_interface(parser, annotations, typereffed_fqn = None, parent_interface
 
     return interface
 
-def parse_named_function(parser, annotations):
-    """Parses a function.
-
-    **Rule:**
-
-        "func"  name<IDENT>  "(" param_name ":" param_type ( "," param_name ":" param_type ) * ")" ( "=>" output_type ) ?
-    """
-    parser.ensure_token(TokenType.IDENTIFIER, "func")

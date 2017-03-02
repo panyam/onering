@@ -97,8 +97,8 @@ tuple_expression := "(" ")"
 dict_expression := "{" "}"
                 |   "{" IDENT ":" expression ( ","  IDENT ":" expression ) * "}"
 
-function_expression :=  func<FQN> tuple_expression
-                    |   func<FQN> "(" ")"
+function_expression :=  fun<FQN> tuple_expression
+                    |   fun<FQN> "(" ")"
 
 stream_expression := expression "=>" expression
 
@@ -121,7 +121,7 @@ or:
     hash(third(a,b,c)) => passwordHash
 
 case 2:
-   func(a,b,c) => destFieldA                // Apply "func" with arguments a, b, c taken from source and save result to destFieldA
+   fun(a,b,c) => destFieldA                // Apply "fun" with arguments a, b, c taken from source and save result to destFieldA
 
 case 3:
 
