@@ -23,7 +23,7 @@ class TokenType(Enum):
     COLON               = ":"
     SEMI_COLON          = ";"
     SLASH               = "/"
-    QMARK            = "?"
+    QMARK               = "?"
     DOT                 = "."
     HASH                = "#"
     AT                  = "@"

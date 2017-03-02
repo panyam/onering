@@ -1,13 +1,16 @@
 
 from typelib.annotations import Annotatable
 
+class Parameter(Annotatble):
+    def __init__(self, param_name, param_type):
+        self.param_name = param_name
+        self.param_type = param_type
+        self.needs_inference = True
+
 class Signature(object):
-    def __init__(self, input_types = None, output_type = None,
-                 inputs_need_inference = True, output_needs_inference = True):
-        self.input_types = input_types or [] 
-        self.output_type = output_type
-        self.inputs_need_inference = inputs_need_inference
-        self.output_needs_inference = output_needs_inference
+    def __init__(self, input_params = None, output_param = None):
+        self.input_params = input_params or []
+        self.output_param = output_param
 
 class Function(Annotatable):
     """

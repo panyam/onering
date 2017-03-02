@@ -2,6 +2,7 @@
 from __future__ import absolute_import
 import ipdb
 from typelib import core as tlcore
+from typelib import functions as tlfunctions
 from onering import utils
 from onering.dsl.parser.rules.types import ensure_typeref
 from onering.core import functions, platforms
@@ -13,17 +14,14 @@ from onering.dsl.parser.rules.annotations import parse_annotations
 ##          Function parsing rules
 ########################################################################
 
-def parse_bind(parser, annotations):
-    """
-    Parses a binding to a single function.
-        "bind" func_name<IDENT> function_signature "{"
-        "}"
-    """
-    docs = parser.last_docstring()
+def parse_function(parser, annotations):
+    """Parses a function declaration.
 
-    parser.ensure_token(TokenType.IDENTIFIER, "bind")
+    function    :=  "fun" name<IDENT>   input_params ? ( ":" output_type )
+    """
+    parser.ensure_token(TokenType.IDENTIFIER, "fun")
+
     fqn = utils.FQN(parser.ensure_token(TokenType.IDENTIFIER), parser.namespace).fqn
-
     print "Parsing new function binding: '%s'" % fqn
 
     function_signature = parse_function_signature(parser)
@@ -34,77 +32,68 @@ def parse_bind(parser, annotations):
     func_typeref = parser.register_type(fqn, func_type)
 
     # create the function object
-    function = functions.Function(fqn, func_typeref,
-                                  function_signature.inputs_need_inference,
-                                  function_signature.output_needs_inference,
-                                  annotations, docs)
-
-    parser.ensure_token(TokenType.OPEN_BRACE)
-    while not parser.peeked_token_is(TokenType.CLOSE_BRACE):
-        annotations = parse_annotations(parser)
-        platform = parser.ensure_token(TokenType.STRING)
-        parser.ensure_token(TokenType.EQUALS)
-        native_fqn = parser.ensure_token(TokenType.STRING)
-        platform = parser.onering_context.get_platform(platform, register = True)
-        platform.add_function(function, native_fqn, annotations = annotations, docs = parser.last_docstring)
-        parser.consume_tokens(TokenType.COMMA)
-    parser.ensure_token(TokenType.CLOSE_BRACE)
-
-    parser.onering_context.register_function(function)
-    
+    function = functions.Function(fqn, func_typeref, annotations, docs)
     return function
 
+def parse_function_signature(parser, require_param_name = False):
+    """Parses the type signature declaration in a function declaration:
 
-def parse_function_signature(parser):
-    """
-    Parses the type signature declaration in a function declaration:
+        function_signature      ::  input_params ? ( ":" output_typeref ) ?
 
-        function_signature:
-            input_type_signature ?
-            ( input_type_signature "->" output_type_signature ) ?
+        input_type_signature    ::  "(" param_decls ? ")"
 
-        input_type_signature:
-            "?"
-            |   input_types
-            |   "(" input_types ")"
+        param_decls             ::  param_decl ( "," param_decl ) *
 
-        output_type_signature:
-            "?"
-            |   output_type
+        param_decl              ::  ( param_name<IDENT> ":" ) ?   // if param names are optional
+                                        param_type
 
     Returns:
-        function_signature  -   A function signature object that contains all the input, output 
-                                type specification and whether any types require inferencing 
-                                based on the their call patterns in transformers.
+        Returns the input typeref list and the output typeref (both being optional)
     """
-    input_types = []
+
+    # First read the input params
+    input_params = []
+    if parser.next_token_is(TokenType.OPEN_PAREN):
+        while not parser.peeked_token_is(TokenType.CLOSE_PAREN):
+            input_params.append(parse_param_declaration(parser, require_param_name))
+
+            # Consume the COMMA
+            if parser.next_token_is(TokenType.COMMA):
+                pass
+        parser.ensure_token(TokenType.CLOSE_PAREN)
+
+    # Now read the output type (if any)
     output_type = None
-    inputs_need_inference = True
-    output_needs_inference = True
+    if parser.next_token_is(TokenType.COLON):
+        output_type = parser.ensure_entity(tlcore.Typeref)
 
-    # Read input types in the signature if any
-    if parser.next_token_is(TokenType.QMARK):
-        inputs_need_inference = True
-    else:
-        if parser.peeked_token_is(TokenType.OPEN_PAREN):
-            parser.ensure_token(TokenType.OPEN_PAREN)
-            while not parser.peeked_token_is(TokenType.CLOSE_PAREN):
-                input_types.append(ensure_typeref(parser))
-                if parser.peeked_token_is(TokenType.CLOSE_PAREN):
-                    break
-                parser.ensure_token(TokenType.COMMA)
-            parser.ensure_token(TokenType.CLOSE_PAREN)
-            inputs_need_inference = False
-        elif parser.peeked_token_is(TokenType.IDENTIFIER):
-            input_types.append(ensure_typeref(parser))
-            inputs_need_inference = False
+    return input_params, output_type
 
-    # Read output types in the signature if any
-    if parser.next_token_is(TokenType.ARROW):
-        if parser.next_token_is(TokenType.QMARK):
-            output_needs_inference = True
-        else:
-            output_needs_inference = False
-            output_type = ensure_typeref(parser)
+def parse_param_declaration(parser, require_name = True):
+    """
+        param_declaration := annotations ?
+                             ( name<IDENTIFIER> ":" ) ?
+                             type_decl
+                             "?" ?                      // Optionality
+                             ( "=" literal_value ) ?
+    """
+    annotations = parse_annotations(parser)
+    docstring = parser.last_docstring()
 
-    return functions.Signature(input_types, output_type, inputs_need_inference, output_needs_inference)
+    param_name = None
+    if require_name:
+        param_name = parser.ensure_token(TokenType.IDENTIFIER)
+        parser.ensure_token(TokenType.COLON)
+    elif parser.peeked_token_is(TokenType.IDENTIFIER) and \
+                parser.peeked_token_is(TokenType.COLON, offset = 1):
+        param_name = parser.ensure_token(TokenType.IDENTIFIER)
+        parser.ensure_token(TokenType.COLON)
+
+    param_typeref   = ensure_typeref(parser)
+    is_optional     = parser.next_token_is(TokenType.QMARK)
+    default_value   = None
+    if parser.next_token_is(TokenType.EQUALS):
+        default_value = parser.ensure_literal_value()
+
+    return tlfunctions.FunctionParamArg(param_name, param_typeref, is_optional, default_value, annotations, docstring)
+

@@ -98,21 +98,6 @@ def parse_parametric_type_decl(parser, constructor, annotations = [], typereffed
     newtyperef.target = tlcore.Type(None, constructor, type_params = None, type_args = child_typerefs, annotations = annotations, docs = docs)
     return newtyperef
 
-########################################################################
-##          Enum and Union parsing
-########################################################################
-
-def parse_enum(parser, annotations = [], typereffed_fqn = None):
-    newtyperef, fqn, docs = parse_newtyperef_preamble(parser, "enum", typereffed_fqn, True)
-    symbols = parse_enum_body(parser)
-    newtyperef.target = tlenums.EnumType(symbols, annotations = annotations, docs = docs)
-
-def parse_record(parser, annotations = [], typereffed_fqn = None):
-    newtyperef, fqn, docs = parse_newtyperef_preamble(parser, "record", typereffed_fqn, True)
-    fields = parse_record_body(parser)
-    newtyperef.target = records.RecordType(fields, annotations = annotations, docs = docs)
-    return newtyperef
-
 def parse_newtyperef_preamble(parser, constructor, typereffed_fqn, force_fqn_if_missing = False):
     fqn = typereffed_fqn
     if parser.peeked_token_is(TokenType.IDENTIFIER) or (fqn is None and force_fqn_if_missing):
@@ -130,6 +115,15 @@ def parse_newtyperef_preamble(parser, constructor, typereffed_fqn, force_fqn_if_
     assert newtyperef is not None, "A type was NOT parsed"
     docs = parser.last_docstring()
     return newtyperef, fqn, docs
+
+########################################################################
+##          Enum and Union parsing
+########################################################################
+
+def parse_enum(parser, annotations = [], typereffed_fqn = None):
+    newtyperef, fqn, docs = parse_newtyperef_preamble(parser, "enum", typereffed_fqn, True)
+    symbols = parse_enum_body(parser)
+    newtyperef.target = tlenums.EnumType(symbols, annotations = annotations, docs = docs)
 
 def parse_enum_body(parser):
     """
@@ -164,6 +158,12 @@ def parse_union_body(parser):
 ########################################################################
 ##          Record and Field parsing
 ########################################################################
+
+def parse_record(parser, annotations = [], typereffed_fqn = None):
+    newtyperef, fqn, docs = parse_newtyperef_preamble(parser, "record", typereffed_fqn, True)
+    fields = parse_record_body(parser)
+    newtyperef.target = records.RecordType(fields, annotations = annotations, docs = docs)
+    return newtyperef
 
 def parse_record_body(parser):
     """
