@@ -19,23 +19,14 @@ def parse_function(parser, annotations):
 
     function    :=  "fun" name<IDENT>   input_params ? ( ":" output_type )
     """
+    docs = parser.last_docstring()
     parser.ensure_token(TokenType.IDENTIFIER, "fun")
 
-    fqn = utils.FQN(parser.ensure_token(TokenType.IDENTIFIER), parser.namespace).fqn
-    print "Parsing new function binding: '%s'" % fqn
+    func_name = parser.ensure_token(TokenType.IDENTIFIER)
+    input_types, output_typeref = parse_function_signature(parser)
+    return tlfunctions.FunctionType(input_types, output_typeref, annotations, docs, func_name)
 
-    function_signature = parse_function_signature(parser)
-
-    # Create a function of a given type and register it
-    func_type = tlcore.FunctionType(function_signature.input_types,
-                                    function_signature.output_type, annotations, docs)
-    func_typeref = parser.register_type(fqn, func_type)
-
-    # create the function object
-    function = functions.Function(fqn, func_typeref, annotations, docs)
-    return function
-
-def parse_function_signature(parser, require_param_name = False):
+def parse_function_signature(parser, require_param_name = True):
     """Parses the type signature declaration in a function declaration:
 
         function_signature      ::  input_params ? ( ":" output_typeref ) ?
@@ -63,11 +54,11 @@ def parse_function_signature(parser, require_param_name = False):
         parser.ensure_token(TokenType.CLOSE_PAREN)
 
     # Now read the output type (if any)
-    output_type = None
+    output_typeref = None
     if parser.next_token_is(TokenType.COLON):
-        output_type = parser.ensure_entity(tlcore.Typeref)
+        output_typeref = ensure_typeref(parser)
 
-    return input_params, output_type
+    return input_params, output_typeref
 
 def parse_param_declaration(parser, require_name = True):
     """
@@ -95,5 +86,5 @@ def parse_param_declaration(parser, require_name = True):
     if parser.next_token_is(TokenType.EQUALS):
         default_value = parser.ensure_literal_value()
 
-    return tlfunctions.FunctionParamArg(param_name, param_typeref, is_optional, default_value, annotations, docstring)
+    return tlfunctions.ParamTypeArg(param_name, param_typeref, is_optional, default_value, annotations, docstring)
 

@@ -132,7 +132,8 @@ class RecordDerivation(Projection):
         if not self.fqn:
             ipdb.set_trace()
             assert False
-        self._resolved_recordref = type_registry.register_type(self.fqn, records.RecordType(None, self.annotations, self.docs))
+        record_type = records.RecordType(None, self.annotations, self.docs, self.fqn.name)
+        self._resolved_recordref = type_registry.register_type(self.fqn, record_type)
 
         # Step 2
         self._resolve_sources(type_registry)

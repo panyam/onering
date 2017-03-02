@@ -167,7 +167,8 @@ def parse_record(parser, annotations = [], typereffed_fqn = None):
     parser.ensure_token(TokenType.IDENTIFIER, "record")
     newtyperef, fqn, docs = parse_newtyperef_preamble(parser, "record", typereffed_fqn, True)
     fields = parse_record_body(parser)
-    newtyperef.target = records.RecordType(fields, annotations = annotations, docs = docs)
+    rec_name = utils.FQN(fqn, parser.namespace).name
+    newtyperef.target = records.RecordType(fields, annotations = annotations, docs = docs, name = rec_name)
     return newtyperef
 
 def parse_record_body(parser):

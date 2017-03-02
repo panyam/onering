@@ -26,7 +26,8 @@ def parse_interface(parser, annotations, typereffed_fqn = None, parent_interface
     interface = interfaces.Interface(fqn, parent = parent_interface,
                                      annotations = annotations,
                                      docs = parser.last_docstring())
-    parser.onering_context.register_interface(interface)
+    if parent_interface is None:
+        parser.onering_context.register_interface(interface)
 
     parser.ensure_token(TokenType.OPEN_BRACE)
     while not parser.peeked_token_is(TokenType.CLOSE_BRACE):
@@ -34,10 +35,12 @@ def parse_interface(parser, annotations, typereffed_fqn = None, parent_interface
         annotations = parse_annotations(parser)
         if parser.peeked_token_is(TokenType.IDENTIFIER, "fun"):
             # parse a function that goes in this interface
-            interface.add_function(parse_function(parser, annotations))
+            func_type = parse_function(parser, annotations)
+            print "Registering new interface function: '%s'" % func_type.name
+            interface.add_function(func_type)
         else:
             # parse a child interface
-            interface.add_child(parse_interface(parser, annotations, interface))
+            interface.add_interface(parse_interface(parser, annotations, interface))
     parser.ensure_token(TokenType.CLOSE_BRACE)
 
     return interface
