@@ -1,7 +1,7 @@
 #!/usr/bin/env python
-
-from __future__ import absolute_import
 import os
+import re
+import ast
 import sys
 from distutils.sysconfig import get_python_lib
 
@@ -28,20 +28,23 @@ if "install" in sys.argv:
 # Any packages inside the onering source folder we dont want in the packages
 EXCLUDE_FROM_PACKAGES = [ ]
 
-# Dynamically calculate the version based on courier.VERSION.
-version = __import__('onering').get_version()
-# for scheme in INSTALL_SCHEMES.values(): scheme['data']=scheme['purelib']
+def get_version():
+    with open('onering/__init__.py', 'rb') as f:
+        _version_re = re.compile(r'__version__\s+=\s+(.*)')
+        return str(ast.literal_eval(_version_re.search(f.read().decode('utf-8')).group(1)))
 
-print "=" * 80
-print "Packages: ", find_packages(exclude=EXCLUDE_FROM_PACKAGES)
-print "=" * 80
+def get_description():
+    return open("README.rst").read()
 
 setup(name="onering",
-      version=version,
-      requires = ["typelib", "Jinja2", "readline", "avro", "thriftpy" ],
-      description="A toolchain for declaratively specifying transformations between schemas and instances of schemas to help track dependencies across schemas.",
+      version=get_version(),
       author="Sri Panyam",
       author_email="sri.panyam@gmail.com",
+      requires = ["typelib", "Jinja2", "readline", "avro", "thriftpy" ],
+      keywords=['languages', 'schemas', 'transformation', 'type system', 'types'],
+      extras_require={'docs': ['Sphinx>=1.1']},
+      description="A toolchain for declaratively specifying transformations between schemas and instances of schemas to help track dependencies across schemas.",
+      long_description=get_description(),
       url="https://github.com/panyam/onering",
       package_data = {
           'onering': [
