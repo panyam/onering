@@ -52,14 +52,11 @@ class Parser(TokenStream):
         from onering.dsl.parser.rules.derivations import parse_derivation
         self.register_entity_parser("derive", parse_derivation)
 
-        from onering.dsl.parser.rules.functions import parse_bind
-        self.register_entity_parser("bind", parse_bind)
-
         from onering.dsl.parser.rules.platforms import parse_platform
         self.register_entity_parser("platform", parse_platform)
 
         from onering.dsl.parser.rules.transformers import parse_transformer_group
-        self.register_entity_parser("transformers", parse_transformers)
+        self.register_entity_parser("transformers", parse_transformer_group)
 
     def get_entity_parser(self, entity_class):
         return self._entity_parsers.get(entity_class, None)

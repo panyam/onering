@@ -1,7 +1,7 @@
 
 
+import fnmatch
 import os, sys
-import ipdb
 from onering import dsl
 from onering import resolver
 from onering import utils as orutils
@@ -12,7 +12,7 @@ class LoaderActions(ActionGroup):
     Actions to load models from different different sources.
     """
     def __init__(self, context):
-        ActionGroup.__init__(context)
+        ActionGroup.__init__(self, context)
 
     def load_courier(self, fqn_or_path):
         """
@@ -60,7 +60,7 @@ class LoaderActions(ActionGroup):
         pegasus_loader = readers.pegasus.PegasusSchemaLoader(context.type_registry, context.entity_resolver)
         return pegasus_loader.load(fqn_or_path)
 
-    def load_onering_path(self, path):
+    def load_onering_path(self, path, wildcard = None):
         """
         Loads one or more onering files.   A onering file could contain models, derivations, 
         transformations, bindings etc.  The path can be a file or a folder (in which case 
@@ -69,6 +69,9 @@ class LoaderActions(ActionGroup):
         **Parameters:**
         path    -   A onering file or a folder containing onering files to be loaded.
         """
+
+        wildcard = wildcard or "*.onering"
+
         import onering.dsl as dsl
         context = self.context
         abspath = context.abspath(path)
@@ -78,8 +81,9 @@ class LoaderActions(ActionGroup):
         elif context.isfile(path + ".onering"):
             dsl.parser.Parser(open(abspath + ".onering"), context).parse()
         elif context.isdir(path):
-            for f in orutils.collect_files_by_extension(abspath, "onering"):
-                dsl.parser.Parser(open(f), context).parse()
+            for f in orutils.collect_files(abspath):
+                if fnmatch.fnmatch(f, wildcard):
+                    dsl.parser.Parser(open(f), context).parse()
         else:
             raise Exception("Invalid path: %s" % abspath)
 

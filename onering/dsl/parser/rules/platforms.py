@@ -3,7 +3,6 @@ from __future__ import absolute_import
 import ipdb
 from typelib import core as tlcore
 from onering import utils
-from onering.dsl.parser.rules.types import parse_any_type_decl
 from onering.core import functions, platforms
 from onering.dsl.errors import SourceException, UnexpectedTokenException
 from onering.dsl.lexer import Token, TokenType

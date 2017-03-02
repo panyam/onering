@@ -13,7 +13,7 @@ from onering.dsl.parser.rules.misc import parse_field_path
 ##          Derivation and Projection Parsing
 ########################################################################
 
-def parse_derivation(parser, annotations = []):
+def parse_derivation(parser, annotations = [], **kwargs):
     """
     Parses a derivation
 

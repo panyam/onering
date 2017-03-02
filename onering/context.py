@@ -1,5 +1,4 @@
 
-
 from __future__ import absolute_import
 import ipdb
 from collections import defaultdict
@@ -11,6 +10,7 @@ from onering import dirutils
 
 class OneringContext(dirutils.DirPointer):
     def __init__(self):
+        dirutils.DirPointer.__init__(self)
         self.type_registry = registry.TypeRegistry()
         self.entity_resolver = resolver.EntityResolver("pdsc")
         self._derivations = {}
