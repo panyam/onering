@@ -360,7 +360,7 @@ class SimpleFieldProjection(SingleFieldProjection):
     def __json__(self, **kwargs):
         out = super(SimpleFieldProjection, self).__json__(**kwargs)
         if self.projected_typeref:
-            out["ptype"] = self.projected_typeref.json()
+            out["ptype"] = self.projected_typeref.json(**kwargs)
         return out
 
     @property
