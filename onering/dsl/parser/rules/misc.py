@@ -3,6 +3,8 @@ from __future__ import absolute_import
 import ipdb
 
 from onering.dsl.lexer import Token, TokenType
+from onering.dsl import errors
+from onering.utils import FQN
 
 def parse_namespace(parser):
     """
@@ -26,7 +28,8 @@ def parse_declaration(parser):
         parse_import_decl(parser)
     else:
         from onering.dsl.parser.rules.types import parse_entity
-        parse_entity(parser)
+        if not parse_entity(parser):
+            raise errors.UnexpectedTokenException(parser.peek_token())
     parser.consume_tokens(TokenType.SEMI_COLON)
     return True
 
@@ -38,7 +41,11 @@ def parse_import_decl(parser):
     """
     parser.ensure_token(TokenType.IDENTIFIER, "import")
     fqn = parser.ensure_fqn()
-    parser.add_import(fqn)
+    alias = FQN(fqn, None).name
+    if parser.next_token_is(TokenType.IDENTIFIER, "as"):
+        # we also have an alias for the import
+        alias = parser.ensure_token(TokenType.IDENTIFIER)
+    parser.add_import(fqn, alias)
     return fqn
 
 def parse_field_path(parser, allow_abs_path = True, allow_child_selection = True):

@@ -13,7 +13,7 @@ from onering.dsl.parser.rules.misc import parse_field_path
 ##          Transformer Parsing Rules
 ########################################################################
 
-def parse_transformer_group(parser, annotations):
+def parse_transformer_group(parser, annotations, **kwargs):
     """
     Parses transformer declarations
 

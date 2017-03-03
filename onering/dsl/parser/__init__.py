@@ -102,7 +102,7 @@ class Parser(TokenStream):
         fqn = utils.FQN(fqn, self.namespace).fqn
         return fqn
 
-    def add_import(self, fqn):
+    def add_import(self, fqn, alias):
         # see if a type needs to be created
         if not self.onering_context.type_registry.get_typeref(fqn, nothrow = True):
             self.onering_context.type_registry.register_type(fqn, None)

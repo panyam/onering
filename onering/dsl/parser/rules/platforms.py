@@ -42,6 +42,7 @@ def parse_platform(parser, annotations):
             raise UnexpectedTokenException(parser.peek_token(), "type", "func")
         parser.consume_tokens(TokenType.COMMA)
     parser.ensure_token(TokenType.CLOSE_BRACE)
+    return platform
 
 def parse_platform_function_binding(parser, platform, annotations):
     """

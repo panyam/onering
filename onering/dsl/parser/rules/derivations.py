@@ -28,6 +28,7 @@ def parse_derivation(parser, annotations = [], **kwargs):
     parse_derivation_header(parser, derivation)
     parse_derivation_body(parser, derivation)
     parser.onering_context.register_derivation(derivation)
+    return derivation
 
 
 def parse_derivation_header(parser, derivation):

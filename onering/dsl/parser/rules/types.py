@@ -40,11 +40,7 @@ def parse_typeref_decl(parser, annotations, **kwargs):
     fqn = utils.FQN(name, parser.namespace).fqn
 
     parser.ensure_token(TokenType.EQUALS)
-    ipdb.set_trace()
-    target_typeref = parse_entity(parser, typereffed_fqn = fqn)
-    if not isinstance(target_typeref, tlcore.TypeRef):
-        ipdb.set_trace()
-
+    target_typeref = ensure_typeref(parser)
     parser.register_type(fqn, target_typeref)
     return fqn
 
@@ -129,6 +125,7 @@ def parse_enum(parser, annotations = [], typereffed_fqn = None):
     newtyperef, fqn, docs = parse_newtyperef_preamble(parser, "enum", typereffed_fqn, True)
     symbols = parse_enum_body(parser)
     newtyperef.target = tlenums.EnumType(symbols, annotations = annotations, docs = docs)
+    return newtyperef
 
 def parse_enum_body(parser):
     """
