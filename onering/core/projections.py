@@ -51,8 +51,8 @@ class RecordDerivation(Projection):
         self.fqn = fqn
         self._resolved_recordref = None
 
-    def __json__(self):
-        out = super(RecordDerivation, self).__json__()
+    def __json__(self, **kwargs):
+        out = super(RecordDerivation, self).__json__(**kwargs)
         out["fqn"] = self.fqn
         return out
 
@@ -199,8 +199,8 @@ class FieldProjection(Projection):
         self._resolved_fields = []
         self.field_path_resolution = None
 
-    def __json__(self):
-        out = super(FieldProjection, self).__json__()
+    def __json__(self, **kwargs):
+        out = super(FieldProjection, self).__json__(**kwargs)
         out["src"] = repr(self.source_field_path)
         return out
 
@@ -357,8 +357,8 @@ class SimpleFieldProjection(SingleFieldProjection):
         if projected_typeref and not isinstance(projected_typeref, tlcore.TypeRef):
             raise errors.OneringException("Projected type must be a TypeRef instance")
 
-    def __json__(self):
-        out = super(SimpleFieldProjection, self).__json__()
+    def __json__(self, **kwargs):
+        out = super(SimpleFieldProjection, self).__json__(**kwargs)
         if self.projected_typeref:
             out["ptype"] = self.projected_typeref.json()
         return out
@@ -431,9 +431,9 @@ class InlineDerivation(SingleFieldProjection):
         if derivation is None or not isinstance(derivation, RecordDerivation):
             raise errors.OneringException("derivation must be of type Derivation")
 
-    def __json__(self):
-        out = super(InlineDerivation, self).__json__()
-        out["target"] = self.child_derivation.json()
+    def __json__(self, **kwargs):
+        out = super(InlineDerivation, self).__json__(**kwargs)
+        out["target"] = self.child_derivation.json(**kwargs)
         return out
 
     def _field_path_resolved(self, registry, resolver):
@@ -576,7 +576,7 @@ class Field(records.FieldTypeArg):
         self.field_path = field_path
         self.projection = projection
 
-    def __json__(self):
-        out = super(Field, self).__json__()
+    def __json__(self, **kwargs):
+        out = super(Field, self).__json__(**kwargs)
         out["fpath"] = repr(self.field_path)
         return out

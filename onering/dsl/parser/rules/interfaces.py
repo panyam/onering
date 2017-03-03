@@ -40,7 +40,8 @@ def parse_interface(parser, annotations, typereffed_fqn = None, parent_interface
             interface.add_function(func_type)
         else:
             # parse a child interface
-            interface.add_interface(parse_interface(parser, annotations, interface))
+            child = parse_interface(parser, annotations, parent_interface = interface)
+            interface.add_interface(child)
     parser.ensure_token(TokenType.CLOSE_BRACE)
     return interface
 
