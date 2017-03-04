@@ -121,24 +121,39 @@ def parse_newtyperef_preamble(parser, constructor, typereffed_fqn, force_fqn_if_
 ########################################################################
 
 def parse_enum(parser, annotations = [], typereffed_fqn = None):
+    """
+    Parses an enum declaration of the form:
+
+        enum ( "[" type "]" ) ? enum_body
+    """
     parser.ensure_token(TokenType.IDENTIFIER, "enum")
     newtyperef, fqn, docs = parse_newtyperef_preamble(parser, "enum", typereffed_fqn, True)
+    type_args = None
+    if parser.next_token_is(TokenType.OPEN_SQUARE):
+        type_args = [ensure_typeref(parser)]
+        parser.ensure_token(TokenType.CLOSE_SQUARE)
+
     symbols = parse_enum_body(parser)
-    newtyperef.target = tlenums.EnumType(symbols, annotations = annotations, docs = docs)
+    newtyperef.target = tlenums.EnumType(symbols, type_args, annotations = annotations, docs = docs)
     return newtyperef
 
 def parse_enum_body(parser):
     """
     Parse the body of an enum declaration:
 
-        "{" enum_symbols + "}"
+        enum_body := "{" enum_symbol * + "}"
+
+        enum_symbol := identifier ( "=" literal )
     """
     symbols = []
     parser.ensure_token(TokenType.OPEN_BRACE)
     while not parser.peeked_token_is(TokenType.CLOSE_BRACE):
         annotations = parse_annotations(parser)
         name = parser.ensure_token(TokenType.IDENTIFIER)
-        symbols.append(tlenums.EnumSymbol(name, annotations, parser.last_docstring))
+        value = None
+        if parser.next_token_is(TokenType.EQUALS):
+            value = parser.ensure_literal_value()
+        symbols.append(tlenums.EnumSymbol(name, value, annotations, parser.last_docstring))
         # consume comma silently
         parser.next_token_if(TokenType.COMMA, consume = True)
     parser.ensure_token(TokenType.CLOSE_BRACE)

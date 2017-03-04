@@ -301,5 +301,8 @@ class Lexer(object):
                 # do nothing
                 pass
             else:
-                raise SourceException("Line %d, Column %d: Invalid character encountered: '%s'" % (curr_line, curr_col, self.get_chars(peek = True)[0]))
+                currch = self.get_chars(peek = True)[0]
+                if not currch:
+                    raise StopIteration 
+                raise SourceException(curr_line, curr_col, "Invalid character encountered: '%s'" % currch)
         raise StopIteration 
