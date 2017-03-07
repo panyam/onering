@@ -132,7 +132,7 @@ class RecordDerivation(Projection):
         if not self.fqn:
             ipdb.set_trace()
             assert False
-        record_type = records.RecordType(None, self.annotations, self.docs, self.fqn.name)
+        record_type = records.RecordType(None, self.annotations, self.docs, FQN(self.fqn, None).name)
         self._resolved_recordref = type_registry.register_type(self.fqn, record_type)
 
         # Step 2
@@ -237,7 +237,6 @@ class FieldProjection(Projection):
         Resolves a projection.  This should be implemented by child projection 
         types.
         """
-        # if str(self.source_field_path) == "name": ipdb.set_trace()
         self.field_path_resolution = resolver.resolve_path(self._source_field_path)
 
         # Let child classes handle this
@@ -406,8 +405,7 @@ class SimpleFieldProjection(SingleFieldProjection):
             # TODO: Dont do anything here as even though the projected type is unresolved
             # It is only being referenced and not dereferenced.  Only fail on an unresolved
             # type if it is being unpacked for its fields.
-            print >> sys.stderr, "Unresolved Type: "
-            print >> sys.stderr,  self.projected_typeref
+            print >> sys.stderr, "Unresolved Type: ", self.fqn, self.projected_typeref
 
         projected_typeref = self.projected_typeref or self.field_path_resolution.resolved_typeref
 
