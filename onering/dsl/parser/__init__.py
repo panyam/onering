@@ -4,7 +4,7 @@ from __future__ import absolute_import
 import ipdb
 from onering.dsl.parser.tokstream import TokenStream
 from onering.dsl.errors import SourceException, UnexpectedTokenException
-from typelib import utils
+from typelib import utils as tlutils
 from onering.dsl.lexer import Token, TokenType
 from onering import errors
 
@@ -82,7 +82,7 @@ class Parser(TokenStream):
 
             if not tref:
                 # Try with the namespace as well
-                fqn = utils.FQN(fqn, self.namespace, ensure_namespaces_are_equal=False).fqn
+                fqn = tlutils.FQN(fqn, self.namespace, ensure_namespaces_are_equal=False).fqn
                 tref = self.onering_context.type_registry.get_typeref(fqn, nothrow = True)
                 if not tref:
                     tref = self.onering_context.type_registry.register_type(fqn, None)
@@ -99,7 +99,7 @@ class Parser(TokenStream):
             if imp.endswith("." + fqn):
                 return imp
 
-        fqn = utils.FQN(fqn, self.namespace).fqn
+        fqn = tlutils.FQN(fqn, self.namespace).fqn
         return fqn
 
     def add_import(self, fqn, alias):

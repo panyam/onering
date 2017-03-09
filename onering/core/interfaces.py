@@ -44,6 +44,8 @@ class Interface(Annotatable):
     def __json__(self, **kwargs):
         out = super(Interface, self).__json__(**kwargs)
         out["name"] = FQN(self.fqn, None).name
+        if kwargs.get("include_docs", False) and self.docs:
+            out["docs"] = self.docs
         if self._functions:
             out["funs"] = [func.json(**kwargs) for func in self._functions.itervalues()]
         if self._interfaces:
