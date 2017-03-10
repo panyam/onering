@@ -48,22 +48,28 @@ def parse_compound_annotation_body(parser, fqn):
     """
     Parses compound annotation body of the form:
 
-        "(" ( param_spec ( "," param_spec ) * ) ? ")"
+        compound_annotation_body := "(" ( param_spec ( "," param_spec ) * ) ? ")"
+                                 |  "(" literal ")"
+
         param_spec := name ( "=" value ) ?
     """
     param_specs = []
     parser.ensure_token(TokenType.OPEN_PAREN)
-    while parser.peeked_token_is(TokenType.IDENTIFIER):
-        param_name = parser.ensure_fqn()
-        param_value = None
-        if parser.next_token_is(TokenType.EQUALS):
-            param_value = parser.ensure_literal_value()
-            param_specs.append((param_name, param_value))
-        else:
-            param_specs.append((None, param_name))
+    if parser.peeked_token_is(TokenType.IDENTIFIER):
+        while parser.peeked_token_is(TokenType.IDENTIFIER):
+            param_name = parser.ensure_fqn()
+            param_value = None
+            if parser.next_token_is(TokenType.EQUALS):
+                param_value = parser.ensure_literal_value()
+                param_specs.append((param_name, param_value))
+            else:
+                param_specs.append((None, param_name))
 
-        if parser.next_token_is(TokenType.COMMA):
-            parser.ensure_token(TokenType.IDENTIFIER, peek = True)
+            if parser.next_token_is(TokenType.COMMA):
+                parser.ensure_token(TokenType.IDENTIFIER, peek = True)
+        out = tlannotations.Annotation(fqn, param_specs = param_specs)
+    elif not parser.peeked_token_is(TokenType.CLOSE_PAREN):
+        out = tlannotations.Annotation(fqn, value = parser.ensure_literal_value())
 
     parser.ensure_token(TokenType.CLOSE_PAREN)
-    return tlannotations.Annotation(fqn, param_specs = param_specs)
+    return out
