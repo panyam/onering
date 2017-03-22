@@ -2,6 +2,12 @@
 import os
 from onering import errors
 
+def open_file_for_writing(folder, fname):
+    outfile = os.path.join(folder, fname)
+    if not os.path.isdir(folder):
+        os.makedirs(folder)
+    return open(outfile, "w")
+
 class DirPointer(object):
     """
     A class to manage a pointer to a current directory and move around.

@@ -29,7 +29,7 @@ class JarActions(ActionGroup):
     added, removed or searched for.
     """
     def __init__(self, context):
-        ActionGroup.__init__(context)
+        ActionGroup.__init__(self, context)
 
     def add(self, *paths):
         """
@@ -67,7 +67,7 @@ class DirActions(ActionGroup):
     are added, removed or searched for.
     """
     def __init__(self, context):
-        ActionGroup.__init__(context)
+        ActionGroup.__init__(self, context)
 
     def add(self, *paths):
         """
@@ -103,7 +103,7 @@ class TemplateActions(ActionGroup):
     Manage directories in which templates are searched for, added or removed from.
     """
     def __init__(self, context):
-        ActionGroup.__init__(context)
+        ActionGroup.__init__(self, context)
 
     def add(self, *paths):
         """

@@ -28,6 +28,7 @@ class Parser(TokenStream):
         if type(lexer_or_stream) is not lexer.Lexer:
             lexer_or_stream = lexer.Lexer(lexer_or_stream, source_uri = None)
         super(Parser, self).__init__(lexer_or_stream)
+        self.found_types = set()
         self.namespace = None
         self.imports = []
         self._entity_parsers = {}
@@ -89,6 +90,8 @@ class Parser(TokenStream):
         return tref
 
     def register_type(self, name, newtype):
+        # When registering a type, also add it to the list of parsed by this parser
+        self.found_types.add(name)
         return self.onering_context.type_registry.register_type(name, newtype, overwrite = True)
 
     def normalize_fqn(self, fqn):
