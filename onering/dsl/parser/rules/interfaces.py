@@ -36,7 +36,7 @@ def parse_interface(parser, annotations, typereffed_fqn = None, parent_interface
         if parser.peeked_token_is(TokenType.IDENTIFIER, "fun"):
             # parse a function that goes in this interface
             func_type = parse_function(parser, annotations)
-            print "Registering new interface function: '%s'" % func_type.name
+            print "Registering new interface function: '%s'" % func_type.fqn
             interface.add_function(func_type)
         else:
             # parse a child interface

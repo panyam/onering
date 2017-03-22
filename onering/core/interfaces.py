@@ -37,9 +37,9 @@ class Interface(Annotatable):
 
     def add_function(self, func_type):
         """Adds a function to this interface."""
-        if func_type.name in self._functions:
-            raise errors.OneringException("Duplicate function found: %s" % func_type.name)
-        self._functions[func_type.name] = func_type
+        if func_type.fqn in self._functions:
+            raise errors.OneringException("Duplicate function found: %s" % func_type.fqn)
+        self._functions[func_type.fqn] = func_type
 
     def __json__(self, **kwargs):
         out = super(Interface, self).__json__(**kwargs)

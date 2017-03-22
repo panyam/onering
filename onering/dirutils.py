@@ -2,6 +2,10 @@
 import os
 from onering import errors
 
+def ensure_dir(target_dir):
+    if not os.path.isdir(target_dir):
+        os.makedirs(target_dir)
+
 def open_file_for_writing(folder, fname):
     outfile = os.path.join(folder, fname)
     if not os.path.isdir(folder):
