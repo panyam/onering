@@ -7,9 +7,10 @@ def ensure_dir(target_dir):
         os.makedirs(target_dir)
 
 def open_file_for_writing(folder, fname):
-    outfile = os.path.join(folder, fname)
-    if not os.path.isdir(folder):
-        os.makedirs(folder)
+    outfile = os.path.abspath(os.path.join(folder, fname))
+    outdir = os.path.dirname(outfile)
+    if not os.path.isdir(outdir):
+        os.makedirs(outdir)
     return open(outfile, "w")
 
 class DirPointer(object):
