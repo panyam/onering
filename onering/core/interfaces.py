@@ -22,6 +22,14 @@ class Interface(Annotatable):
         self._interfaces = {}
 
     @property
+    def interfaces(self):
+        return self._interfaces
+
+    @property
+    def functions(self):
+        return self._functions
+
+    @property
     def parent(self):
         return self._parent
 
