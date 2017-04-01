@@ -35,7 +35,7 @@ def parse_transformer_group(parser, annotations, **kwargs):
         transformer = parse_transformer(parser, annotations, transformer_group)
         transformer_group.add_transformer(transformer)
 
-    parser.onering_context.register_transformer_group(transformer_group)
+    parser.register_transformer_group(transformer_group)
     parser.ensure_token(TokenType.CLOSE_BRACE)
     return transformer_group
 

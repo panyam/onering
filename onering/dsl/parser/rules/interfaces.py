@@ -26,8 +26,7 @@ def parse_interface(parser, annotations, typereffed_fqn = None, parent_interface
     interface = interfaces.Interface(fqn, parent = parent_interface,
                                      annotations = annotations,
                                      docs = parser.last_docstring())
-    if parent_interface is None:
-        parser.onering_context.register_interface(interface)
+    parser.register_interface(interface)
 
     parser.ensure_token(TokenType.OPEN_BRACE)
     while not parser.peeked_token_is(TokenType.CLOSE_BRACE):

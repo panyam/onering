@@ -1,5 +1,6 @@
 
 
+from collections import defaultdict
 import fnmatch
 import os, sys, ipdb
 from onering import dsl
@@ -60,30 +61,40 @@ class LoaderActions(ActionGroup):
         pegasus_loader = readers.pegasus.PegasusSchemaLoader(context.type_registry, context.entity_resolver)
         return pegasus_loader.load(fqn_or_path)
 
-    def load_onering_path(self, path, wildcard = None):
+    def load_onering_paths(self, paths_or_wildcards):
         """
         Loads one or more onering files.   A onering file could contain models, derivations, 
         transformations, bindings etc.  The path can be a file or a folder (in which case 
         all files with the given extension in the path are loaded).
 
         **Parameters:**
-        path    -   A onering file or a folder containing onering files to be loaded.
+        paths_or_wildcards  -   One or more files, folders, wildcards pointing to onering files to be loaded.
         """
-
-        wildcard = wildcard or "*.onering"
 
         import onering.dsl as dsl
         context = self.context
-        abspath = context.abspath(path)
 
-        if context.isfile(path):
-            dsl.parser.Parser(open(abspath), context).parse()
-        elif context.isfile(path + ".onering"):
-            dsl.parser.Parser(open(abspath + ".onering"), context).parse()
-        elif context.isdir(path):
-            for f in orutils.collect_files(abspath):
-                if fnmatch.fnmatch(f, wildcard):
-                    dsl.parser.Parser(open(f), context).parse()
-        else:
-            raise Exception("Invalid path: %s" % abspath)
+        schema_paths = []
+        for path_or_wildcard in paths_or_wildcards:
+            abspath = context.abspath(path_or_wildcard)
+            if context.isfile(path_or_wildcard):
+                schema_paths.append(abspath)
+            elif context.isfile(path_or_wildcard + ".onering"):
+                schema_paths.append(abspath + ".onering")
+            else:
+                dirname = os.path.dirname(abspath)
+                if context.isdir(dirname):
+                    base_wildcard = os.path.basename(abspath) or "*.onering"
+                    for f in orutils.collect_files(dirname):
+                        if fnmatch.fnmatch(f, base_wildcard):
+                            schema_paths.append(f)
+                else:
+                    raise Exception("Invalid path: %s" % abspath)
 
+        found_entities = defaultdict(set)
+        for path in schema_paths:
+            parser = dsl.parser.Parser(open(path), context)
+            parser.parse()
+            for etype,eset in parser.found_entities.iteritems():
+                found_entities[etype] |= eset
+        return found_entities

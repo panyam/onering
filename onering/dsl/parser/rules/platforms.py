@@ -53,7 +53,7 @@ def parse_platform_function_binding(parser, platform, annotations):
     """
     docs = parser.last_docstring()
 
-    func_fqn = parser.ensure_fqn()
+    func_fqn = parser.normalize_fqn(parser.ensure_fqn())
     # Type signature
     input_params, output_typeref = parse_function_signature(parser)
 

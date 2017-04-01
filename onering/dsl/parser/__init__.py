@@ -32,7 +32,12 @@ class Parser(TokenStream):
         if type(lexer_or_stream) is not lexer.Lexer:
             lexer_or_stream = lexer.Lexer(lexer_or_stream, source_uri = None)
         super(Parser, self).__init__(lexer_or_stream)
-        self.found_types = set()
+        self.found_entities = {
+            "types": set(),
+            "derivations": set(),
+            "tgroups": set(),
+            "interfaces": set()
+        }
         self.namespace = None
         self.imports = []
         self._entity_parsers = {}
@@ -94,9 +99,25 @@ class Parser(TokenStream):
         return tref
 
     def register_type(self, name, newtype):
-        # When registering a type, also add it to the list of parsed by this parser
-        self.found_types.add(name)
+        """Helper to do some book keeping when registering a new type."""
+        self.found_entities["types"].add(name)
         return self.onering_context.type_registry.register_type(name, newtype, overwrite = True)
+
+    def register_derivation(self, derivation):
+        """Helper to do some book keeping when registering a new derivation."""
+        self.found_entities["derivations"].add(derivation.fqn)
+        self.onering_context.register_derivation(derivation)
+
+    def register_transformer_group(self, tgroup):
+        """Helper to do some book keeping when registering a new transformer group."""
+        self.found_entities["tgroups"].add(tgroup.fqn)
+        self.onering_context.register_transformer_group(tgroup)
+
+    def register_interface(self, interface):
+        """Helper to do some book keeping when registering a new transformer group."""
+        if interface.parent is None:
+            self.found_entities["interfaces"].add(interface.fqn)
+            self.onering_context.register_interface(interface)
 
     def normalize_fqn(self, fqn):
         if "." in fqn:
