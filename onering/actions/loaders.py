@@ -74,6 +74,9 @@ class LoaderActions(ActionGroup):
         import onering.dsl as dsl
         context = self.context
 
+        if type(paths_or_wildcards) in (str, unicode):
+            paths_or_wildcards = [paths_or_wildcards]
+
         schema_paths = []
         for path_or_wildcard in paths_or_wildcards:
             abspath = context.abspath(path_or_wildcard)
