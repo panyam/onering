@@ -56,7 +56,7 @@ def parse_parametric_type(parser, annotations, typereffed_fqn = None):
     """
     Parses a parametric type:
 
-        type_constructor type_name ? "[" args "]"
+        type_constructor type_name ? "<" args ">"
     """
     if not parser.peeked_token_is(TokenType.IDENTIFIER): return None
     next_token = parser.next_token()

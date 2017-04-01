@@ -25,7 +25,7 @@ class TransformerGroup(Annotatable):
 
     @property
     def all_transformers(self):
-        return self._transformers[:]
+        return iter(self._transformers)
 
     def add_transformer(self, transformer):
         if transformer.fqn in self._transformer_names:

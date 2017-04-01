@@ -2,6 +2,7 @@
 from __future__ import absolute_import
 import ipdb
 from typelib import core as tlcore
+from typelib import functions as tlfuncs
 from onering import utils
 from onering.core import functions, platforms
 from onering.dsl.errors import SourceException, UnexpectedTokenException
@@ -13,7 +14,7 @@ from onering.dsl.parser.rules.functions import parse_function_signature
 ##          Platform bindings parsing rules
 ########################################################################
 
-def parse_platform(parser, annotations):
+def parse_platform(parser, annotations, **kwargs):
     """
     Parses a platform binding to a single platform:
 
@@ -54,14 +55,14 @@ def parse_platform_function_binding(parser, platform, annotations):
 
     func_fqn = parser.ensure_fqn()
     # Type signature
-    function_signature = parse_function_signature(parser)
+    input_params, output_typeref = parse_function_signature(parser)
 
     parser.ensure_token(TokenType.STREAM)
     native_fqn = parser.ensure_token(TokenType.STRING)
 
     # Create a function of a given type and register it
-    func_type = tlcore.FunctionType(function_signature.input_types,
-                                    function_signature.output_type, annotations, docs)
+    func_type = tlfuncs.FunctionType(input_params, output_typeref, annotations, docs)
+
     # TODO - If a function is registered twice - say for different platforms
     # We should ignore one if types are the same and throw errors if different platforms
     # have different type signatures
@@ -70,10 +71,7 @@ def parse_platform_function_binding(parser, platform, annotations):
     # create the function object
     function = parser.onering_context.get_function(func_fqn, ignore_missing = True)
     if not function:
-        function = functions.Function(func_fqn, func_typeref,
-                                      function_signature.inputs_need_inference,
-                                      function_signature.output_needs_inference,
-                                      annotations, docs)
+        function = functions.Function(func_fqn, func_typeref, False, False, annotations, docs)
         parser.onering_context.register_function(function)
     else:
         ipdb.set_trace()

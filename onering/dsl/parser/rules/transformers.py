@@ -151,6 +151,7 @@ def parse_expression(parser):
                 tuple_expression
                 dot_delimited_field_path
                 stream_expr
+                expr "[" key "]"
                 func_fqn "(" ")"
                 func_fqn "(" expr ( "," expr ) * ")"
     """
