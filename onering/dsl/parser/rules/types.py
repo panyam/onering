@@ -62,11 +62,11 @@ def parse_parametric_type(parser, annotations, typereffed_fqn = None):
     next_token = parser.next_token()
 
     # TODO - Check that next_token is actually not referring to a "primitive" type
-    if parser.peeked_token_is(TokenType.OPEN_SQUARE):
+    if parser.peeked_token_is(parser.GENERIC_OPEN_TOKEN):
         return parse_parametric_type_body(parser, constructor = next_token.value, annotations = annotations, typereffed_fqn = typereffed_fqn)
     elif parser.peeked_token_is(TokenType.IDENTIFIER):
         name_token = parser.next_token()
-        if parser.peeked_token_is(TokenType.OPEN_SQUARE):
+        if parser.peeked_token_is(parser.GENERIC_OPEN_TOKEN):
             # push token back so it can be used by the rule
             parser.unget_token(name_token)
             return parse_parametric_type_body(parser, constructor = next_token.value, annotations = annotations, typereffed_fqn = typereffed_fqn)
@@ -80,13 +80,13 @@ def parse_parametric_type(parser, annotations, typereffed_fqn = None):
 def parse_parametric_type_body(parser, constructor, annotations = [], typereffed_fqn = None):
     newtyperef, fqn, docs = parse_newtyperef_preamble(parser, constructor, typereffed_fqn)
 
-    parser.ensure_token(TokenType.OPEN_SQUARE)
+    parser.ensure_token(parser.GENERIC_OPEN_TOKEN)
     child_typerefs = [ ensure_typeref(parser) ]
 
-    while not parser.peeked_token_is(TokenType.CLOSE_SQUARE):
+    while not parser.peeked_token_is(parser.GENERIC_CLOSE_TOKEN):
         parser.ensure_token(TokenType.COMMA)
         child_typerefs.append(ensure_typeref(parser))
-    parser.ensure_token(TokenType.CLOSE_SQUARE)
+    parser.ensure_token(parser.GENERIC_CLOSE_TOKEN)
 
     newtyperef.target = tlcore.Type(None, constructor, type_params = None, type_args = child_typerefs, annotations = annotations, docs = docs)
     return newtyperef
@@ -129,9 +129,9 @@ def parse_enum(parser, annotations = [], typereffed_fqn = None):
     parser.ensure_token(TokenType.IDENTIFIER, "enum")
     newtyperef, fqn, docs = parse_newtyperef_preamble(parser, "enum", typereffed_fqn, True)
     type_args = None
-    if parser.next_token_is(TokenType.OPEN_SQUARE):
+    if parser.next_token_is(parser.GENERIC_OPEN_TOKEN):
         type_args = [ensure_typeref(parser)]
-        parser.ensure_token(TokenType.CLOSE_SQUARE)
+        parser.ensure_token(parser.GENERIC_CLOSE_TOKEN)
 
     symbols = parse_enum_body(parser)
     newtyperef.target = tlenums.EnumType(symbols, type_args, annotations = annotations, docs = docs)

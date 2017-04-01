@@ -136,7 +136,7 @@ def parse_projection_target(parser, parent_derivation, field_path):
         derivation = projections.RecordDerivation(new_record_fqn)
         parse_derivation_body(parser, derivation)
         return projections.InlineDerivation(parent_derivation, field_path, derivation = derivation)
-    elif parser.peeked_token_is(TokenType.OPEN_SQUARE):
+    elif parser.peeked_token_is(parser.GENERIC_OPEN_TOKEN):
         return parse_type_stream_decl(parser, parent_derivation, field_path)
 
     return projections.SimpleFieldProjection(parent_derivation, field_path)
@@ -146,13 +146,13 @@ def parse_type_stream_decl(parser, parent_projection, field_path):
     Parses a type stream declaration:
 
 
-        type_stream_decl := "[" arglist "]" "=>" TYPE<IDENTIFIER> "[" derivations "]" 
+        type_stream_decl := "<" arglist ">" "=>" TYPE<IDENTIFIER> "[" derivations "]" 
     """
     # Parse the argument list of what is being streamed
     param_names = []
-    if parser.next_token_is(TokenType.OPEN_SQUARE):
+    if parser.next_token_is(parser.GENERIC_OPEN_TOKEN):
         param_names = parser.read_ident_list(TokenType.COMMA)
-        parser.ensure_token(TokenType.CLOSE_SQUARE)
+        parser.ensure_token(parser.GENERIC_CLOSE_TOKEN)
 
     parser.ensure_token(TokenType.STREAM)
 
@@ -161,10 +161,10 @@ def parse_type_stream_decl(parser, parent_projection, field_path):
     # There MUST be a type constructor
     type_constructor = parser.ensure_fqn()
 
-    parser.ensure_token(TokenType.OPEN_SQUARE)
+    parser.ensure_token(parser.GENERIC_OPEN_TOKEN)
 
     annotations = parse_annotations(parser)
-    while not parser.peeked_token_is(TokenType.CLOSE_SQUARE):
+    while not parser.peeked_token_is(parser.GENERIC_CLOSE_TOKEN):
         if parser.peeked_token_is(TokenType.OPEN_BRACE):
             # Then we have a complete derivation body
             derivation = projections.RecordDerivation(None, annotations = annotations, docs = parser.last_docstring())
@@ -177,5 +177,5 @@ def parse_type_stream_decl(parser, parent_projection, field_path):
         # Consume a comma silently 
         parser.next_token_if(TokenType.COMMA, consume = True)
         annotations = parse_annotations(parser)
-    parser.ensure_token(TokenType.CLOSE_SQUARE)
+    parser.ensure_token(parser.GENERIC_CLOSE_TOKEN)
     return projections.TypeStream(parent_projection, field_path, param_names, type_constructor, children)

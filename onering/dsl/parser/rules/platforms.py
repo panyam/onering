@@ -111,13 +111,13 @@ def parse_platform_type_binding(parser, platform, annotations):
             if not root:
                 root = type_binding
 
-            if parser.next_token_is(TokenType.OPEN_SQUARE):
-                while not parser.peeked_token_is(TokenType.CLOSE_SQUARE):
+            if parser.next_token_is(parser.GENERIC_OPEN_TOKEN):
+                while not parser.peeked_token_is(parser.GENERIC_CLOSE_TOKEN):
                     arg = parse_type_binding_arg(parser, root)
                     type_binding.add_argument(arg)
                     if parser.peeked_token_is(TokenType.COMMA):
                         parser.next_token()
-                parser.ensure_token(TokenType.CLOSE_SQUARE)
+                parser.ensure_token(parser.GENERIC_CLOSE_TOKEN)
             return type_binding
         else:
             raise UnexpectedTokenException(parser.peek_token(),

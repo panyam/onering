@@ -3,6 +3,7 @@ from __future__ import absolute_import
 import ipdb
 from onering import utils
 from onering.dsl.errors import SourceException, UnexpectedTokenException
+from onering.errors import OneringException
 from onering.dsl.lexer import Token, TokenType
 from onering.core import transformers
 from onering.core import exprs as orexprs
@@ -117,11 +118,11 @@ def parse_transformer_rule(parser, transformer):
 
     # An expression must have more than 1 expression
     if len(exprs) <= 1:
-        raise errors.OneringException("A rule statement must have at least one expression")
+        raise OneringException("A rule statement must have at least one expression")
 
     # ensure last var IS a variable expression
     if not isinstance(exprs[-1], orexprs.VariableExpression):
-        raise errors.OneringException("Final target of an expression MUST be a variable")
+        raise OneringException("Final target of an expression MUST be a variable")
 
     parser.consume_tokens(TokenType.SEMI_COLON)
     return orexprs.Statement(transformer, exprs[:-1], exprs[-1], is_temporary)
@@ -174,7 +175,7 @@ def parse_expression(parser):
         if parser.peeked_token_is(TokenType.OPEN_PAREN):
             # function expression, so ensure field path has only one entry
             if source.length > 1:
-                raise errors.OneringException("Fieldpaths cannot be used as functions")
+                raise OneringException("Fieldpaths cannot be used as functions")
 
             # Treat the source as a function name that will be resolved later on
             source = source.get(0)

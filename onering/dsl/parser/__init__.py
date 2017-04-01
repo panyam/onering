@@ -14,6 +14,10 @@ class Parser(TokenStream):
     """
     Parses a Onering compilation unit and extracts all records define in it.
     """
+
+    GENERIC_OPEN_TOKEN = TokenType.LT
+    GENERIC_CLOSE_TOKEN = TokenType.GT
+
     def __init__(self, lexer_or_stream, context):
         """
         Creates a parser.
