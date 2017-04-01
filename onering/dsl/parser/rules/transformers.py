@@ -157,9 +157,9 @@ def parse_expression(parser):
     """
     out = None
     if parser.peeked_token_is(TokenType.NUMBER):
-        out = orexprs.LiteralExpression(parser.next_token())
+        out = orexprs.LiteralExpression(parser.next_token().value)
     elif parser.peeked_token_is(TokenType.STRING):
-        out = orexprs.LiteralExpression(parser.next_token())
+        out = orexprs.LiteralExpression(parser.next_token().value)
     elif parser.peeked_token_is(TokenType.OPEN_SQUARE):
         # Read a list
         out = parse_list_expression(parser)

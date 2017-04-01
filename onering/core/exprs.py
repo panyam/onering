@@ -6,6 +6,7 @@ from onering import errors
 from onering.utils import ResolutionStatus
 from onering.core.utils import FieldPath
 from typelib.annotations import Annotatable
+from typelib import unifier as tlunifier
 
 class VarSource(Enum):
     AUTO        = -2
@@ -91,7 +92,7 @@ class LiteralExpression(Expression):
 
     def check_types(self, context):
         t = type(self.value)
-        if t in (string, unicode):
+        if t in (str, unicode):
             self._evaluated_typeref = context.type_registry.get_typeref("string")
         elif t is int:
             self._evaluated_typeref = context.type_registry.get_typeref("int")
@@ -99,6 +100,13 @@ class LiteralExpression(Expression):
             self._evaluated_typeref = context.type_registry.get_typeref("bool")
         elif t is float:
             self._evaluated_typeref = context.type_registry.get_typeref("float")
+
+    def resolve_bindings_and_types(self, transformer, context):
+        """
+        Processes an expressions and resolves name bindings and creating new local vars 
+        in the process if required.
+        """
+        self.check_types(context)
 
     def __repr__(self):
         return "<Literal - ID: 0x%x, Value: %s>" % (id(self), str(self.value))
@@ -264,7 +272,7 @@ class FunctionCallExpression(Expression):
             for i in xrange(0, len(self.func_args)):
                 arg = self.func_args[i]
                 input_typeref = func_typeref.final_type.arg_at(i).typeref
-                if arg.evaluated_typeref != input_typeref:
+                if not tlunifier.can_substitute(input_typeref.final_type, arg.evaluated_typeref.final_type):
                     raise errors.OneringException("Argument at index %d expected type (%s), found type (%s)" % (i, arg.evaluated_typeref, input_typeref))
 
         if function.output_known:
