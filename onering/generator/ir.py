@@ -15,13 +15,12 @@ class ValueOrVar(object):
             return "<Var (0x%x): %s>" % (id(self), self.entry)
 
     def __str__(self):
+        val = self.entry
         if type(self.entry) is lexer.Token:
             val = self.entry.value
-            if type(val) in (str, unicode):
-                return "\"%s\"" % val
-            return str(val)
-        else:
-            return str(self.entry)
+        if type(val) in (str, unicode):
+            return "\"%s\"" % val
+        return str(val)
 
 class GetFieldInstruction(object):
     """
