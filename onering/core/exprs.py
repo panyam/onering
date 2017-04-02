@@ -250,7 +250,12 @@ class FunctionCallExpression(Expression):
         Processes an expressions and resolves name bindings and creating new local vars 
         in the process if required.
         """
-        function = self.function = context.get_function(self.func_fqn)
+        try:
+            function = self.function = context.get_function(self.func_fqn)
+            transformer.group.add_function_ref(function.fqn)
+        except:
+            raise errors.OneringException("Function '%s' not found" % self.func_fqn)
+
         func_typeref = self.function.typeref
         func_type = function.final_type
 

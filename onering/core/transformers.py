@@ -19,6 +19,7 @@ class TransformerGroup(Annotatable):
         self.fqn = fqn
         self._transformer_names = set()
         self._transformers = []
+        self._function_refs = set()
 
     def __repr__(self):
         return "<TG - ID: 0x%x, FQN: %s>" % (id(self), self.fqn)
@@ -26,6 +27,13 @@ class TransformerGroup(Annotatable):
     @property
     def all_transformers(self):
         return iter(self._transformers)
+
+    @property
+    def function_references(self):
+        return self._function_refs
+
+    def add_function_ref(self, func_fqn):
+        self._function_refs.add(func_fqn)
 
     def add_transformer(self, transformer):
         if transformer.fqn in self._transformer_names:
