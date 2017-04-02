@@ -66,65 +66,6 @@ class OneringContext(dirutils.DirPointer):
             raise errors.OneringException("Duplicate interface found: %s" % interface.fqn)
         self._interfaces[interface.fqn] = interface
 
-    def find_common_ancestor(self, record1, record2):
-        """
-        Finds the common ancestor record for two given records (ie a common ancestor record from which 
-        both record1 and record2 have transitively derived from).  It is possible that one of the records
-        is an ancestor of the other in which case this one is returned.
-        """
-        # Go through derivation1 and get a list of all parents 
-        d1list = list(self.parents_for_type(record1.fqn))
-        d1set = set(d1list)
-
-        path2 = []
-        for index,d2parent_fqn in enumerate(self.parents_for_type(record2.fqn)):
-            if d2parent_fqn in d1set:
-                path1 = d1list[:d1list.index(d2parent_fqn)]
-                path1.reverse() ; path2.reverse()
-                ancestor = self.type_registry.get_typeref(d2parent_fqn)
-                return ancestor, path1, path2
-            else:
-                path2.append(d2parent_fqn)
-        return None, None, None
-
-    def surviving_fields_from_root_to_child(self, ancestor, path_to_child):
-        remaining_fields = dict([(arg.name, [arg]) for arg in ancestor.final_type.args])
-
-        # now as we we go down each derivation for source drop off fields that are 
-        # not present in each derivation (when "negation" is implemented this will be richer)
-        for fqn in path_to_child:
-            curr = self.type_registry.get_typeref(fqn)
-            curr_args = curr.final_type.args
-            args2 = defaultdict(list)
-            for field in curr_args:
-                if field.projection is not None and field.projection.field_path_resolution.child_key in remaining_fields:
-                    args2[field.projection.field_path_resolution.child_key].append(field)
-
-            # Swap out remaining fields as it may have extraneous fields - also this way "new" fields wont make it through
-            remaining_fields = args2
-
-        return remaining_fields 
-
-    def parents_for_type(self, record_fqn):
-        """
-        Iterates and generates the parents of a given record (including itself)
-        """
-        while record_fqn:
-            yield record_fqn
-            record_fqn = self.derived_from_type(record_fqn)
-            if record_fqn:
-                record_fqn = record_fqn.fqn
-
-    def derived_from_type(self, record_fqn):
-        """
-        Given a fqn of a record, returns the record from this record could have been derived from (if any)
-        """
-        if record_fqn:
-            deriv = self.get_derivation(record_fqn)
-            if not deriv or not deriv.has_sources:
-                return None
-            return self.type_registry.get_typeref(deriv.source_fqn_at(0))
-
     def derivations_for_wildcards(self, wildcards):
         """
         Return all derivations that match any of the given wildcards.
@@ -195,3 +136,92 @@ class OneringContext(dirutils.DirPointer):
         if function.fqn in self._functions:
             raise errors.OneringException("Duplicate function found: %s" % function.fqn)
         self._functions[function.fqn] = function
+
+
+
+
+    def find_common_ancestor(self, record1, record2):
+        """
+        Finds the common ancestor record for two given records (ie a common ancestor record from which 
+        both record1 and record2 have transitively derived from).  It is possible that one of the records
+        is an ancestor of the other in which case this one is returned.
+        """
+        # Go through derivation1 and get a list of all parents 
+        d1list = list(self.parents_for_type(record1.fqn))
+        d1set = set(d1list)
+
+        path2 = []
+        for index,d2parent_fqn in enumerate(self.parents_for_type(record2.fqn)):
+            if d2parent_fqn in d1set:
+                path1 = d1list[:d1list.index(d2parent_fqn)]
+                path1.reverse() ; path2.reverse()
+                ancestor = self.type_registry.get_typeref(d2parent_fqn)
+                return ancestor, path1, path2
+            else:
+                path2.append(d2parent_fqn)
+        return None, None, None
+
+    def surviving_fields_from_root_to_child(self, ancestor, path_to_child):
+        remaining_fields = dict([(arg.name, [arg]) for arg in ancestor.final_type.args])
+
+        # now as we we go down each derivation for source drop off fields that are 
+        # not present in each derivation (when "negation" is implemented this will be richer)
+        for fqn in path_to_child:
+            curr = self.type_registry.get_typeref(fqn)
+            curr_args = curr.final_type.args
+            args2 = defaultdict(list)
+            for field in curr_args:
+                if field.projection is not None and field.projection.field_path_resolution.child_key in remaining_fields:
+                    args2[field.projection.field_path_resolution.child_key].append(field)
+
+            # Swap out remaining fields as it may have extraneous fields - also this way "new" fields wont make it through
+            remaining_fields = args2
+
+        return remaining_fields 
+
+    def parents_for_type(self, record_fqn):
+        """
+        Iterates and generates the parents of a given record (including itself)
+        """
+        while record_fqn:
+            yield record_fqn
+            record_fqn = self.derived_from_type(record_fqn)
+            if record_fqn:
+                record_fqn = record_fqn.fqn
+
+    def derived_from_type(self, record_fqn):
+        """
+        Given a fqn of a record, returns the record from this record could have been derived from (if any)
+        """
+        if record_fqn:
+            deriv = self.get_derivation(record_fqn)
+            if not deriv or not deriv.has_sources:
+                return None
+            return self.type_registry.get_typeref(deriv.source_fqn_at(0))
+
+    def get_transformer_chain(self, source_typeref, target_typeref):
+        """
+        Given two types, finds the shortest set of transformers that can
+        result in type1 -> ... -> type2
+        """
+        source_type = self.get_final_type(source_typeref)
+        target_type = self.get_final_type(target_typeref)
+
+        # TODO - Do the BFS to get the shortest Transformer list from source to target type
+        parents = defaultdict(lambda x: None)
+
+        queue = [source_type]
+
+        return []
+
+    def get_final_type(self, typeref_or_fqn):
+        """
+        Gets the final Type object for a particular typeref or a FQN key.
+        """
+        fqn = typeref_or_fqn
+        if type(typeref_or_fqn) not in (str, unicode):
+            fqn = typeref_or_fqn.final_type.fqn
+        typeref = self.type_registry.get_typeref(fqn)
+        if not typeref:
+            raise errors.OneringException("Invalid type: %s" % fqn)
+        return typeref.final_type
