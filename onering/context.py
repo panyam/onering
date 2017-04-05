@@ -1,18 +1,20 @@
 
 from __future__ import absolute_import
 import ipdb
-from collections import defaultdict
+from collections import defaultdict, deque
 import fnmatch
 from typelib import registry 
 from onering import resolver
 from onering import errors
 from onering import dirutils
+from onering.core import tgraph
 
 class OneringContext(dirutils.DirPointer):
     def __init__(self):
         dirutils.DirPointer.__init__(self)
         self.type_registry = registry.TypeRegistry()
         self.entity_resolver = resolver.EntityResolver("pdsc")
+        self.tgraph = tgraph.TransformerGraph(self)
         self._derivations = {}
         self._functions = {}
         self._platforms = {}
@@ -198,21 +200,6 @@ class OneringContext(dirutils.DirPointer):
             if not deriv or not deriv.has_sources:
                 return None
             return self.type_registry.get_typeref(deriv.source_fqn_at(0))
-
-    def get_transformer_chain(self, source_typeref, target_typeref):
-        """
-        Given two types, finds the shortest set of transformers that can
-        result in type1 -> ... -> type2
-        """
-        source_type = self.get_final_type(source_typeref)
-        target_type = self.get_final_type(target_typeref)
-
-        # TODO - Do the BFS to get the shortest Transformer list from source to target type
-        parents = defaultdict(lambda x: None)
-
-        queue = [source_type]
-
-        return []
 
     def get_final_type(self, typeref_or_fqn):
         """

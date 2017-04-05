@@ -42,8 +42,9 @@ class TransformerGroup(Annotatable):
         self._transformers.append(transformer)
 
     def resolve(self, context):
-        """
-        Kicks of resolutions of all dependencies.  This must only be called after all derivations that produce records
+        """Kicks of resolutions of all dependencies.
+        
+        This must only be called after all derivations that produce records
         have been resolved otherwise those records that are only derived will not be visible in the type_registry.
         """
         for transformer in self._transformers:
