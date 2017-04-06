@@ -34,7 +34,7 @@
 {% endmacro %}
 
 {% macro render_getfield_instruction(instruction) %}
-    {{instruction.target_register.label}} = {{instruction.source_register.label}}.get{{camel_case(instruction.field_key)}}();
+    {{instruction.target_register.label}} = {{instruction.source_register.label}}.{{instruction.field_key}};
 {% endmacro %}
 
 {% macro render_copyvar_instruction(instruction) -%}
@@ -42,7 +42,7 @@
 {%- endmacro %}
 
 {% macro render_setfield_instruction(instr) -%}
-{{instr.target_register.label}}.set{{camel_case(instr.field_key)}}({{instr.source_register.label}});
+{{instr.target_register.label}}.{{instr.field_key}} = {{instr.source_register.label}};
 {%- endmacro %}
 
 {% macro render_funccall_instruction(funcinst) -%}
@@ -50,7 +50,7 @@
 {%- endmacro %}
 
 {% macro render_contains_instruction(instruction) -%}
-{{instruction.source_register.label}}.has{{camel_case(instruction.field_name)}}()
+{{instruction.source_register.label}}.has{{camel_case(instruction.field_name)}}
 {%- endmacro %}
 
 {% macro render_new_instruction(instruction) -%}
