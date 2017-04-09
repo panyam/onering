@@ -1,7 +1,7 @@
 
 from __future__ import absolute_import
 import ipdb
-from collections import defaultdict, deque
+from collections import defaultdict
 import fnmatch
 from typelib import registry 
 from onering import resolver
@@ -206,6 +206,8 @@ class OneringContext(dirutils.DirPointer):
         Gets the final Type object for a particular typeref or a FQN key.
         """
         fqn = typeref_or_fqn
+        if not typeref_or_fqn:
+            ipdb.set_trace()
         if type(typeref_or_fqn) not in (str, unicode):
             fqn = typeref_or_fqn.final_type.fqn
         typeref = self.type_registry.get_typeref(fqn)

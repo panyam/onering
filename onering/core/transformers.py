@@ -1,13 +1,15 @@
 
 from __future__ import absolute_import
 import ipdb
+from itertools import izip
 from enum import Enum
+from typelib.annotations import Annotatable
+from typelib import unifier as tlunifier
 from onering import errors
 from onering.utils import ResolutionStatus
 from onering.core.utils import FieldPath
 from onering.core import exprs as orexprs
 from onering.core.projections import SimpleFieldProjection
-from typelib.annotations import Annotatable
 
 class TransformerGroup(Annotatable):
     """
@@ -83,6 +85,19 @@ class Transformer(Annotatable):
         if yield_locals:
             for vname, vtype in self.temp_variables.iteritems():
                 yield vname, vtype, orexprs.VarSource.LOCAL
+
+    def matches_input(self, context, input_types):
+        """Tells if the input types can be accepted as argument for this transformer."""
+        if type(input_types) is not list:
+            input_types = [input_types]
+        if len(input_types) != len(self.src_fqns):
+            return False
+        source_types = map(context.get_final_type, self.src_fqns)
+        return all(tlunifier.can_substitute(st, it) for (st,it) in izip(source_types, input_types))
+
+    def matches_output(self, context, output_type):
+        dest_type = context.get_final_type(self.dest_fqn)
+        return tlunifier.can_substitute(output_type, dest_type)
 
     def is_temp_variable(self, varname):
         return varname in self.temp_variables

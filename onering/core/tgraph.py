@@ -1,6 +1,7 @@
 
 import ipdb
-from collections import defaultdict
+from collections import defaultdict, deque
+from typelib import unifier as tlunifier
 
 class TransformerGraph(object):
     def __init__(self, context):
@@ -26,25 +27,25 @@ class TransformerGraph(object):
         source_types = map(context.get_final_type, source_typerefs)
         target_type = context.get_final_type(target_typeref)
 
-        queue = []
-        # TODO - Need a better way than this!
-        for tg in context.all_transformer_groups:
-            for transformer in tg.all_transformers:
-                return [transformer]
+        queue = deque([])
+        queue.append((source_types, []))
+        visited = set()
 
-        # TODO - Do the BFS to get the shortest Transformer list from source to target type
-        parents = defaultdict(lambda x: None)
-
-        # We need for each transformer that is encountered, an entry in our map
-        # to find this.  The key would be "signature -> transformer fqn list"
-        # signature would be: input1,input2,input3:output where each type is
-        # referred by its signature.  Signature should be unique for a type
-        # regardless of its "name" or name of arguments.  The constructor
-        # ofcourse can make a difference.
-        queue = deque([(source_type.fqn, None)])
-        ipdb.set_trace()
         while queue:
-            next_type_fqn, parent_type_fqn = queue.popleft()
-            parents[next_type.fqn] = parent_type.fqn
+            source_types, sofar = queue.popleft()
 
-        return []
+            # Find all transformers that start with the given source_types
+            for tg in context.all_transformer_groups:
+                for transformer in tg.all_transformers:
+                    # See if any of the transformers can accept this set of
+                    # source types
+                    if transformer.matches_input(context, source_types):
+                        # see if this transformer's output matches the target type
+                        # if so we have a match
+                        if transformer.matches_output(context, target_type):
+                            return sofar + [transformer]
+                        elif transformer not in visited:
+                            visited.add(transformer)
+                            trans_source_types = map(context.get_final_type, transformer.src_fqns)
+                            queue.append((trans_source_types, sofar + [transformer]))
+        return None
