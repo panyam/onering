@@ -4,6 +4,7 @@ import ipdb
 from collections import defaultdict
 import fnmatch
 from typelib import registry 
+from typelib import core as tlcore
 from onering import resolver
 from onering import errors
 from onering import dirutils
@@ -200,17 +201,3 @@ class OneringContext(dirutils.DirPointer):
             if not deriv or not deriv.has_sources:
                 return None
             return self.type_registry.get_typeref(deriv.source_fqn_at(0))
-
-    def get_final_type(self, typeref_or_fqn):
-        """
-        Gets the final Type object for a particular typeref or a FQN key.
-        """
-        fqn = typeref_or_fqn
-        if not typeref_or_fqn:
-            ipdb.set_trace()
-        if type(typeref_or_fqn) not in (str, unicode):
-            fqn = typeref_or_fqn.final_type.fqn
-        typeref = self.type_registry.get_typeref(fqn)
-        if not typeref:
-            raise errors.OneringException("Invalid type: %s" % fqn)
-        return typeref.final_type

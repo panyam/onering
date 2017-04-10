@@ -10,8 +10,8 @@ class TransformerGraph(object):
 
     def register_transformer_edge(self, input_types_or_refs, output_type_or_ref):
         context = self.context
-        insigs = [context.get_final_type(i).signature for i in input_types_or_refs]
-        outsig = context.get_final_type(output_type_or_ref).signature
+        insigs = [context.type_registry.get_final_type(i).signature for i in input_types_or_refs]
+        outsig = context.type_registry.get_final_type(output_type_or_ref).signature
         ipdb.set_trace()
 
     def get_transformer_chain(self, source_typerefs, target_typeref):
@@ -24,8 +24,8 @@ class TransformerGraph(object):
         context = self.context
         if type(source_typerefs) is not list:
             source_typerefs = [source_typerefs]
-        source_types = map(context.get_final_type, source_typerefs)
-        target_type = context.get_final_type(target_typeref)
+        source_types = map(context.type_registry.get_final_type, source_typerefs)
+        target_type = context.type_registry.get_final_type(target_typeref)
 
         queue = deque([])
         queue.append((source_types, []))
@@ -46,6 +46,6 @@ class TransformerGraph(object):
                             return sofar + [transformer]
                         elif transformer not in visited:
                             visited.add(transformer)
-                            trans_source_types = map(context.get_final_type, transformer.src_fqns)
+                            trans_source_types = map(context.type_registry.get_final_type, transformer.src_fqns)
                             queue.append((trans_source_types, sofar + [transformer]))
-        return None
+        return []

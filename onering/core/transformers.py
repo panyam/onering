@@ -92,11 +92,11 @@ class Transformer(Annotatable):
             input_types = [input_types]
         if len(input_types) != len(self.src_fqns):
             return False
-        source_types = map(context.get_final_type, self.src_fqns)
+        source_types = map(context.type_registry.get_final_type, self.src_fqns)
         return all(tlunifier.can_substitute(st, it) for (st,it) in izip(source_types, input_types))
 
     def matches_output(self, context, output_type):
-        dest_type = context.get_final_type(self.dest_fqn)
+        dest_type = context.type_registry.get_final_type(self.dest_fqn)
         return tlunifier.can_substitute(output_type, dest_type)
 
     def is_temp_variable(self, varname):
