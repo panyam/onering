@@ -13,7 +13,7 @@ from typelib import core as tlcore
 from typelib import errors as tlerrors
 
 from onering import utils as orutils
-from onering import dirutils
+from onering.utils import dirutils
 from onering import resolver
 from onering import context as orcontext
 from onering import errors as orerrors

@@ -3,9 +3,9 @@ from __future__ import absolute_import
 
 import ipdb
 from typelib import records
+from typelib.utils import FQN
 from typelib import core as tlcore
 from typelib import enums as tlenums
-from onering import utils
 from onering.dsl.lexer import Token, TokenType
 from onering.dsl.parser.rules.annotations import parse_annotations
 from onering.dsl.errors import UnexpectedTokenException
@@ -14,7 +14,7 @@ from onering.dsl.errors import UnexpectedTokenException
 ##          Type declaration parsing rules
 ########################################################################
 
-def parse_entity(parser, typereffed_fqn = None):
+def parse_entity(parser):
     """
     Parses top level type declarations:
 
@@ -24,9 +24,9 @@ def parse_entity(parser, typereffed_fqn = None):
     entity_class = parser.ensure_token(TokenType.IDENTIFIER, peek = True)
     entity_parser = parser.get_entity_parser(entity_class)
     if entity_parser:
-        return entity_parser(parser, annotations = annotations, typereffed_fqn = typereffed_fqn)
+        return entity_parser(parser, annotations = annotations)
     else:
-        return parse_parametric_type(parser, annotations = annotations, typereffed_fqn = typereffed_fqn)
+        return parse_parametric_type(parser, annotations = annotations)
 
 def parse_typeref_decl(parser, annotations, **kwargs):
     """
@@ -37,22 +37,22 @@ def parse_typeref_decl(parser, annotations, **kwargs):
     docstring = parser.last_docstring()
     parser.ensure_token(TokenType.IDENTIFIER, "typeref")
     name = parser.ensure_token(TokenType.IDENTIFIER)
-    fqn = utils.FQN(name, parser.namespace).fqn
-
     parser.ensure_token(TokenType.EQUALS)
-    target_typeref = ensure_typeref(parser)
-    parser.register_type(fqn, target_typeref)
-    return fqn
 
-def ensure_typeref(parser, annotations = [], typereffed_fqn = None):
-    out = parse_entity(parser, typereffed_fqn)
+    # create the typeref
+    newtyperef = tlcore.EntityRef(None, name, parser.current_module)
+    newtyperef.target = ensure_typeref(parser)
+    return newtyperef
+
+def ensure_typeref(parser, annotations = None):
+    out = parse_entity(parser)
     if out:
-        assert type(out) is tlcore.TypeRef
+        assert type(out) is tlcore.EntityRef
     else:
         out = parse_named_typeref(parser, annotations)
     return out
 
-def parse_parametric_type(parser, annotations, typereffed_fqn = None):
+def parse_parametric_type(parser, annotations):
     """
     Parses a parametric type:
 
@@ -63,13 +63,13 @@ def parse_parametric_type(parser, annotations, typereffed_fqn = None):
 
     # TODO - Check that next_token is actually not referring to a "primitive" type
     if parser.peeked_token_is(parser.GENERIC_OPEN_TOKEN):
-        return parse_parametric_type_body(parser, constructor = next_token.value, annotations = annotations, typereffed_fqn = typereffed_fqn)
+        return parse_parametric_type_body(parser, constructor = next_token.value, annotations = annotations)
     elif parser.peeked_token_is(TokenType.IDENTIFIER):
         name_token = parser.next_token()
         if parser.peeked_token_is(parser.GENERIC_OPEN_TOKEN):
             # push token back so it can be used by the rule
             parser.unget_token(name_token)
-            return parse_parametric_type_body(parser, constructor = next_token.value, annotations = annotations, typereffed_fqn = typereffed_fqn)
+            return parse_parametric_type_body(parser, constructor = next_token.value, annotations = annotations)
         else:
             # push token back anyway as rule doesnt match
             parser.unget_token(name_token)
@@ -77,8 +77,8 @@ def parse_parametric_type(parser, annotations, typereffed_fqn = None):
     parser.unget_token(next_token)
     return None
 
-def parse_parametric_type_body(parser, constructor, annotations = [], typereffed_fqn = None):
-    newtyperef, fqn, docs = parse_newtyperef_preamble(parser, constructor, typereffed_fqn)
+def parse_parametric_type_body(parser, constructor, annotations = None):
+    newtyperef, docs = parse_newtyperef_preamble(parser, constructor)
 
     parser.ensure_token(parser.GENERIC_OPEN_TOKEN)
     child_typerefs = [ ensure_typeref(parser) ]
@@ -88,46 +88,47 @@ def parse_parametric_type_body(parser, constructor, annotations = [], typereffed
         child_typerefs.append(ensure_typeref(parser))
     parser.ensure_token(parser.GENERIC_CLOSE_TOKEN)
 
-    newtyperef.target = tlcore.Type(None, constructor, type_params = None, type_args = child_typerefs, annotations = annotations, docs = docs)
+    parent = None
+    if newtyperef.name:
+        parent = parser.current_module
+    newtyperef.target = tlcore.Type(newtyperef.name, parent, constructor,
+                                    type_params = None, type_args = child_typerefs, annotations = annotations, docs = docs)
     return newtyperef
 
-def parse_named_typeref(parser, annotations = [], typereffed_fqn = None):
+def parse_named_typeref(parser, annotations = None):
     parser.ensure_token(TokenType.IDENTIFIER, peek = True)
     fqn = parser.ensure_fqn()
     # if this type exists in the type registry use this type
     # otherwise register as an unresolved type and proceed
     return parser.get_typeref(fqn)
 
-def parse_newtyperef_preamble(parser, constructor, typereffed_fqn, force_fqn_if_missing = False):
-    fqn = typereffed_fqn
-    if parser.peeked_token_is(TokenType.IDENTIFIER) or (fqn is None and force_fqn_if_missing):
-        # we have a name
-        n = parser.ensure_token(TokenType.IDENTIFIER)
-        ns = parser.namespace
-        fqn = utils.FQN(n, ns).fqn
+def parse_newtyperef_preamble(parser, constructor, name_required = False):
+    name = None
+    if name_required:
+        name = parser.ensure_token(TokenType.IDENTIFIER)
 
-    if fqn:
-        print "Registering new %s: '%s'" % (constructor, fqn)
-        newtyperef = parser.register_type(fqn, None)
+    if name:
+        print "Registering new %s: '%s'" % (constructor, name)
+        newtyperef = parser.current_module.ensure_key(name)
     else:
-        newtyperef = tlcore.TypeRef(None, None)
+        newtyperef = tlcore.EntityRef(None, None, None)
 
     assert newtyperef is not None, "A type was NOT parsed"
     docs = parser.last_docstring()
-    return newtyperef, fqn, docs
+    return newtyperef, docs
 
 ########################################################################
 ##          Enum and Union parsing
 ########################################################################
 
-def parse_enum(parser, annotations = [], typereffed_fqn = None):
+def parse_enum(parser, annotations = None):
     """
     Parses an enum declaration of the form:
 
         enum ( "[" type "]" ) ? enum_body
     """
     parser.ensure_token(TokenType.IDENTIFIER, "enum")
-    newtyperef, fqn, docs = parse_newtyperef_preamble(parser, "enum", typereffed_fqn, True)
+    newtyperef, fqn, docs = parse_newtyperef_preamble(parser, "enum", True)
     type_args = None
     if parser.next_token_is(parser.GENERIC_OPEN_TOKEN):
         type_args = [ensure_typeref(parser)]
@@ -176,12 +177,11 @@ def parse_union_body(parser):
 ##          Record and Field parsing
 ########################################################################
 
-def parse_record(parser, annotations = [], typereffed_fqn = None):
+def parse_record(parser, annotations = None):
     parser.ensure_token(TokenType.IDENTIFIER, "record")
-    newtyperef, fqn, docs = parse_newtyperef_preamble(parser, "record", typereffed_fqn, True)
+    newtyperef, docs = parse_newtyperef_preamble(parser, "record", True)
     fields = parse_record_body(parser)
-    rec_fqn = utils.FQN(fqn, parser.namespace).fqn
-    newtyperef.target = records.RecordType(fields, annotations = annotations, docs = docs, fqn = rec_fqn)
+    newtyperef.target = records.RecordType(newtyperef.name, None, fields, annotations = annotations, docs = docs)
     return newtyperef
 
 def parse_record_body(parser):

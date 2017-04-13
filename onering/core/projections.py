@@ -5,19 +5,20 @@ import ipdb
 from onering import errors
 from typelib import errors as tlerrors
 from typelib import core as tlcore
+from typelib.core import Entity
 from typelib.annotations import Annotatable
 from typelib import records
-from onering.utils import FQN, ResolutionStatus
+from onering.utils.misc import FQN, ResolutionStatus
 from onering.core.utils import FieldPath
 
-class Projection(Annotatable):
+class Projection(Entity):
     """
     Projection is anything that results in the creation of a type.
     This could be named like a field or a named derived type (like a record, union, enum)
     or an unnamed type like the argument to a type constructor (eg key type of a map)
     """
-    def __init__(self, annotations = None, docs = ""):
-        Annotatable.__init__(self, annotations, docs)
+    def __init__(self, container = None, annotations = None, docs = ""):
+        Entity.__init__(self, None, container, annotations, docs)
         self.resolution = ResolutionStatus()
 
     def resolve(self, type_registry, resolver):
@@ -37,12 +38,13 @@ class RecordDerivation(Projection):
     Upon resolution, the derivation will have a valid "resolved_recordref" property
     that will be of type Record.
     """
-    def __init__(self, fqn, annotations = None, docs = ""):
+    def __init__(self, name, container, annotations = None, docs = ""):
         """Creates a new Record derivation.
         Arguments:
             fqn     Fully qualified name of the record.  Records should have names unless they are inline derivations where names will be derived.
         """
-        super(RecordDerivation, self).__init__(annotations, docs)
+        Projection.__init__(self, container, annotations, docs)
+        self.name = name
         self._source_aliases = set()
         self._source_fqns_by_alias = {}
         self._source_fqns = []
@@ -189,7 +191,7 @@ class FieldProjection(Projection):
     A projection that simply takes a source field and returns it as is with a possibly new type.
     """
     def __init__(self, parent_derivation, source_field_path, annotations = None, docs = ""):
-        super(FieldProjection, self).__init__(annotations, docs)
+        Project.__init__(self, parent_derivation, annotations, docs)
 
         # Every field projection needs a source field path that it derives from
         self._source_field_path = source_field_path

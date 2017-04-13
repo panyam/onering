@@ -2,7 +2,7 @@
 from __future__ import absolute_import 
 
 import ipdb
-from onering import utils
+from typelib.utils import FQN
 from onering.dsl.lexer import Token, TokenType
 from onering.core import projections
 
@@ -21,13 +21,13 @@ def parse_derivation(parser, annotations = [], **kwargs):
     """
     parser.ensure_token(TokenType.IDENTIFIER, "derive")
 
-    fqn = utils.FQN(parser.ensure_token(TokenType.IDENTIFIER), parser.namespace).fqn
-    print "Parsing new derivation: '%s'" % fqn
+    name = parser.ensure_token(TokenType.IDENTIFIER)
+    print "Parsing new derivation: '%s'" % name
 
-    derivation = projections.RecordDerivation(fqn, annotations = annotations, docs = parser.last_docstring())
+    derivation = projections.RecordDerivation(name, parser.current_module, annotations = annotations, docs = parser.last_docstring())
     parse_derivation_header(parser, derivation)
     parse_derivation_body(parser, derivation)
-    parser.register_derivation(derivation)
+    parser.current_module.add_entity(derivation)
     return derivation
 
 
@@ -131,7 +131,7 @@ def parse_projection_target(parser, parent_derivation, field_path):
         if parser.peeked_token_is(TokenType.IDENTIFIER):
             n = parser.next_token().value
             ns = parser.namespace
-            new_record_fqn = utils.FQN(n, ns).fqn
+            new_record_fqn = FQN(n, ns).fqn
 
         derivation = projections.RecordDerivation(new_record_fqn)
         parse_derivation_body(parser, derivation)

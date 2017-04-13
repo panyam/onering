@@ -5,7 +5,7 @@ import fnmatch
 import os, sys, ipdb
 from onering import dsl
 from onering import resolver
-from onering import utils as orutils
+from onering.utils.misc import collect_files
 from onering.actions.base import ActionGroup
 
 class LoaderActions(ActionGroup):
@@ -88,7 +88,7 @@ class LoaderActions(ActionGroup):
                 dirname = os.path.dirname(abspath)
                 if context.isdir(dirname):
                     base_wildcard = os.path.basename(abspath) or "*.onering"
-                    for f in orutils.collect_files(dirname):
+                    for f in collect_files(dirname):
                         if fnmatch.fnmatch(f, base_wildcard):
                             schema_paths.append(f)
                 else:
@@ -97,7 +97,7 @@ class LoaderActions(ActionGroup):
         found_entities = defaultdict(set)
         for path in schema_paths:
             parser = dsl.parser.Parser(open(path), context)
-            parser.parse()
-            for etype,eset in parser.found_entities.iteritems():
-                found_entities[etype] |= eset
+            module = parser.parse()
+            # for etype,eset in parser.found_entities.iteritems():
+                # found_entities[etype] |= eset
         return found_entities

@@ -5,7 +5,7 @@ import json
 import shlex
 import ipdb
 from onering.console import runner, dirs, pegasus, courier, orc, platform
-from onering.utils import split_list_at, parse_line_dict
+from onering.utils.misc import split_list_at, parse_line_dict
 from onering.console.utils import logerror
 from onering.generator import utils as orgenutils
 

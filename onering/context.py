@@ -7,20 +7,23 @@ from typelib import registry
 from typelib import core as tlcore
 from onering import resolver
 from onering import errors
-from onering import dirutils
+from onering.utils import dirutils
 from onering.core import tgraph
+from onering.entities.modules import Module
 
 class OneringContext(dirutils.DirPointer):
     def __init__(self):
         dirutils.DirPointer.__init__(self)
         self.type_registry = registry.TypeRegistry()
         self.entity_resolver = resolver.EntityResolver("pdsc")
+        self.global_module = Module(None, None)
         self.tgraph = tgraph.TransformerGraph(self)
         self._derivations = {}
         self._functions = {}
         self._platforms = {}
         self._transformer_groups = {}
         self._interfaces = {}
+        self.register_default_types()
 
         self.output_dir = "./gen"
         self.platform_aliases = {
@@ -31,6 +34,28 @@ class OneringContext(dirutils.DirPointer):
 
         from onering.templates import loader as tplloader
         self.template_loader = tplloader.TemplateLoader(self.template_dirs)
+
+    def register_default_types(self):
+        # register references to default types.
+        tlcore.EntityRef(tlcore.AnyType, "any", self.global_module)
+        tlcore.EntityRef(tlcore.BooleanType, "boolean", self.global_module)
+        tlcore.EntityRef(tlcore.ByteType, "byte", self.global_module)
+        tlcore.EntityRef(tlcore.IntType, "int", self.global_module)
+        tlcore.EntityRef(tlcore.LongType, "long", self.global_module)
+        tlcore.EntityRef(tlcore.FloatType, "float", self.global_module)
+        tlcore.EntityRef(tlcore.DoubleType, "double", self.global_module)
+        tlcore.EntityRef(tlcore.StringType, "string", self.global_module)
+
+    def ensure_module(self, fqn):
+        """ Ensures that a given module hierarchy exists. """
+        curr = self.global_module
+        parts = fqn.split(".")
+        for part in parts:
+            if not curr.has_entity(part):
+                child = Module(part, curr)
+                curr.add_entity(child)
+                curr = child
+        return curr
 
     def get_derivation(self, fqn):
         return self._derivations.get(fqn, None)
