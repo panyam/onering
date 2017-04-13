@@ -3,7 +3,7 @@ from __future__ import absolute_import
 import ipdb
 from enum import Enum
 from onering import errors
-from onering.utils import ResolutionStatus, FQN
+from onering.utils.misc import ResolutionStatus, FQN
 from onering.core.utils import FieldPath
 from onering.core import exprs as orexprs
 from onering.core.projections import SimpleFieldProjection

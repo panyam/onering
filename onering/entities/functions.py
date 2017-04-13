@@ -1,18 +1,18 @@
 
 from typelib.annotations import Annotatable
 
-class Function(Annotatable):
+class Function(Entity):
     """
     Defines a function binding along with the mappings to each of the 
     specific backends.
     """
-    def __init__(self, fqn, typeref,
+    def __init__(self, name, container,
+                 typeref,
                  inputs_need_inference,
                  output_needs_inference,
                  annotations = None,
                  docs = ""):
-        Annotatable.__init__(self, annotations, docs)
-        self.fqn = fqn
+        Entity.__init__(self, name, container, annotations, docs)
         self.inputs_need_inference = inputs_need_inference
         self.output_needs_inference = output_needs_inference
         self.inputs_known = not inputs_need_inference

@@ -6,7 +6,7 @@ from enum import Enum
 from typelib.annotations import Annotatable
 from typelib import unifier as tlunifier
 from onering import errors
-from onering.utils import ResolutionStatus
+from onering.utils.misc import ResolutionStatus
 from onering.core.utils import FieldPath
 from onering.core import exprs as orexprs
 from onering.core.projections import SimpleFieldProjection

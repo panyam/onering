@@ -5,7 +5,6 @@ from typelib import core as tlcore
 from typelib import functions as tlfunctions
 from onering import utils
 from onering.dsl.parser.rules.types import ensure_typeref
-from onering.core import functions, platforms
 from onering.dsl.errors import SourceException, UnexpectedTokenException
 from onering.dsl.lexer import Token, TokenType
 from onering.dsl.parser.rules.annotations import parse_annotations
@@ -14,7 +13,7 @@ from onering.dsl.parser.rules.annotations import parse_annotations
 ##          Function parsing rules
 ########################################################################
 
-def parse_function(parser, annotations):
+def parse_function(parser, annotations, **kwargs):
     """Parses a function declaration.
 
     function    :=  "fun" name<IDENT>   input_params ? ( ":" output_type )
@@ -24,7 +23,8 @@ def parse_function(parser, annotations):
 
     func_name = parser.ensure_token(TokenType.IDENTIFIER)
     input_types, output_typeref = parse_function_signature(parser)
-    return tlfunctions.FunctionType(input_types, output_typeref, annotations, docs, func_name)
+    parent = parser.current_module if func_name else None
+    return tlfunctions.FunctionType(func_name, parent, input_types, output_typeref, annotations, docs)
 
 def parse_function_signature(parser, require_param_name = True):
     """Parses the type signature declaration in a function declaration:

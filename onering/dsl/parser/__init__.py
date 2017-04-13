@@ -4,11 +4,10 @@ from __future__ import absolute_import
 import ipdb
 from onering.dsl.parser.tokstream import TokenStream
 from onering.dsl.errors import SourceException, UnexpectedTokenException
-from typelib import utils as tlutils
+from onering.entities.modules import Module
+from typelib.utils import FQN
 from onering.dsl.lexer import Token, TokenType
 from onering import errors
-
-from onering.dsl.parser.rules.misc import parse_namespace, parse_declaration
 
 class Parser(TokenStream):
     """
@@ -32,13 +31,10 @@ class Parser(TokenStream):
         if type(lexer_or_stream) is not lexer.Lexer:
             lexer_or_stream = lexer.Lexer(lexer_or_stream, source_uri = None)
         super(Parser, self).__init__(lexer_or_stream)
-        self.found_entities = {
-            "types": set(),
-            "derivations": set(),
-            "tgroups": set(),
-            "interfaces": set()
-        }
-        self.namespace = None
+
+        # The root module corresponds to the top level entity and has no name really
+        self.root_module = None
+        self.current_module = None
         self.imports = []
         self._entity_parsers = {}
         self._last_docstring = ""
@@ -62,11 +58,17 @@ class Parser(TokenStream):
         from onering.dsl.parser.rules.derivations import parse_derivation
         self.register_entity_parser("derive", parse_derivation)
 
-        from onering.dsl.parser.rules.platforms import parse_platform
-        self.register_entity_parser("platform", parse_platform)
+        from onering.dsl.parser.rules.modules import parse_module
+        self.register_entity_parser("module", parse_module)
 
-        from onering.dsl.parser.rules.transformers import parse_transformer_group
-        self.register_entity_parser("transformers", parse_transformer_group)
+        from onering.dsl.parser.rules.functions import parse_function
+        self.register_entity_parser("fun", parse_function)
+
+        # from onering.dsl.parser.rules.platforms import parse_platform
+        # self.register_entity_parser("platform", parse_platform)
+
+        # from onering.dsl.parser.rules.transformers import parse_transformer_group
+        # self.register_entity_parser("transformers", parse_transformer_group)
 
     def get_entity_parser(self, entity_class):
         return self._entity_parsers.get(entity_class, None)
@@ -76,48 +78,29 @@ class Parser(TokenStream):
             raise Exception("Keyword '%s' is a reserved keyword" % keyword)
         self._entity_parsers[keyword] = parser
 
+    def get_entity(self, key):
+        """ Resolve an entity by key. 
+
+        If the key is a fully qualified name then lookup starts from the context's root
+        otherwise if it is not then first the current module is looked up and THEN
+        from the context's root.  Other lookup strategies can be explored later on.
+        """
+        parts = key.split(".")
+        entity = self.current_module.resolve_key_parts(parts)
+        if not entity:
+            entity = self.onering_context.global_module.resolve_key_parts(parts)
+        return entity
+
     def get_typeref(self, fqn):
         """
         Get's the reference to a type type corresponding to the given fqn 
         if it exists otherwise returns an unresolved type as a place holder 
         until it can be resolved.
         """
-        tref = self.onering_context.type_registry.get_typeref(fqn, nothrow = True)
-        if not tref:
-            # TODO: if the fqn is actually NOT fully qualified, then
-            # see if this matches any of the ones in the import decls
-
-            fqn = self.normalize_fqn(fqn)
-            tref = self.onering_context.type_registry.get_typeref(fqn, nothrow = True)
-
-            if not tref:
-                # Try with the namespace as well
-                fqn = tlutils.FQN(fqn, self.namespace, ensure_namespaces_are_equal=False).fqn
-                tref = self.onering_context.type_registry.get_typeref(fqn, nothrow = True)
-                if not tref:
-                    tref = self.onering_context.type_registry.register_type(fqn, None)
-        return tref
-
-    def register_type(self, name, newtype):
-        """Helper to do some book keeping when registering a new type."""
-        self.found_entities["types"].add(name)
-        return self.onering_context.type_registry.register_type(name, newtype, overwrite = True)
-
-    def register_derivation(self, derivation):
-        """Helper to do some book keeping when registering a new derivation."""
-        self.found_entities["derivations"].add(derivation.fqn)
-        self.onering_context.register_derivation(derivation)
-
-    def register_transformer_group(self, tgroup):
-        """Helper to do some book keeping when registering a new transformer group."""
-        self.found_entities["tgroups"].add(tgroup.fqn)
-        self.onering_context.register_transformer_group(tgroup)
-
-    def register_interface(self, interface):
-        """Helper to do some book keeping when registering a new transformer group."""
-        if interface.parent is None:
-            self.found_entities["interfaces"].add(interface.fqn)
-            self.onering_context.register_interface(interface)
+        entity = self.get_entity(fqn)
+        if not entity:
+            entity = self.current_module.ensure_key(fqn.split("."))
+        return entity
 
     def normalize_fqn(self, fqn):
         if "." in fqn:
@@ -127,14 +110,8 @@ class Parser(TokenStream):
             if imp.endswith("." + fqn):
                 return imp
 
-        fqn = tlutils.FQN(fqn, self.namespace).fqn
+        fqn = FQN(fqn, self.namespace).fqn
         return fqn
-
-    def add_import(self, fqn, alias):
-        # see if a type needs to be created
-        if not self.onering_context.type_registry.get_typeref(fqn, nothrow = True):
-            self.onering_context.type_registry.register_type(fqn, None)
-        self.imports.append(fqn)
 
     def last_docstring(self, reset = True):
         out = self._last_docstring
@@ -194,12 +171,21 @@ class Parser(TokenStream):
         compilation_unit := 
             namespace_decl ?
 
-            (import_decl | type_decl) *
+            module
         """
+        def parse_namespace():
+            """
+            Parse the namespace for the current document.
+            """
+            if self.next_token_is(TokenType.IDENTIFIER, tok_value = "namespace"):
+                self.namespace = self.ensure_fqn()
+            self.consume_tokens(TokenType.SEMI_COLON)
+
         try:
-            parse_namespace(self)
-            while parse_declaration(self):
-                pass
+            # parse_namespace()
+            from onering.dsl.parser.rules.modules import parse_module_body
+            self.current_module = self.root_module = Module(self.namespace)
+            parse_module_body(self, self.root_module)
         except SourceException:
             raise
         except errors.OneringException, exc:
@@ -208,6 +194,22 @@ class Parser(TokenStream):
         except:
             raise
         # Take care of injections!
+        return self.root_module
+
+    def push_module(self, fqn, annotations, docs):
+        parts = fqn.split(".")
+        last_module = self.current_module
+        for index,part in enumerate(parts):
+            if index == len(parts) - 1:
+                self.current_module = Module(part, self.current_module, annotations, docs)
+            else:
+                self.current_module = Module(part, self.current_module)
+        return last_module, self.current_module
+
+    def pop_to_module(self, module):
+        while self.current_module != module:
+            self.current_module = self.current_module.parent
+        return self.current_module
 
     def process_directive(self, command):
         parts = [c.strip() for c in command.split(" ") if c.strip()]

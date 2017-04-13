@@ -12,7 +12,6 @@ class TransformerGraph(object):
         context = self.context
         insigs = [context.type_registry.get_final_type(i).signature for i in input_types_or_refs]
         outsig = context.type_registry.get_final_type(output_type_or_ref).signature
-        ipdb.set_trace()
 
     def get_transformer_chain(self, source_typerefs, target_typeref):
         """
