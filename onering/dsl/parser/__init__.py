@@ -35,7 +35,6 @@ class Parser(TokenStream):
         # The root module corresponds to the top level entity and has no name really
         self.root_module = None
         self.current_module = None
-        self.imports = []
         self._entity_parsers = {}
         self._last_docstring = ""
         self.injections = {}
@@ -101,17 +100,6 @@ class Parser(TokenStream):
         if not entity:
             entity = self.current_module.ensure_key(fqn.split("."))
         return entity
-
-    def normalize_fqn(self, fqn):
-        if "." in fqn:
-            return fqn
-
-        for imp in self.imports:
-            if imp.endswith("." + fqn):
-                return imp
-
-        fqn = FQN(fqn, self.namespace).fqn
-        return fqn
 
     def last_docstring(self, reset = True):
         out = self._last_docstring
