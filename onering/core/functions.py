@@ -24,6 +24,14 @@ class Function(Entity):
     def __repr__(self):
         return "<Transformer - ID: 0x%x, Name: %s (%s -> %s)>" % (id(self), self.fqn, ",".join(self.src_fqns), self.dest_fqn)
 
+    @property
+    def src_fqns(self):
+        return [x.typeref.fqn for x in self.typeref.args]
+
+    @property
+    def dest_fqn(self):
+        return self.typeref.output_typeref.fqn
+
     def add_statement(self, stmt):
         if not isinstance(stmt, orexprs.Statement):
             raise errors.OneringException("Transformer rule must be a let statement or a statement, Found: %s" % str(type(stmt)))
