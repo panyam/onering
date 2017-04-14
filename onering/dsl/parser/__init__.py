@@ -88,28 +88,12 @@ class Parser(TokenStream):
             self.found_entities[entity.fqn] = entity
             self.current_module.add(entity)
 
-    def get_entity(self, key):
-        """ Resolve an entity by key. 
-
-        If the key is a fully qualified name then lookup starts from the context's root
-        otherwise if it is not then first the current module is looked up and THEN
-        from the context's root.  Other lookup strategies can be explored later on.
+    def add_symbol_ref(self, fqn):
         """
-        entity = self.current_module.get(key)
-        if not entity:
-            entity = self.onering_context.global_module.get(key)
-        return entity
-
-    def get_typeref(self, fqn):
+        Adds an FQN as an unresolved entity in the current module if it is not already registered
+        otherwise returns it as is.  This is used for late binding of named entities.
         """
-        Get's the reference to a type type corresponding to the given fqn 
-        if it exists otherwise returns an unresolved type as a place holder 
-        until it can be resolved.
-        """
-        entity = self.get_entity(fqn)
-        if not entity:
-            entity = self.current_module.ensure_key(fqn.split("."))
-        return entity
+        return self.current_module.add_symbol_ref(fqn)
 
     def last_docstring(self, reset = True):
         out = self._last_docstring

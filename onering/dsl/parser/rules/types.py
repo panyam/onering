@@ -50,7 +50,8 @@ def ensure_typeref(parser, annotations = None):
     if out:
         assert type(out) is tlcore.EntityRef
     else:
-        out = parse_named_typeref(parser, annotations)
+        fqn = parser.ensure_fqn()
+        out = parser.add_symbol_ref(fqn)
     return out
 
 def parse_parametric_type(parser, annotations):
@@ -109,14 +110,6 @@ def parse_parametric_type_body(parser, constructor, annotations = None):
                                     annotations = annotations, docs = docs)
     parser.add_entity(newtyperef)
     return newtyperef
-
-def parse_named_typeref(parser, annotations = None):
-    fqn = parser.ensure_fqn()
-    if fqn.endswith("HttpResponse"):
-        ipdb.set_trace()
-    # if this type exists in the type registry use this type
-    # otherwise register as an unresolved type and proceed
-    return parser.get_typeref(fqn)
 
 ########################################################################
 ##          Enum and Union parsing
