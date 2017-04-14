@@ -18,7 +18,7 @@ def parse_entity(parser):
     """
     Parses top level type declarations:
 
-        type_declaration := annotation * ( typeref_decl | custom_type_decl)
+        type_declaration := annotation * ( typeref_decl | custom_type_decl )
     """
     annotations = parse_annotations(parser)
     entity_class = parser.ensure_token(TokenType.IDENTIFIER, peek = True)
@@ -40,7 +40,8 @@ def parse_typeref_decl(parser, annotations, **kwargs):
     parser.ensure_token(TokenType.EQUALS)
 
     # create the typeref
-    newtyperef = tlcore.EntityRef(None, name, parser.current_module)
+    newtyperef = tlcore.EntityRef(None, name, parser.current_module, annotations = annotations, docs = docstring)
+    parser.current_module.add_entity(newtyperef)
     newtyperef.target = ensure_typeref(parser)
     return newtyperef
 
@@ -96,7 +97,6 @@ def parse_parametric_type_body(parser, constructor, annotations = None):
     return newtyperef
 
 def parse_named_typeref(parser, annotations = None):
-    parser.ensure_token(TokenType.IDENTIFIER, peek = True)
     fqn = parser.ensure_fqn()
     # if this type exists in the type registry use this type
     # otherwise register as an unresolved type and proceed
@@ -181,7 +181,10 @@ def parse_record(parser, annotations = None):
     parser.ensure_token(TokenType.IDENTIFIER, "record")
     newtyperef, docs = parse_newtyperef_preamble(parser, "record", True)
     fields = parse_record_body(parser)
-    newtyperef.target = records.RecordType(newtyperef.name, None, fields, annotations = annotations, docs = docs)
+    if newtyperef.final_entity:
+        ipdb.set_trace()
+    else:
+        newtyperef.target = records.RecordType(newtyperef.name, None, fields, annotations = annotations, docs = docs)
     return newtyperef
 
 def parse_record_body(parser):

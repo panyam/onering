@@ -1,70 +1,18 @@
 
-from __future__ import absolute_import
-import ipdb
-from itertools import izip
-from enum import Enum
-from typelib.annotations import Annotatable
-from typelib import unifier as tlunifier
-from onering import errors
+from typelib.core import Entity
 from onering.utils.misc import ResolutionStatus
-from onering.core.utils import FieldPath
-from onering.core import exprs as orexprs
-from onering.core.projections import SimpleFieldProjection
 
-class TransformerGroup(Annotatable):
+class Function(Entity):
     """
-    A transformer group enables a set of transformers to be logically grouped.  This group and its
-    data are available for all transformers within this group.   The group also determins how the
+    Defines a function binding along with the mappings to each of the 
+    specific backends.
     """
-    def __init__(self, fqn, annotations = None, docs = ""):
-        Annotatable.__init__(self, annotations, docs)
-        self.fqn = fqn
-        self._transformer_names = set()
-        self._transformers = []
-        self._function_refs = set()
-
-    def __repr__(self):
-        return "<TG - ID: 0x%x, FQN: %s>" % (id(self), self.fqn)
-
-    @property
-    def all_transformers(self):
-        return iter(self._transformers)
-
-    @property
-    def function_references(self):
-        return self._function_refs
-
-    def add_function_ref(self, func_fqn):
-        self._function_refs.add(func_fqn)
-
-    def add_transformer(self, transformer):
-        if transformer.fqn in self._transformer_names:
-            raise errors.OneringException("Duplicate transformer found: " % transformer.fqn)
-        self._transformer_names.add(transformer.fqn)
-        self._transformers.append(transformer)
-
-    def resolve(self, context):
-        """Kicks of resolutions of all dependencies.
-        
-        This must only be called after all derivations that produce records
-        have been resolved otherwise those records that are only derived will not be visible in the type_registry.
-        """
-        for transformer in self._transformers:
-            transformer.resolve(context)
-
-class Transformer(Annotatable):
-    """
-    Transformers define how an instance of one type can be transformed to an instance of another.
-    """
-    def __init__(self, fqn, source_variables, dest_fqn, dest_varname = None, group = None, annotations = None, docs = ""):
-        Annotatable.__init__(self, annotations, docs)
+    def __init__(self, name, container, typeref, annotations = None, docs = ""):
+        Entity.__init__(self, name, container, annotations, docs)
+        self.typeref = typeref
+        self.statements = []
         self.resolution = ResolutionStatus()
-        self.fqn = fqn
-        self.src_varnames = [src_varname if src_varname else "src%d" % index for (index,(src_fqn,src_varname)) in enumerate(source_variables)]
-        self.src_fqns = [src_fqn for (src_fqn,src_varname) in source_variables]
-        self.dest_varname = dest_varname or "dest"
-        self.dest_fqn = dest_fqn
-        self.group = group
+
         self.temp_variables = {}
         # explicit transformer rules
         self._implicit_statements = []
@@ -75,6 +23,16 @@ class Transformer(Annotatable):
 
     def __repr__(self):
         return "<Transformer - ID: 0x%x, Name: %s (%s -> %s)>" % (id(self), self.fqn, ",".join(self.src_fqns), self.dest_fqn)
+
+    def add_statement(self, stmt):
+        if not isinstance(stmt, orexprs.Statement):
+            raise errors.OneringException("Transformer rule must be a let statement or a statement, Found: %s" % str(type(stmt)))
+        # Check types and variables in the statements
+        self._explicit_statements.append(stmt)
+
+    @property
+    def all_statements(self):
+        return self._implicit_statements + self._explicit_statements
 
     def local_variables(self, yield_src = True, yield_dest = True, yield_locals = True):
         if yield_src:
@@ -119,16 +77,6 @@ class Transformer(Annotatable):
     def source_variables(self):
         from itertools import izip
         return izip(self.src_varnames, self.src_typerefs)
-
-    @property
-    def all_statements(self):
-        return self._implicit_statements + self._explicit_statements
-
-    def add_statement(self, stmt):
-        if not isinstance(stmt, orexprs.Statement):
-            raise errors.OneringException("Transformer rule must be a let statement or a statement, Found: %s" % str(type(stmt)))
-        # Check types and variables in the statements
-        self._explicit_statements.append(stmt)
 
 
     def resolve(self, context):

@@ -5,7 +5,7 @@ from onering.dsl.errors import SourceException, UnexpectedTokenException
 from onering.errors import OneringException
 from onering.dsl.lexer import Token, TokenType
 from onering.core import transformers
-from onering.entities import modules
+from onering.core import modules
 from onering.core import exprs as orexprs
 from onering.dsl.parser.rules.annotations import parse_annotations
 from onering.dsl.parser.rules.misc import parse_field_path
@@ -51,7 +51,7 @@ def parse_declaration(parser, module):
         return False
 
     if next.tok_type == TokenType.IDENTIFIER and next.value == "import":
-        parse_import_decl(parser)
+        parse_import(parser)
     else:
         from onering.dsl.parser.rules.types import parse_entity
         if not parse_entity(parser):
@@ -59,11 +59,11 @@ def parse_declaration(parser, module):
     parser.consume_tokens(TokenType.SEMI_COLON)
     return True
 
-def parse_import_decl(parser):
+def parse_import(parser):
     """
     Parse import declarations of the form below and adds it to the current document.
 
-        import IDENTIFIER ( "." IDENTIFIER ) *
+        import IDENTIFIER ( "." IDENTIFIER ) * ( as IDENTIFIER ) ?
     """
     parser.ensure_token(TokenType.IDENTIFIER, "import")
     fqn = parser.ensure_fqn()
@@ -71,5 +71,5 @@ def parse_import_decl(parser):
     if parser.next_token_is(TokenType.IDENTIFIER, "as"):
         # we also have an alias for the import
         alias = parser.ensure_token(TokenType.IDENTIFIER)
-    parser.current_module.add_import(fqn, alias)
+    parser.current_module.set_alias(alias, fqn)
     return fqn

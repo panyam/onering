@@ -4,7 +4,7 @@ from __future__ import absolute_import
 import ipdb
 from onering.dsl.parser.tokstream import TokenStream
 from onering.dsl.errors import SourceException, UnexpectedTokenException
-from onering.entities.modules import Module
+from onering.core.modules import Module
 from typelib.utils import FQN
 from onering.dsl.lexer import Token, TokenType
 from onering import errors
@@ -17,7 +17,7 @@ class Parser(TokenStream):
     GENERIC_OPEN_TOKEN = TokenType.LT
     GENERIC_CLOSE_TOKEN = TokenType.GT
 
-    def __init__(self, lexer_or_stream, context):
+    def __init__(self, lexer_or_stream, context, root_module = None):
         """
         Creates a parser.
 
@@ -25,6 +25,7 @@ class Parser(TokenStream):
 
             instream    -   The input stream from which onering entities will be parsed and registered.
             context     -   The onering context into which all loaded entities will be registered into.
+            root_module -   The module underwhich all declarations will be added/loaded.
         """
         lexer_or_stream
         from onering.dsl import lexer
@@ -33,8 +34,7 @@ class Parser(TokenStream):
         super(Parser, self).__init__(lexer_or_stream)
 
         # The root module corresponds to the top level entity and has no name really
-        self.root_module = None
-        self.current_module = None
+        self.current_module = self.root_module = root_module or context.global_module
         self._entity_parsers = {}
         self._last_docstring = ""
         self.injections = {}
@@ -73,8 +73,6 @@ class Parser(TokenStream):
         return self._entity_parsers.get(entity_class, None)
 
     def register_entity_parser(self, keyword, parser):
-        if keyword in ("import", "namespace"):
-            raise Exception("Keyword '%s' is a reserved keyword" % keyword)
         self._entity_parsers[keyword] = parser
 
     def get_entity(self, key):
@@ -161,18 +159,9 @@ class Parser(TokenStream):
 
             module
         """
-        def parse_namespace():
-            """
-            Parse the namespace for the current document.
-            """
-            if self.next_token_is(TokenType.IDENTIFIER, tok_value = "namespace"):
-                self.namespace = self.ensure_fqn()
-            self.consume_tokens(TokenType.SEMI_COLON)
-
         try:
             # parse_namespace()
             from onering.dsl.parser.rules.modules import parse_module_body
-            self.current_module = self.root_module = Module(self.namespace)
             parse_module_body(self, self.root_module)
         except SourceException:
             raise
@@ -185,13 +174,20 @@ class Parser(TokenStream):
         return self.root_module
 
     def push_module(self, fqn, annotations, docs):
+        """ Tries to ensure that the module specified by an FQN exists from current module. """
         parts = fqn.split(".")
         last_module = self.current_module
         for index,part in enumerate(parts):
-            if index == len(parts) - 1:
-                self.current_module = Module(part, self.current_module, annotations, docs)
+            child = self.current_module.get_entity(part)
+            if child:
+                if not isinstance(child, Module):
+                    raise OneringException("'%s' in '%s' is not a module" % (part, self.current_module.fqn))
+                self.current_module = child
             else:
-                self.current_module = Module(part, self.current_module)
+                if index == len(parts) - 1:
+                    self.current_module = Module(part, self.current_module, annotations, docs)
+                else:
+                    self.current_module = Module(part, self.current_module)
         return last_module, self.current_module
 
     def pop_to_module(self, module):
