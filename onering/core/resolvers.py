@@ -86,9 +86,9 @@ class TypeStreamPathResolver(PathResolver):
         field_typeref = self.type_stream.field_path_resolution.resolved_typeref
         for index,param in enumerate(self.type_stream.param_names):
             if param == field_path.get(0):
-                final_type = field_typeref.final_type
+                final_entity = field_typeref.final_entity
                 assert field_typeref.is_resolved, "Typeref for the source field must be resolved.  It is not!"
-                child_typeref = final_type.arg_at(index).typeref
+                child_typeref = final_entity.arg_at(index).typeref
                 if field_path.length == 1:
                     return ResolutionResult(field_typeref, field_typeref, index, field_path)
                 else:
@@ -114,9 +114,9 @@ class ResolutionResult(object):
     @property
     def resolved_typeref(self):
         if type(self.child_key) in (str, unicode):
-            child = self.parent_typeref.final_type.arg_for(self.child_key).typeref
+            child = self.parent_typeref.final_entity.arg_for(self.child_key).typeref
         else:
-            child = self.parent_typeref.final_type.arg_at(self.child_key).typeref
+            child = self.parent_typeref.final_entity.arg_at(self.child_key).typeref
         return child
 
     @property
@@ -133,25 +133,25 @@ class ResolutionResult(object):
         Name of the field as a result of the path resolution.  Note that this only 
         be set if the parent_typeref is a record type.  Otherwise None.
         """
-        if self.parent_typeref.final_type.constructor is not "record":
+        if self.parent_typeref.final_entity.constructor is not "record":
             return self.normalized_field_path.last
         return self.child_key
 
-def resolve_path_from_record(starting_typeref, field_path, registry, resolver):
+def resolve_path_from_record(starting_typeref, field_path, context, resolver):
     root_typeref = starting_typeref
     parent_typeref = starting_typeref
-    final_typeref = starting_typeref
+    final_entityref = starting_typeref
     child_key = None
     for i in xrange(field_path.length):
         part = field_path.get(i)
-        final_type = final_typeref.final_type
-        if final_typeref.is_unresolved or final_type.constructor != "record":
+        final_entity = final_entityref.final_entity
+        if final_entityref.is_unresolved or final_entity.constructor != "record":
             # TODO - Throw an "unresolved type" exception?
             return ResolutionResult(root_typeref, None, None, field_path)
-        if not final_type.contains(part):
+        if not final_entity.contains(part):
             # Throw NotFound instead of none?
             break
         child_key = part
-        parent_typeref = final_typeref
-        final_typeref = final_type.arg_for(part).typeref
+        parent_typeref = final_entityref
+        final_entityref = final_entity.arg_for(part).typeref
     return ResolutionResult(root_typeref, parent_typeref, child_key, field_path)

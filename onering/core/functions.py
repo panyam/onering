@@ -1,6 +1,8 @@
 
+import ipdb
 from typelib.core import Entity
 from onering.utils.misc import ResolutionStatus
+from onering.core import exprs as orexprs
 
 class Function(Entity):
     """
@@ -12,10 +14,10 @@ class Function(Entity):
         self.typeref = typeref
         self.statements = []
         self.resolution = ResolutionStatus()
+        self.dest_varname = "dest"
 
         self.temp_variables = {}
         # explicit transformer rules
-        self._implicit_statements = []
         self._explicit_statements = []
 
         # Keeps track of the counts of each type of auto-generated variable.
@@ -29,6 +31,10 @@ class Function(Entity):
         return [x.typeref.fqn for x in self.typeref.args]
 
     @property
+    def source_variables(self):
+        return [(x.name, x.typeref.fqn) for x in self.typeref.args]
+
+    @property
     def dest_fqn(self):
         return self.typeref.output_typeref.fqn
 
@@ -40,7 +46,7 @@ class Function(Entity):
 
     @property
     def all_statements(self):
-        return self._implicit_statements + self._explicit_statements
+        return self._explicit_statements
 
     def local_variables(self, yield_src = True, yield_dest = True, yield_locals = True):
         if yield_src:
@@ -81,12 +87,6 @@ class Function(Entity):
             raise errors.OneringException("Duplicate temporary variable declared: '%s'" % varname)
         self.temp_variables[varname] = vartype
 
-    @property
-    def source_variables(self):
-        from itertools import izip
-        return izip(self.src_varnames, self.src_typerefs)
-
-
     def resolve(self, context):
         """
         Kicks of resolutions of all dependencies.  This must only be called after all derivations that produce records
@@ -104,73 +104,15 @@ class Function(Entity):
             1. Ensure field paths are correct
             2. All expressions have their evaluated types set
         """
-        type_registry = context.type_registry
-        self.src_typerefs = map(type_registry.get_typeref, self.src_fqns)
-        self.dest_typeref = type_registry.get_typeref(self.dest_fqn)
-
-        # First make sure we have implicit rules taken from the derivations if any
-        self._implicit_statements = self._evaluate_implicit_statements(context)
+        # Resolve types here - bind them to somewhere along the module chain where they are visible!
+        self.src_typerefs = [arg.typeref for arg in self.typeref.args]
+        self.dest_typeref = self.typeref.output_typeref
+        for typeref in self.src_typerefs + [self.dest_typeref]:
+            if not typeref.is_resolved:
+                # Yep find it up *its* module chain!
+                ipdb.set_trace()
+            assert typeref.final_entity
 
         # Now resolve all field paths appropriately
         for index,statement in enumerate(self.all_statements):
             statement.resolve_bindings_and_types(self, context)
-
-    def _evaluate_implicit_statements(self, context):
-        """
-        Given the source and dest types, evaluates all "get/set" rules that can be 
-        inferred for shared types.   This is only possible if both src and dest types 
-        share a common ancestor (or may be even at atmost 1 level).
-        """
-
-        if len(self.src_typerefs) > 1:
-            # TODO - Checking for implicit statements when more than one sources are given requires 
-            # that the "sources" of dest are all the ones provided here.  This is the case where
-            # in the derivation itself a record derivation from more than one model
-            ipdb.set_trace()
-            return []
-
-        implicit_statements = []
-        # Step 1: Find common "ancestor" of each of the records
-        ancestor, path1, path2 = context.find_common_ancestor(self.src_typerefs[0], self.dest_typeref)
-        if ancestor is not None:
-            # Here see which fields from the root still exist in the leaf (even if it has been retyped or renamed or streamed).
-            remaining_fields1 = context.surviving_fields_from_root_to_child(ancestor, path1)
-            remaining_fields2 = context.surviving_fields_from_root_to_child(ancestor, path2)
-
-            # At this point:
-            # RF1 contains all field that have gone from ancestor to src type
-            # RF2 contains all field that have gone from ancestor to dest type
-            # The fields of interest will be the intersection of these two
-            src_fields = {key : value for (key,value) in remaining_fields1.iteritems() if key in remaining_fields2}
-            dest_fields = {key : value for (key,value) in remaining_fields2.iteritems() if key in remaining_fields1}
-
-            # Now the fun begins
-            # It could be that a field in src maps to multiplel fields in dest
-            # Here we can do a couple of things.
-            # 1. Ignore all projections in src and dest types that are anything but simple renaming of fields and use only those
-            # 2. Use "same" types from src and dest, mapping those and use each unique src type to map to equivalent ones in dest.
-            #    Later is a lot more work and value is limited - so ignore for now
-            for sfield_name, sfields in src_fields.iteritems():
-                # find any field in src_field that is a simple mapping (ie only renaming allowed at most)
-                source_field = None
-                for sfield in sfields:
-                    if type(sfield.projection) is SimpleFieldProjection and sfield.projection.projected_typeref is None:
-                        source_field = sfield
-                        break
-
-                if source_field:
-                    # we have a source field (that was derived from ancestor without any transformation) so it is
-                    # a good candidate to copy from.  
-                    #
-                    # Now look for all destination fields this can be mapped and add implicit rules for these
-                    dfields = dest_fields[sfield_name]
-                    for dfield in dfields:
-                        if type(dfield.projection) is SimpleFieldProjection and dfield.projection.projected_typeref is None:
-                            src_field_path = FieldPath([source_field.field_name])
-                            dest_field_path = FieldPath([dfield.field_name])
-                            src_var = orexprs.VariableExpression(src_field_path, readonly = True, source_type = orexprs.VarSource.AUTO)
-                            dest_var = orexprs.VariableExpression(dest_field_path, readonly = False, source_type = orexprs.VarSource.AUTO)
-                            new_stmt = orexprs.Statement(self, [src_var], dest_var)
-                            new_stmt.is_implicit = True
-                            implicit_statements.append(new_stmt)
-        return implicit_statements

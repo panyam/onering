@@ -8,14 +8,14 @@ from onering.core.exprs import Expression, LiteralExpression, ListExpression, Di
 This module is responsible for generating code for a statement and all parts of an expression tree.
 """
 
-def generate_ir_for_transformer(transformer, context):
+def generate_ir_for_function(function, context):
     symtable = SymbolTable()
 
     # Set source and dest variables in symbol table
-    for src_varname,src_typeref in transformer.source_variables:
+    for src_varname,src_typeref in function.source_variables:
         symtable.register_var(src_varname, src_typeref, False)
-    symtable.register_var(transformer.dest_varname, transformer.dest_typeref, False)
-    instructions, symtable, _ = generate_ir_for_statements(transformer.all_statements, context, symtable = symtable)
+    symtable.register_var(function.dest_varname, function.typeref.output_typeref, False)
+    instructions, symtable, _ = generate_ir_for_statements(function.all_statements, context, symtable = symtable)
     return instructions, symtable
 
 def generate_ir_for_statements(statements, context, instructions = None, symtable = None):
