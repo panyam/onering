@@ -1,9 +1,6 @@
 
 from __future__ import absolute_import
 import ipdb
-from collections import defaultdict
-import fnmatch
-from typelib import registry 
 from typelib import core as tlcore
 from onering import resolver
 from onering import errors
@@ -14,7 +11,6 @@ from onering.core.modules import Module
 class OneringContext(dirutils.DirPointer):
     def __init__(self):
         dirutils.DirPointer.__init__(self)
-        # self.type_registry = registry.TypeRegistry()
         self.entity_resolver = resolver.EntityResolver("pdsc")
         self.global_module = Module(None, None)
         self.tgraph = tgraph.TransformerGraph(self)
