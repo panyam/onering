@@ -36,6 +36,7 @@ class Parser(TokenStream):
         # The root module corresponds to the top level entity and has no name really
         self.current_module = self.root_module = root_module or context.global_module
         self._entity_parsers = {}
+        self.found_entities = {}
         self._last_docstring = ""
         self.injections = {}
         self.onering_context = context
@@ -74,6 +75,18 @@ class Parser(TokenStream):
 
     def register_entity_parser(self, keyword, parser):
         self._entity_parsers[keyword] = parser
+
+    def ensure_key(self, fqn_or_name_or_parts):
+        entity = self.current_module.ensure_key(fqn_or_name_or_parts)
+        assert entity.fqn not in self.found_entities
+        self.found_entities[entity.fqn] = entity
+        return entity
+
+    def add_entity(self, entity):
+        if entity.name:
+            assert entity.fqn not in self.found_entities
+            self.found_entities[entity.fqn] = entity
+            self.current_module.add_entity(entity)
 
     def get_entity(self, key):
         """ Resolve an entity by key. 

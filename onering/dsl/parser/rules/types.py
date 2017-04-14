@@ -41,7 +41,7 @@ def parse_typeref_decl(parser, annotations, **kwargs):
 
     # create the typeref
     newtyperef = tlcore.EntityRef(None, name, parser.current_module, annotations = annotations, docs = docstring)
-    parser.current_module.add_entity(newtyperef)
+    parser.add_entity(newtyperef)
     newtyperef.target = ensure_typeref(parser)
     return newtyperef
 
@@ -78,6 +78,21 @@ def parse_parametric_type(parser, annotations):
     parser.unget_token(next_token)
     return None
 
+def parse_newtyperef_preamble(parser, constructor, name_required = False):
+    name = None
+    if name_required:
+        name = parser.ensure_token(TokenType.IDENTIFIER)
+
+    if name:
+        print "Registering new %s: '%s'" % (constructor, name)
+        newtyperef = parser.ensure_key(name)
+    else:
+        newtyperef = tlcore.EntityRef(None, None, None)
+
+    assert newtyperef is not None, "A type was NOT parsed"
+    docs = parser.last_docstring()
+    return newtyperef, docs
+
 def parse_parametric_type_body(parser, constructor, annotations = None):
     newtyperef, docs = parse_newtyperef_preamble(parser, constructor)
 
@@ -89,11 +104,10 @@ def parse_parametric_type_body(parser, constructor, annotations = None):
         child_typerefs.append(ensure_typeref(parser))
     parser.ensure_token(parser.GENERIC_CLOSE_TOKEN)
 
-    parent = None
-    if newtyperef.name:
-        parent = parser.current_module
-    newtyperef.target = tlcore.Type(newtyperef.name, parent, constructor,
-                                    type_params = None, type_args = child_typerefs, annotations = annotations, docs = docs)
+    newtyperef.target = tlcore.Type(newtyperef.name, parser.current_module, constructor,
+                                    type_params = None, type_args = child_typerefs,
+                                    annotations = annotations, docs = docs)
+    parser.add_entity(newtyperef)
     return newtyperef
 
 def parse_named_typeref(parser, annotations = None):
@@ -101,21 +115,6 @@ def parse_named_typeref(parser, annotations = None):
     # if this type exists in the type registry use this type
     # otherwise register as an unresolved type and proceed
     return parser.get_typeref(fqn)
-
-def parse_newtyperef_preamble(parser, constructor, name_required = False):
-    name = None
-    if name_required:
-        name = parser.ensure_token(TokenType.IDENTIFIER)
-
-    if name:
-        print "Registering new %s: '%s'" % (constructor, name)
-        newtyperef = parser.current_module.ensure_key(name)
-    else:
-        newtyperef = tlcore.EntityRef(None, None, None)
-
-    assert newtyperef is not None, "A type was NOT parsed"
-    docs = parser.last_docstring()
-    return newtyperef, docs
 
 ########################################################################
 ##          Enum and Union parsing
@@ -128,7 +127,7 @@ def parse_enum(parser, annotations = None):
         enum ( "[" type "]" ) ? enum_body
     """
     parser.ensure_token(TokenType.IDENTIFIER, "enum")
-    newtyperef, fqn, docs = parse_newtyperef_preamble(parser, "enum", True)
+    newtyperef, docs = parse_newtyperef_preamble(parser, "enum", True)
     type_args = None
     if parser.next_token_is(parser.GENERIC_OPEN_TOKEN):
         type_args = [ensure_typeref(parser)]
@@ -136,6 +135,7 @@ def parse_enum(parser, annotations = None):
 
     symbols = parse_enum_body(parser)
     newtyperef.target = tlenums.EnumType(symbols, type_args, annotations = annotations, docs = docs)
+    parser.add_entity(newtyperef)
     return newtyperef
 
 def parse_enum_body(parser):
@@ -183,8 +183,9 @@ def parse_record(parser, annotations = None):
     fields = parse_record_body(parser)
     if newtyperef.final_entity:
         ipdb.set_trace()
+        assert False
     else:
-        newtyperef.target = records.RecordType(newtyperef.name, None, fields, annotations = annotations, docs = docs)
+        newtyperef.target = records.RecordType(newtyperef.name, parser.current_module, fields, annotations = annotations, docs = docs)
     return newtyperef
 
 def parse_record_body(parser):

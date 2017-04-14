@@ -94,11 +94,10 @@ class LoaderActions(ActionGroup):
                 else:
                     raise Exception("Invalid path: %s" % abspath)
 
-        found_entities = defaultdict(set)
+        found_entities = {}
         for path in schema_paths:
             print "Loading schema from %s: " % path
             parser = dsl.parser.Parser(open(path), context)
             module = parser.parse()
-            # for etype,eset in parser.found_entities.iteritems():
-                # found_entities[etype] |= eset
+            found_entities.update(parser.found_entities)
         return found_entities
