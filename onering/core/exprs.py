@@ -15,8 +15,7 @@ class VarSource(Enum):
     DEST        = 1
 
 class Statement(object):
-    def __init__(self, transformer, expressions, target_variable, is_temporary = False):
-        self.transformer = transformer
+    def __init__(self, expressions, target_variable, is_temporary = False):
         self.expressions = expressions
         self.target_variable = target_variable
         self.is_temporary = is_temporary
@@ -27,7 +26,7 @@ class Statement(object):
             assert target_variable.value.length == 1, "A temporary variable cannot have nested field paths"
             self.target_variable.source_type = VarSource.LOCAL
 
-    def resolve_bindings_and_types(self, transformer, context):
+    def resolve_bindings_and_types(self, function, context):
         """
         Processes an expressions and resolves name bindings and creating new local vars 
         in the process if required.
@@ -35,20 +34,20 @@ class Statement(object):
         # Resolve the target variable's binding.  This does'nt necessarily have
         # to evaluate types.
         # This will help us with type inference going backwards
-        self.target_variable.resolve_bindings_and_types(transformer, context)
+        self.target_variable.resolve_bindings_and_types(function, context)
 
         # Resolve all types in child expressions.  
         # Apart from just evaluating all child expressions, also make sure
         # Resolve field paths that should come from source type
         for expr in self.expressions:
-            expr.resolve_bindings_and_types(transformer, context)
+            expr.resolve_bindings_and_types(function, context)
 
         last_expr = self.expressions[-1]
         if self.is_temporary:
             # Resolve field paths that should come from dest type
             # if self.is_temporary: ipdb.set_trace()
             self.target_variable.evaluated_typeref = last_expr.evaluated_typeref
-            transformer.register_temp_var(str(self.target_variable.value), last_expr.evaluated_typeref)
+            function.register_temp_var(str(self.target_variable.value), last_expr.evaluated_typeref)
         else:
             # target variable type is set so verify that its type is same as the type of 
             # the "last" expression in the chain.
@@ -58,8 +57,8 @@ class Statement(object):
 
 class Expression(object):
     """
-    Parent of all expressions.  All expressions must have a value.  Expressions only appear in transformers
-    (or in derivations during type streaming but type streaming is "kind of" a transformer anyway.
+    Parent of all expressions.  All expressions must have a value.  Expressions only appear in functions
+    (or in derivations during type streaming but type streaming is "kind of" a function anyway.
     """
     def __init__(self):
         self._evaluated_typeref = None
@@ -74,7 +73,7 @@ class Expression(object):
     def evaluated_typeref(self, vartype):
         self.set_evaluated_typeref(vartype)
 
-    def resolve_bindings_and_types(self, transformer, context):
+    def resolve_bindings_and_types(self, function, context):
         """
         Processes an expressions and resolves name bindings and creating new local vars 
         in the process if required.
@@ -101,7 +100,7 @@ class LiteralExpression(Expression):
         elif t is float:
             self._evaluated_typeref = context.type_registry.get_typeref("float")
 
-    def resolve_bindings_and_types(self, transformer, context):
+    def resolve_bindings_and_types(self, function, context):
         """
         Processes an expressions and resolves name bindings and creating new local vars 
         in the process if required.
@@ -131,7 +130,7 @@ class VariableExpression(Expression):
     def check_types(self, context):
         if not self.is_field_path: return
 
-    def resolve_bindings_and_types(self, transformer, context):
+    def resolve_bindings_and_types(self, function, context):
         """
         Processes an expressions and resolves name bindings and creating new local vars 
         in the process if required.
@@ -140,8 +139,8 @@ class VariableExpression(Expression):
         from onering.core.resolvers import resolve_path_from_record
 
         if self.source_type == VarSource.LOCAL: # We have a local var declaration
-            # So add to transformer's temp var list if not a duplicate
-            transformer.register_temp_var(str(self.value), None)
+            # So add to function's temp var list if not a duplicate
+            function.register_temp_var(str(self.value), None)
             self.normalized_field_path = self.value.copy()
 
         if self.source_type == VarSource.AUTO:
@@ -152,7 +151,7 @@ class VariableExpression(Expression):
             first, tail_field_path = self.value.pop()
 
             starting_type = None
-            for varname,vartype,varclass in transformer.local_variables(yield_src = self.readonly):
+            for varname,vartype,varclass in function.local_variables(yield_src = self.readonly):
                 if varname == first:
                     starting_type = vartype
                     starting_varname = varname
@@ -186,7 +185,7 @@ class VariableExpression(Expression):
                     last_resolved = None
                     field_resolution_result = None
                     resolved_src_name = None
-                    for src_varname, src_typeref in transformer.source_variables:
+                    for src_varname, src_typeref in function.source_variables:
                         field_resolution_result = resolve_path_from_record(src_typeref, self.value, context.type_registry, None)
                         if field_resolution_result.is_valid:
                             if not last_resolved:
@@ -198,7 +197,7 @@ class VariableExpression(Expression):
                 # We should have exactly one source that resolves otherwise we have an error
                 if field_resolution_result is None or not field_resolution_result.is_valid:
                     self.source_type = VarSource.DEST
-                    field_resolution_result = resolve_path_from_record(transformer.dest_typeref, self.value, context.type_registry, None)
+                    field_resolution_result = resolve_path_from_record(function.dest_typeref, self.value, context.type_registry, None)
 
                 if not field_resolution_result.is_valid:
                     self.source_type = VarSource.AUTO
@@ -208,7 +207,7 @@ class VariableExpression(Expression):
                     if self.source_type == VarSource.SOURCE:
                         self.normalized_field_path = self.value.push(resolved_src_name)
                     elif self.source_type == VarSource.DEST:
-                        self.normalized_field_path = self.value.push(transformer.dest_varname)
+                        self.normalized_field_path = self.value.push(function.dest_varname)
 
             self.field_resolution_result = field_resolution_result
             return
@@ -245,14 +244,13 @@ class FunctionCallExpression(Expression):
         self.func_fqn = func_fqn
         self.func_args = func_args
 
-    def resolve_bindings_and_types(self, transformer, context):
+    def resolve_bindings_and_types(self, function, context):
         """
         Processes an expressions and resolves name bindings and creating new local vars 
         in the process if required.
         """
         try:
             function = self.function = context.get_function(self.func_fqn)
-            transformer.group.add_function_ref(function.fqn)
         except:
             raise errors.OneringException("Function '%s' not found" % self.func_fqn)
 
@@ -261,7 +259,7 @@ class FunctionCallExpression(Expression):
 
         # This is a variable so resolve it to either a local var or a parent + field_path
         for arg in self.func_args:
-            arg.resolve_bindings_and_types(transformer, context)
+            arg.resolve_bindings_and_types(function, context)
             if function.inputs_need_inference and not function.inputs_known:
                 func_typeref.final_type.add_arg(arg.evaluated_typeref)
 

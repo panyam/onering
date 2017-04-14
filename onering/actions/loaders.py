@@ -96,6 +96,7 @@ class LoaderActions(ActionGroup):
 
         found_entities = defaultdict(set)
         for path in schema_paths:
+            print "Loading schema from %s: " % path
             parser = dsl.parser.Parser(open(path), context)
             module = parser.parse()
             # for etype,eset in parser.found_entities.iteritems():
