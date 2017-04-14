@@ -27,7 +27,7 @@ def parse_derivation(parser, annotations = [], **kwargs):
     derivation = projections.RecordDerivation(name, parser.current_module, annotations = annotations, docs = parser.last_docstring())
     parse_derivation_header(parser, derivation)
     parse_derivation_body(parser, derivation)
-    parser.current_module.add_entity(derivation)
+    parser.add_entity(derivation)
     return derivation
 
 

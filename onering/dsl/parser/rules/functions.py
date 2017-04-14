@@ -34,13 +34,13 @@ def parse_function(parser, annotations, **kwargs):
     if parser.peeked_token_is(TokenType.OPEN_BRACE):
         # Brace yourself for a function definition!!!
         function = orfuncs.Function(func_name, parser.current_module, functype, annotations = annotations, docs = docs)
-        parser.current_module.add_entity(function)
+        parser.add_entity(function)
         statements = parse_function_body(parser, function)
         return function
     else:
         # Return a function type
         functyperef = tlcore.EntityRef(functype, func_name, parser.current_module, annotations = annotations, docs = docs)
-        parser.current_module.add_entity(functyperef)
+        parser.add_entity(functyperef)
         return functyperef
 
 def parse_function_signature(parser, require_param_name = True):
