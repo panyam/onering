@@ -86,7 +86,7 @@ class Parser(TokenStream):
         if entity.name:
             assert entity.fqn not in self.found_entities
             self.found_entities[entity.fqn] = entity
-            self.current_module.add_entity(entity)
+            self.current_module.add(entity)
 
     def get_entity(self, key):
         """ Resolve an entity by key. 
@@ -95,10 +95,9 @@ class Parser(TokenStream):
         otherwise if it is not then first the current module is looked up and THEN
         from the context's root.  Other lookup strategies can be explored later on.
         """
-        parts = key.split(".")
-        entity = self.current_module.resolve_key_parts(parts)
+        entity = self.current_module.get(key)
         if not entity:
-            entity = self.onering_context.global_module.resolve_key_parts(parts)
+            entity = self.onering_context.global_module.get(key)
         return entity
 
     def get_typeref(self, fqn):
@@ -191,16 +190,18 @@ class Parser(TokenStream):
         parts = fqn.split(".")
         last_module = self.current_module
         for index,part in enumerate(parts):
-            child = self.current_module.get_entity(part)
+            child = self.current_module.get(part)
             if child:
                 if not isinstance(child, Module):
                     raise OneringException("'%s' in '%s' is not a module" % (part, self.current_module.fqn))
                 self.current_module = child
             else:
                 if index == len(parts) - 1:
-                    self.current_module = Module(part, self.current_module, annotations, docs)
+                    child = Module(part, self.current_module, annotations, docs)
                 else:
-                    self.current_module = Module(part, self.current_module)
+                    child = Module(part, self.current_module)
+                self.current_module.add(child)
+                self.current_module = child
         return last_module, self.current_module
 
     def pop_to_module(self, module):

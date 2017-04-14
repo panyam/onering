@@ -35,7 +35,7 @@ class OneringContext(dirutils.DirPointer):
         for t in [tlcore.AnyType, tlcore.BooleanType, tlcore.ByteType, 
                     tlcore.IntType, tlcore.LongType, tlcore.FloatType, 
                     tlcore.DoubleType, tlcore.StringType]:
-            self.global_module.add_entity(tlcore.EntityRef(t, t.name, self.global_module))
+            self.global_module.add(tlcore.EntityRef(t, t.name, self.global_module))
 
     def ensure_module(self, fqn):
         """ Ensures that a given module hierarchy exists. """
@@ -44,7 +44,7 @@ class OneringContext(dirutils.DirPointer):
         for part in parts:
             if not curr.has_entity(part):
                 child = Module(part, curr)
-                curr.add_entity(child)
+                curr.add(child)
                 curr = child
         return curr
 
