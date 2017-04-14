@@ -28,14 +28,15 @@ def parse_function(parser, annotations, **kwargs):
 
     func_name = parser.ensure_token(TokenType.IDENTIFIER)
 
-    input_types, output_typeref = parse_function_signature(parser)
+    input_types, output_typeref, output_varname = parse_function_signature(parser)
     parent = parser.current_module if func_name else None
     functype = tlfunctions.FunctionType(func_name, parent, input_types, output_typeref, annotations = annotations, docs = docs)
     if parser.peeked_token_is(TokenType.OPEN_BRACE):
         # Brace yourself for a function definition!!!
         function = orfuncs.Function(func_name, parser.current_module, functype, annotations = annotations, docs = docs)
+        function.dest_varname = output_varname or "dest"
         parser.add_entity(function)
-        statements = parse_function_body(parser, function)
+        parse_function_body(parser, function)
         return function
     else:
         # Return a function type
@@ -46,7 +47,7 @@ def parse_function(parser, annotations, **kwargs):
 def parse_function_signature(parser, require_param_name = True):
     """Parses the type signature declaration in a function declaration:
 
-        function_signature      ::  input_params ? ( ":" output_typeref ) ?
+        function_signature      ::  input_params ? ( ":" (output_typeref ( "as" varname<IDENT> ) ? ) ?
 
         input_type_signature    ::  "(" param_decls ? ")"
 
@@ -72,10 +73,13 @@ def parse_function_signature(parser, require_param_name = True):
 
     # Now read the output type (if any)
     output_typeref = None
+    output_varname = None
     if parser.next_token_is(TokenType.COLON):
         output_typeref = ensure_typeref(parser)
+        if parser.next_token_is(TokenType.IDENTIFIER, "as"):
+            output_varname = output_typeref.ensure_token(TokenType.IDENTIFIER)
 
-    return input_params, output_typeref
+    return input_params, output_typeref, output_varname
 
 def parse_param_declaration(parser, require_name = True):
     """
@@ -106,14 +110,12 @@ def parse_param_declaration(parser, require_name = True):
     return tlfunctions.ParamTypeArg(param_name, param_typeref, is_optional, default_value, annotations, docstring)
 
 def parse_function_body(parser, function):
-    statements = []
     parser.ensure_token(TokenType.OPEN_BRACE)
     while not parser.peeked_token_is(TokenType.CLOSE_BRACE):
         statement = parse_statement(parser, function)
-        statements.append(statement)
+        function.add_statement(statement)
     parser.ensure_token(TokenType.CLOSE_BRACE)
     parser.consume_tokens(TokenType.SEMI_COLON)
-    return statements
 
 def parse_statement(parser, function):
     """

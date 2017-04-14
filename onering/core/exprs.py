@@ -92,13 +92,13 @@ class LiteralExpression(Expression):
     def check_types(self, context):
         t = type(self.value)
         if t in (str, unicode):
-            self._evaluated_typeref = context.type_registry.get_typeref("string")
+            self._evaluated_typeref = context.global_module.get("string")
         elif t is int:
-            self._evaluated_typeref = context.type_registry.get_typeref("int")
+            self._evaluated_typeref = context.global_module.get("int")
         elif t is bool:
-            self._evaluated_typeref = context.type_registry.get_typeref("bool")
+            self._evaluated_typeref = context.global_module.get("bool")
         elif t is float:
-            self._evaluated_typeref = context.type_registry.get_typeref("float")
+            self._evaluated_typeref = context.global_module.get("float")
 
     def resolve_bindings_and_types(self, function, context):
         """
@@ -138,6 +138,7 @@ class VariableExpression(Expression):
         assert self._evaluated_typeref == None, "Type has already been resolved, should not have been called twice."
         from onering.core.resolvers import resolve_path_from_record
 
+        ipdb.set_trace()
         if self.source_type == VarSource.LOCAL: # We have a local var declaration
             # So add to function's temp var list if not a duplicate
             function.register_temp_var(str(self.value), None)
@@ -164,7 +165,7 @@ class VariableExpression(Expression):
                 # Then find the whole field path from one of the either source, dest or "current" local var only
                 # Depending on whether the var is writeable or not
                 if tail_field_path.length > 0:
-                    field_resolution_result = resolve_path_from_record(starting_type, tail_field_path, context.type_registry, None)
+                    field_resolution_result = resolve_path_from_record(starting_type, tail_field_path, context, None)
                     if not field_resolution_result.is_valid:
                         ipdb.set_trace()
                         raise errors.OneringException("Invalid field path '%s' from '%s'" % (self.value, starting_varname))
@@ -186,7 +187,7 @@ class VariableExpression(Expression):
                     field_resolution_result = None
                     resolved_src_name = None
                     for src_varname, src_typeref in function.source_variables:
-                        field_resolution_result = resolve_path_from_record(src_typeref, self.value, context.type_registry, None)
+                        field_resolution_result = resolve_path_from_record(src_typeref, self.value, context, None)
                         if field_resolution_result.is_valid:
                             if not last_resolved:
                                 last_resolved = field_resolution_result
@@ -197,10 +198,11 @@ class VariableExpression(Expression):
                 # We should have exactly one source that resolves otherwise we have an error
                 if field_resolution_result is None or not field_resolution_result.is_valid:
                     self.source_type = VarSource.DEST
-                    field_resolution_result = resolve_path_from_record(function.dest_typeref, self.value, context.type_registry, None)
+                    field_resolution_result = resolve_path_from_record(function.dest_typeref, self.value, context, None)
 
                 if not field_resolution_result.is_valid:
                     self.source_type = VarSource.AUTO
+                    ipdb.set_trace()
                     raise errors.OneringException("Invalid field path '%s'" % self.value)
                 else:
                     self._evaluated_typeref = field_resolution_result.resolved_typeref

@@ -30,7 +30,7 @@ class LoaderActions(ActionGroup):
             A tuple of (resolved, unresolved) types that were loaded (or referenced).
         """
         context = self.context
-        onering_parser = dsl.parser.Parser(open(fqn_or_path), context.type_registry, None)
+        onering_parser = dsl.parser.Parser(open(fqn_or_path), context, None)
 
         resolved_types_before = context.type_registry.resolved_types
         unresolved_types_before = context.type_registry.unresolved_types
