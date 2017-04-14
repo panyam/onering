@@ -22,7 +22,7 @@ class Function(Entity):
         self._vartable = {}
 
     def __repr__(self):
-        return "<Transformer - ID: 0x%x, Name: %s (%s -> %s)>" % (id(self), self.fqn, ",".join(self.src_fqns), self.dest_fqn)
+        return "<Function(0x%x) %s (%s -> %s)>" % (id(self), self.fqn, ",".join(self.src_fqns), self.dest_fqn)
 
     @property
     def src_fqns(self):
