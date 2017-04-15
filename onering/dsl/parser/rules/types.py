@@ -129,8 +129,8 @@ def parse_enum(parser, annotations = None):
         parser.ensure_token(parser.GENERIC_CLOSE_TOKEN)
 
     symbols = parse_enum_body(parser)
-    newtyperef.target = tlenums.EnumType(symbols, type_args, annotations = annotations, docs = docs)
-    parser.add_entity(newtyperef)
+    assert not newtyperef.final_entity
+    newtyperef.target = tlenums.EnumType(newtyperef.name, parser.current_module, type_args, annotations = annotations, docs = docs)
     return newtyperef
 
 def parse_enum_body(parser):
@@ -149,7 +149,7 @@ def parse_enum_body(parser):
         value = None
         if parser.next_token_is(TokenType.EQUALS):
             value = parser.ensure_literal_value()
-        symbols.append(tlenums.EnumSymbol(name, value, annotations, parser.last_docstring))
+        symbols.append(tlenums.EnumSymbol(name, None, value, annotations, parser.last_docstring))
         # consume comma silently
         parser.next_token_if(TokenType.COMMA, consume = True)
     parser.ensure_token(TokenType.CLOSE_BRACE)
