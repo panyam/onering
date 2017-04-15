@@ -2,13 +2,11 @@
 from __future__ import absolute_import
 import ipdb
 from typelib import core as tlcore
-from typelib import functions as tlfuncs
 from onering import utils
-from onering.core import functions, platforms
+from onering.core import platforms
 from onering.dsl.errors import SourceException, UnexpectedTokenException
 from onering.dsl.lexer import Token, TokenType
 from onering.dsl.parser.rules.annotations import parse_annotations
-from onering.dsl.parser.rules.functions import parse_function_signature
 
 ########################################################################
 ##          Platform bindings parsing rules
@@ -19,7 +17,7 @@ def parse_platform(parser, annotations, **kwargs):
     Parses a platform binding to a single platform:
 
         platform_binding := "platform" platform_name<IDENT> "{"
-            ( function_binding | type_binding ) *
+            ( type_binding ) *
         "}"
     """
     parser.ensure_token(TokenType.IDENTIFIER, "platform")
@@ -35,50 +33,13 @@ def parse_platform(parser, annotations, **kwargs):
 
         binding_type = parser.ensure_token(TokenType.IDENTIFIER)
 
-        if binding_type == "func":
-            parse_platform_function_binding(parser, platform, annotations)
-        elif binding_type == "type":
+        if binding_type == "type":
             parse_platform_type_binding(parser, platform, annotations)
         else:
-            raise UnexpectedTokenException(parser.peek_token(), "type", "func")
+            raise UnexpectedTokenException(parser.peek_token(), "type")
         parser.consume_tokens(TokenType.COMMA)
     parser.ensure_token(TokenType.CLOSE_BRACE)
     return platform
-
-def parse_platform_function_binding(parser, platform, annotations):
-    """
-    Parses a function binding in a platform.
-
-        function_binding := "func" func_fqn<FQN> function_signature "=>" native_func<STRING>
-    """
-    docs = parser.last_docstring()
-
-    func_fqn = parser.normalize_fqn(parser.ensure_fqn())
-    # Type signature
-    input_params, output_typeref = parse_function_signature(parser)
-
-    parser.ensure_token(TokenType.STREAM)
-    native_fqn = parser.ensure_token(TokenType.STRING)
-
-    # Create a function of a given type and register it
-    func_type = tlfuncs.FunctionType(input_params, output_typeref, annotations, docs)
-
-    # TODO - If a function is registered twice - say for different platforms
-    # We should ignore one if types are the same and throw errors if different platforms
-    # have different type signatures
-    func_typeref = parser.register_type(func_fqn, func_type)
-
-    # create the function object
-    function = parser.onering_context.get_function(func_fqn, ignore_missing = True)
-    if not function:
-        function = functions.Function(func_fqn, func_typeref, False, False, annotations, docs)
-        parser.onering_context.register_function(function)
-    else:
-        ipdb.set_trace()
-        pass
-
-    platform.add_function(function, native_fqn)
-    return function
 
 
 def parse_platform_type_binding(parser, platform, annotations):

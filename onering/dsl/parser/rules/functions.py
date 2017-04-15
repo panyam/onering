@@ -36,6 +36,7 @@ def parse_function(parser, annotations, **kwargs):
         function = orfuncs.Function(func_name, parser.current_module, functype, annotations = annotations, docs = docs)
         function.dest_varname = output_varname or "dest"
         parser.add_entity(function)
+        parser.onering_context.fgraph.register(function)
         parse_function_body(parser, function)
         return function
     else:

@@ -1,6 +1,8 @@
 
 import ipdb
+from itertools import izip
 from typelib.core import Entity
+from typelib import unifier as tlunifier
 from onering.utils.misc import ResolutionStatus
 from onering.core import exprs as orexprs
 from onering.errors import OneringException
@@ -16,6 +18,7 @@ class Function(Entity):
         self.statements = []
         self.resolution = ResolutionStatus()
         self.dest_varname = "dest"
+        self.is_external = False
 
         self.temp_variables = {}
         # explicit transformer rules
@@ -67,17 +70,18 @@ class Function(Entity):
             for vname, vtype in self.temp_variables.iteritems():
                 yield vname, vtype, orexprs.VarSource.LOCAL
 
-    def matches_input(self, context, input_types):
+    def matches_input(self, context, input_typerefs):
         """Tells if the input types can be accepted as argument for this transformer."""
-        if type(input_types) is not list:
-            input_types = [input_types]
-        if len(input_types) != len(self.src_fqns):
+        if type(input_typerefs) is not list:
+            input_types = [input_typerefs]
+        if len(input_typerefs) != len(self.src_fqns):
             return False
-        source_types = map(context.type_registry.get_final_type, self.src_fqns)
+        source_types = [x.final_entity for x in self.src_typerefs]
+        input_types = [x.final_entity for x in input_typerefs]
         return all(tlunifier.can_substitute(st, it) for (st,it) in izip(source_types, input_types))
 
     def matches_output(self, context, output_type):
-        dest_type = context.type_registry.get_final_type(self.dest_fqn)
+        dest_type = self.dest_typeref.final_entity
         return tlunifier.can_substitute(output_type, dest_type)
 
     def is_temp_variable(self, varname):

@@ -1,6 +1,6 @@
 
 from __future__ import absolute_import
-from jinja2 import BaseLoader, TemplateNotFound
+from jinja2 import BaseLoader, TemplateNotFound, StrictUndefined
 from jinja2 import Environment, PackageLoader
 import pkgutil
 import os
@@ -45,6 +45,7 @@ class TemplateLoader(BaseLoader):
             extensions = default_extensions
         kwargs = dict(trim_blocks = True,
                       lstrip_blocks = True,
+                      undefined = StrictUndefined,
                       extensions = extensions)
         #if not template_path.startswith("/"): kwargs["loader"] = PackageLoader("onering", "data/templates")
         env = Environment(**kwargs)

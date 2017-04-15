@@ -7,6 +7,11 @@ class FunctionGraph(object):
     def __init__(self, context):
         self.context = context
         self.function_edges = defaultdict(set)
+        self.all_functions = []
+
+    def register(self, function):
+        """ Registers a new function. """
+        self.all_functions.append(function)
 
     def get_function_chain(self, source_typerefs, target_typeref):
         """
@@ -19,8 +24,7 @@ class FunctionGraph(object):
         if type(source_typerefs) is not list:
             source_typerefs = [source_typerefs]
         source_types = map(context.global_module.get, source_typerefs)
-        ipdb.set_trace()
-        target_type = context.global_module.get(target_typeref)
+        target_type = target_typeref.final_entity
 
         queue = deque([])
         queue.append((source_types, []))
@@ -30,17 +34,17 @@ class FunctionGraph(object):
             source_types, sofar = queue.popleft()
 
             # Find all transformers that start with the given source_types
-            for tg in context.all_transformer_groups:
-                for transformer in tg.all_transformers:
-                    # See if any of the transformers can accept this set of
-                    # source types
-                    if transformer.matches_input(context, source_types):
-                        # see if this transformer's output matches the target type
-                        # if so we have a match
-                        if transformer.matches_output(context, target_type):
-                            return sofar + [transformer]
-                        elif transformer not in visited:
-                            visited.add(transformer)
-                            trans_source_types = map(context.type_registry.get_final_type, transformer.src_fqns)
-                            queue.append((trans_source_types, sofar + [transformer]))
+            for func in self.all_functions:
+                # See if any of the transformers can accept this set of
+                # source types
+                if func.matches_input(context, source_types):
+                    # see if this function's output matches the target type
+                    # if so we have a match
+                    if func.matches_output(context, target_type):
+                        return sofar + [func]
+                    elif func not in visited:
+                        visited.add(func)
+                        ipdb.set_trace()
+                        func_source_types = map(context.type_registry.get_final_type, function.src_fqns)
+                        queue.append((func_source_types, sofar + [func]))
         return []
