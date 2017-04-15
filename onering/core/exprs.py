@@ -5,6 +5,7 @@ from enum import Enum
 from onering import errors
 from onering.utils.misc import ResolutionStatus
 from onering.core.utils import FieldPath
+from typelib import core as tlcore
 from typelib.annotations import Annotatable
 from typelib import unifier as tlunifier
 
@@ -48,12 +49,6 @@ class Statement(object):
             # if self.is_temporary: ipdb.set_trace()
             self.target_variable.evaluated_typeref = last_expr.evaluated_typeref
             function.register_temp_var(str(self.target_variable.value), last_expr.evaluated_typeref)
-        else:
-            # target variable type is set so verify that its type is same as the type of 
-            # the "last" expression in the chain.
-            if type(last_expr) is FunctionCallExpression and not last_expr.function.output_known:
-                last_expr.function.typeref.final_type.output_typeref = self.target_variable.evaluated_typeref
-                last_expr.function.output_known = True
 
 class Expression(object):
     """
@@ -138,7 +133,6 @@ class VariableExpression(Expression):
         assert self._evaluated_typeref == None, "Type has already been resolved, should not have been called twice."
         from onering.core.resolvers import resolve_path_from_record
 
-        ipdb.set_trace()
         if self.source_type == VarSource.LOCAL: # We have a local var declaration
             # So add to function's temp var list if not a duplicate
             function.register_temp_var(str(self.value), None)
@@ -241,54 +235,51 @@ class FunctionCallExpression(Expression):
 
     because f(x,y,z) must return an observable and observable returns are not supported (yet).
     """
-    def __init__(self, func_fqn, func_args = None):
+    def __init__(self, func_ref, func_args = None):
         super(FunctionCallExpression, self).__init__()
-        self.func_fqn = func_fqn
+        assert isinstance(func_ref, tlcore.EntityRef)
+        self.func_ref = func_ref
         self.func_args = func_args
 
-    def resolve_bindings_and_types(self, function, context):
+    def resolve_bindings_and_types(self, parent_function, context):
         """
         Processes an expressions and resolves name bindings and creating new local vars 
         in the process if required.
         """
         try:
-            function = self.function = context.get_function(self.func_fqn)
+            parent_function.resolve_binding(self.func_ref)
         except:
             raise errors.OneringException("Function '%s' not found" % self.func_fqn)
 
-        func_typeref = self.function.typeref
-        func_type = function.final_type
+        func_type = self.func_ref.final_entity
 
-        # This is a variable so resolve it to either a local var or a parent + field_path
+        # Each of the function arguments is either a variable or a value.  
+        # If it is a variable expression then it needs to be resolved starting from the
+        # parent function that holds this statement (along with any other locals and upvals)
         for arg in self.func_args:
-            arg.resolve_bindings_and_types(function, context)
-            if function.inputs_need_inference and not function.inputs_known:
-                func_typeref.final_type.add_arg(arg.evaluated_typeref)
+            arg.resolve_bindings_and_types(parent_function, context)
 
-        # Mark inputs as having been inferred
-        function.inputs_known = True
+        if len(self.func_args) != func_type.argcount:
+            ipdb.set_trace()
+            raise errors.OneringException("Function '%s' takes %d arguments, but encountered %d" %
+                                            (function.fqn, func_type.argcount, len(self.func_args)))
 
-        if not function.inputs_need_inference:
-            if len(self.func_args) != func_typeref.final_type.argcount:
-                ipdb.set_trace()
-                raise errors.OneringException("Function '%s' takes %d arguments, but encountered %d" %
-                                                (function.fqn, func_type.argcount, len(self.func_args)))
+        for i in xrange(0, len(self.func_args)):
+            arg = self.func_args[i]
+            input_typeref = func_type.arg_at(i).typeref
+            if not tlunifier.can_substitute(input_typeref.final_entity, arg.evaluated_typeref.final_entity):
+                raise errors.OneringException("Argument at index %d expected type (%s), found type (%s)" % (i, arg.evaluated_typeref, input_typeref))
 
-            for i in xrange(0, len(self.func_args)):
-                arg = self.func_args[i]
-                input_typeref = func_typeref.final_type.arg_at(i).typeref
-                if not tlunifier.can_substitute(input_typeref.final_type, arg.evaluated_typeref.final_type):
-                    raise errors.OneringException("Argument at index %d expected type (%s), found type (%s)" % (i, arg.evaluated_typeref, input_typeref))
-
-        if function.output_known:
-            self._evaluated_typeref = func_type.output_typeref
+        self._evaluated_typeref = func_type.output_typeref
 
     @property
     def evaluated_typeref(self):
+        """
         if not self.function.output_known:
             output_typeref = self.function.final_type.output_typeref
             if not output_typeref or output_typeref.is_unresolved:
                 raise errors.OneringException("Output type of function '%s' not known as type inference is requested" % self.func_fqn)
-        elif self._evaluated_typeref is None:
-            self._evaluated_typeref = self.function.final_type.output_typeref
+        """
+        if self._evaluated_typeref is None:
+            self._evaluated_typeref = self.func_ref.final_entity.output_typeref
         return self._evaluated_typeref

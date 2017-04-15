@@ -3,6 +3,7 @@ import ipdb
 from typelib.core import Entity
 from onering.utils.misc import ResolutionStatus
 from onering.core import exprs as orexprs
+from onering.errors import OneringException
 
 class Function(Entity):
     """
@@ -32,7 +33,7 @@ class Function(Entity):
 
     @property
     def source_variables(self):
-        return [(x.name, x.typeref.fqn) for x in self.typeref.args]
+        return [(x.name, x.typeref) for x in self.typeref.args]
 
     @property
     def dest_fqn(self):
@@ -40,7 +41,7 @@ class Function(Entity):
 
     def add_statement(self, stmt):
         if not isinstance(stmt, orexprs.Statement):
-            raise errors.OneringException("Transformer rule must be a let statement or a statement, Found: %s" % str(type(stmt)))
+            raise OneringException("Transformer rule must be a let statement or a statement, Found: %s" % str(type(stmt)))
         # Check types and variables in the statements
         self._explicit_statements.append(stmt)
 
@@ -80,11 +81,11 @@ class Function(Entity):
     def register_temp_var(self, varname, vartype):
         assert type(varname) in (str, unicode)
         if varname in self.src_varnames:
-            raise errors.OneringException("Duplicate temporary variable '%s'.  Same as source." % varname)
+            raise OneringException("Duplicate temporary variable '%s'.  Same as source." % varname)
         elif varname == self.dest_varname:
-            raise errors.OneringException("Duplicate temporary variable '%s'.  Same as target." % varname)
+            raise OneringException("Duplicate temporary variable '%s'.  Same as target." % varname)
         elif self.is_temp_variable(varname) and self.temp_variables[varname] is not None:
-            raise errors.OneringException("Duplicate temporary variable declared: '%s'" % varname)
+            raise OneringException("Duplicate temporary variable declared: '%s'" % varname)
         self.temp_variables[varname] = vartype
 
     def resolve(self, context):
@@ -108,10 +109,8 @@ class Function(Entity):
         self.src_typerefs = [arg.typeref for arg in self.typeref.args]
         self.dest_typeref = self.typeref.output_typeref
         for typeref in self.src_typerefs + [self.dest_typeref]:
-            if not typeref.is_resolved:
-                # Yep find it up *its* module chain!
-                ipdb.set_trace()
-            assert typeref.final_entity
+            # Yep find it up *its* module chain!
+            self.resolve_binding(typeref)
 
         # Now resolve all field paths appropriately
         for index,statement in enumerate(self.all_statements):

@@ -100,7 +100,7 @@ def generate_ir_for_function_call(expr, context, input_values, instructions, sym
         instructions, symtable, value = generate_ir_for_expression(arg, context, None, instructions, symtable)
         arg_values.append(value)
     new_register = symtable.next_register(expr.evaluated_typeref)
-    instructions.append(ir.FunctionCallInstruction(expr.func_fqn, arg_values, new_register))
+    instructions.append(ir.FunctionCallInstruction(expr.func_ref.final_entity.fqn, arg_values, new_register))
     return instructions, symtable, new_register
 
 def generate_ir_for_variable(expr, context, input_values, instructions, symtable):
@@ -118,7 +118,7 @@ def generate_ir_for_variable(expr, context, input_values, instructions, symtable
     while field_path.length > 0:
         next_field_name, tail_path = field_path.pop()
         next_path = curr_path + "/" + next_field_name
-        next_typeref = curr_typeref.final_type.arg_for(next_field_name).typeref
+        next_typeref = curr_typeref.final_entity.arg_for(next_field_name).typeref
         next_register = symtable.get_register_for_path(next_path, next_typeref)
 
         # Get the next var and store into the var
