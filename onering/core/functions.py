@@ -36,6 +36,14 @@ class Function(Entity):
         return [(x.name, x.typeref) for x in self.typeref.args]
 
     @property
+    def src_typerefs(self):
+        return [x.typeref for x in self.typeref.args]
+
+    @property
+    def dest_typeref(self):
+        return self.typeref.output_typeref
+
+    @property
     def dest_fqn(self):
         return self.typeref.output_typeref.fqn
 
@@ -106,9 +114,9 @@ class Function(Entity):
             2. All expressions have their evaluated types set
         """
         # Resolve types here - bind them to somewhere along the module chain where they are visible!
-        self.src_typerefs = [arg.typeref for arg in self.typeref.args]
-        self.dest_typeref = self.typeref.output_typeref
-        for typeref in self.src_typerefs + [self.dest_typeref]:
+        src_typerefs = [arg.typeref for arg in self.typeref.args]
+        dest_typeref = self.typeref.output_typeref
+        for typeref in src_typerefs + [dest_typeref]:
             # Yep find it up *its* module chain!
             self.resolve_binding(typeref)
 

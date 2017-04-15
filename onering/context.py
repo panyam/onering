@@ -5,7 +5,7 @@ from typelib import core as tlcore
 from onering import resolver
 from onering import errors
 from onering.utils import dirutils
-from onering.core import tgraph
+from onering.core import fgraph
 from onering.core.modules import Module
 
 class OneringContext(dirutils.DirPointer):
@@ -13,7 +13,7 @@ class OneringContext(dirutils.DirPointer):
         dirutils.DirPointer.__init__(self)
         self.entity_resolver = resolver.EntityResolver("pdsc")
         self.global_module = Module(None, None)
-        self.tgraph = tgraph.TransformerGraph(self)
+        self.fgraph = fgraph.FunctionGraph(self)
         self.register_default_types()
 
         self.output_dir = "./gen"

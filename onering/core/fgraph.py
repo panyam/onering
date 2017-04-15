@@ -3,17 +3,12 @@ import ipdb
 from collections import defaultdict, deque
 from typelib import unifier as tlunifier
 
-class TransformerGraph(object):
+class FunctionGraph(object):
     def __init__(self, context):
         self.context = context
-        self.transformer_edges = defaultdict(set)
+        self.function_edges = defaultdict(set)
 
-    def register_transformer_edge(self, input_types_or_refs, output_type_or_ref):
-        context = self.context
-        insigs = [context.type_registry.get_final_type(i).signature for i in input_types_or_refs]
-        outsig = context.type_registry.get_final_type(output_type_or_ref).signature
-
-    def get_transformer_chain(self, source_typerefs, target_typeref):
+    def get_function_chain(self, source_typerefs, target_typeref):
         """
         Given two types, finds the shortest set of transformers that can 
         result in type1 -> ... -> type2
@@ -23,8 +18,9 @@ class TransformerGraph(object):
         context = self.context
         if type(source_typerefs) is not list:
             source_typerefs = [source_typerefs]
-        source_types = map(context.type_registry.get_final_type, source_typerefs)
-        target_type = context.type_registry.get_final_type(target_typeref)
+        source_types = map(context.global_module.get, source_typerefs)
+        ipdb.set_trace()
+        target_type = context.global_module.get(target_typeref)
 
         queue = deque([])
         queue.append((source_types, []))
