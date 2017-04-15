@@ -43,6 +43,7 @@ def parse_typeref_decl(parser, annotations, **kwargs):
     newtyperef = tlcore.EntityRef(None, name, parser.current_module, annotations = annotations, docs = docstring)
     parser.add_entity(newtyperef)
     newtyperef.target = ensure_typeref(parser)
+    print "Registering new typeref %s: '%s'" % (name, newtyperef.target.fqn)
     return newtyperef
 
 def ensure_typeref(parser, annotations = None):

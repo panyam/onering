@@ -237,7 +237,7 @@ class FunctionCallExpression(Expression):
     """
     def __init__(self, func_ref, func_args = None):
         super(FunctionCallExpression, self).__init__()
-        assert isinstance(func_ref, tlcore.EntityRef)
+        assert issubclass(func_ref.__class__, tlcore.EntityRef)
         self.func_ref = func_ref
         self.func_args = func_args
 
