@@ -213,7 +213,7 @@ def parse_expression(parser):
             parser.ensure_token(TokenType.CLOSE_PAREN)
 
             # Make sure function exists
-            out = orexprs.FunctionCallExpression(source_name, func_args)
+            out = orexprs.FunctionCallExpression(parser.add_symbol_ref(source_name), func_args)
     else:
         raise UnexpectedTokenException(parser.peek_token(),
                                        TokenType.STRING, TokenType.NUMBER,
