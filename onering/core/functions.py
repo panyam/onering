@@ -92,7 +92,7 @@ class Function(Entity):
 
     def register_temp_var(self, varname, vartype):
         assert type(varname) in (str, unicode)
-        if varname in self.src_varnames:
+        if varname in (x.name for x in self.typeref.args):
             raise OneringException("Duplicate temporary variable '%s'.  Same as source." % varname)
         elif varname == self.dest_varname:
             raise OneringException("Duplicate temporary variable '%s'.  Same as target." % varname)

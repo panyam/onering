@@ -252,6 +252,8 @@ class FunctionCallExpression(Expression):
             raise errors.OneringException("Function '%s' not found" % self.func_fqn)
 
         func_type = self.func_ref.final_entity
+        if not func_type:
+            ipdb.set_trace()
 
         # Each of the function arguments is either a variable or a value.  
         # If it is a variable expression then it needs to be resolved starting from the
@@ -266,9 +268,11 @@ class FunctionCallExpression(Expression):
 
         for i in xrange(0, len(self.func_args)):
             arg = self.func_args[i]
-            input_typeref = func_type.arg_at(i).typeref
-            if not tlunifier.can_substitute(input_typeref.final_entity, arg.evaluated_typeref.final_entity):
-                raise errors.OneringException("Argument at index %d expected type (%s), found type (%s)" % (i, arg.evaluated_typeref, input_typeref))
+            peg_typeref = arg.evaluated_typeref
+            hole_typeref = func_type.arg_at(i).typeref
+            if not tlunifier.can_substitute(peg_typeref.final_entity, hole_typeref.final_entity):
+                ipdb.set_trace()
+                raise errors.OneringException("Argument at index %d expected (hole) type (%s), found (peg) type (%s)" % (i, hole_typeref, peg_typeref))
 
         self._evaluated_typeref = func_type.output_typeref
 

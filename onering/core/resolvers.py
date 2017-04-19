@@ -144,6 +144,8 @@ def resolve_path_from_record(starting_typeref, field_path, context, resolver):
     child_key = None
     for i in xrange(field_path.length):
         part = field_path.get(i)
+        if not final_entityref:
+            ipdb.set_trace()
         final_entity = final_entityref.final_entity
         if final_entityref.is_unresolved or final_entity.constructor != "record":
             # TODO - Throw an "unresolved type" exception?

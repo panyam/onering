@@ -20,7 +20,7 @@ def parse_function(parser, annotations, **kwargs):
     """Parses a function declaration.
 
     function        :=  function_type function_body ? 
-    function_type   :=  "fun" name<IDENT>   input_params ? ( ":" output_type )
+    function_type   :=  "fun" name<IDENT>   "(" input_params ")" ? ( ":" output_type )
     function_body   := "{" stream_statement * "}"
     """
     docs = parser.last_docstring()
@@ -131,19 +131,24 @@ def parse_statement(parser, function):
     annotations = parse_annotations(parser)
 
     is_temporary = False
+    is_funccall = False
     if parser.next_token_is(TokenType.IDENTIFIER, "let"):
         exprs = parse_expression_chain(parser)
         is_temporary = True
+    elif parser.next_token_is(TokenType.IDENTIFIER, "call"):
+        exprs = parse_expression_chain(parser)
+        is_funccall = True
     else:
         exprs = parse_expression_chain(parser)
 
     # An expression must have more than 1 expression
-    if len(exprs) <= 1:
+    if len(exprs) <= 1 and not is_funccall:
         raise OneringException("A rule statement must have at least one expression")
 
     # ensure last var IS a variable expression
-    if not isinstance(exprs[-1], orexprs.VariableExpression):
-        raise OneringException("Final target of an expression MUST be a variable")
+    if not is_funccall:
+        if not isinstance(exprs[-1], orexprs.VariableExpression):
+            raise OneringException("Final target of an expression MUST be a variable")
 
     parser.consume_tokens(TokenType.SEMI_COLON)
     return orexprs.Statement(exprs[:-1], exprs[-1], is_temporary)
