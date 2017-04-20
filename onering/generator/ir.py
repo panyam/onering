@@ -20,6 +20,8 @@ class ValueOrVar(object):
             val = self.entry.value
         if type(val) in (str, unicode):
             return "\"%s\"" % val
+        if type(val) is list:
+            return "[" + ", ".join(map(str, val)) + "]"
         return str(val)
 
 class GetFieldInstruction(object):
@@ -70,7 +72,7 @@ class FunctionCallInstruction(object):
         self.output_register = output_register
 
     def __repr__(self):
-        return "CALL %s [(%s) -> %s]" % (self.func_fqn, ", ".join(self.input_registers), self.output_register)
+        return "CALL %s [(%s) -> %s]" % (self.func_fqn, ", ".join(map(str, self.input_registers)), self.output_register)
 
 
 class IfStatement(object):

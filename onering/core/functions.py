@@ -100,6 +100,7 @@ class Function(Entity):
         elif varname == self.dest_varname:
             raise OneringException("Duplicate temporary variable '%s'.  Same as target." % varname)
         elif self.is_temp_variable(varname) and self.temp_variables[varname] is not None:
+            ipdb.set_trace()
             raise OneringException("Duplicate temporary variable declared: '%s'" % varname)
         self.temp_variables[varname] = vartype
 

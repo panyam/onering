@@ -13,10 +13,10 @@ class Statement(object):
     def __init__(self, expressions, target_variable, is_temporary = False):
         self.expressions = expressions
         self.target_variable = target_variable
-        self.target_variable.is_temporary = is_temporary or target_variable.value.get(0) == '_'
+        self.target_variable.is_temporary = is_temporary or target_variable.field_path.get(0) == '_'
         self.is_implicit = False
         if self.target_variable.is_temporary:
-            assert target_variable.value.length == 1, "A temporary variable cannot have nested field paths"
+            assert target_variable.field_path.length == 1, "A temporary variable cannot have nested field paths"
 
     @property
     def is_temporary(self):
@@ -30,7 +30,8 @@ class Statement(object):
         # Resolve the target variable's binding.  This does'nt necessarily have
         # to evaluate types.
         # This will help us with type inference going backwards
-        self.target_variable.resolve_bindings_and_types(function, context)
+        if not self.is_temporary:
+            self.target_variable.resolve_bindings_and_types(function, context)
 
         # Resolve all types in child expressions.  
         # Apart from just evaluating all child expressions, also make sure
@@ -42,7 +43,7 @@ class Statement(object):
         if self.target_variable.is_temporary:
             # Resolve field paths that should come from dest type
             self.target_variable.evaluated_typeref = last_expr.evaluated_typeref
-            function.register_temp_var(str(self.target_variable.value), last_expr.evaluated_typeref)
+            function.register_temp_var(str(self.target_variable.field_path), last_expr.evaluated_typeref)
 
 class Expression(object):
     """
@@ -196,17 +197,17 @@ class VariableExpression(Expression):
     def __init__(self, field_path):
         super(VariableExpression, self).__init__()
         self.is_temporary = False
-        self.value = field_path
+        self.field_path = field_path
         assert type(field_path) is FieldPath and field_path.length > 0
 
     def __repr__(self):
-        return "<VarExp - ID: 0x%x, Value: %s>" % (id(self), str(self.value))
+        return "<VarExp - ID: 0x%x, Value: %s>" % (id(self), str(self.field_path))
 
     def set_evaluated_typeref(self, vartype):
         if self.is_temporary:
             self._evaluated_typeref = vartype
         else:
-            assert False, "cannot get evaluted type of a non local var: %s" % self.value
+            assert False, "cannot get evaluted type of a non local var: %s" % self.field_path
 
     def check_types(self, context):
         if not self.is_field_path: return
@@ -219,32 +220,32 @@ class VariableExpression(Expression):
         assert self._evaluated_typeref == None, "Type has already been resolved, should not have been called twice."
         from onering.core.resolvers import resolve_path_from_record
 
-        self.normalized_field_path = self.value.copy()
-        first, field_path_tail = self.value.pop()
+        first, field_path_tail = self.field_path.pop()
         self.is_temporary = self.is_temporary or first == "_" or function.is_temp_variable(first)
         if self.is_temporary: # We have a local var declaration
             # So add to function's temp var list if not a duplicate
             if first == "_":
                 self._evaluated_typeref = function.resolve_binding(tlcore.SymbolRef("void"))
-                function.register_temp_var(str(self.value), self._evaluated_typeref)
             else:
-                function.register_temp_var(str(self.value), None)
+                # get type from function
+                self._evaluated_typeref = function.temp_var_type(self.field_path)
         else:
             # See which of the params we should bind to
-            field_resolution_result = None
+            self.field_resolution_result = None
 
             for src_varname, src_typeref in function.source_variables:
                 if src_varname == first:
-                    field_resolution_result = resolve_path_from_record(src_typeref, field_path_tail, context, None)
+                    if field_path_tail.length > 0:
+                        self.field_resolution_result = resolve_path_from_record(src_typeref, field_path_tail, context, None)
+                    else:
+                        self._evaluated_typeref = src_typeref
                     break
+            else:
+                if function.dest_typeref and function.dest_varname == first:
+                    self.field_resolution_result = resolve_path_from_record(function.dest_typeref, field_path_tail, context, None)
 
-            if (not field_resolution_result or not field_resolution_result.is_valid) and \
-                    function.dest_typeref and function.dest_varname == first:
-                field_resolution_result = resolve_path_from_record(function.dest_typeref, field_path_tail, context, None)
-
-            if (not field_resolution_result or not field_resolution_result.is_valid):
-                ipdb.set_trace()
-                raise errors.OneringException("Invalid field path '%s'" % self.value)
-
-            self._evaluated_typeref = field_resolution_result.resolved_typeref
-            self.field_resolution_result = field_resolution_result
+            if not self._evaluated_typeref:
+                if not self.field_resolution_result or not self.field_resolution_result.is_valid:
+                    ipdb.set_trace()
+                    raise errors.OneringException("Invalid field path '%s'" % self.field_path)
+                self._evaluated_typeref = self.field_resolution_result.resolved_typeref

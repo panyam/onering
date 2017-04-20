@@ -29,7 +29,7 @@ def generate_ir_for_statements(statements, context, instructions = None, symtabl
     for index,statement in enumerate(statements):
         if statement.is_temporary:
             # Register var if this is temporary
-            symtable.register_var(statement.target_variable.value.get(0), statement.target_variable.evaluated_typeref, True)
+            symtable.register_var(statement.target_variable.field_path.get(0), statement.target_variable.evaluated_typeref, True)
 
     # Now do the normal generation
     for index,statement in enumerate(statements):
@@ -82,7 +82,7 @@ def generate_ir_for_list(expr, context, input_values, instructions, symtable):
     for child in expr.values:
         instructions, symtable, value = generate_ir_for_expression(child, context, None, instructions, symtable)
         child_values.append(value)
-    return instructions, symtable, child_values
+    return instructions, symtable, ir.ValueOrVar(child_values, True)
 
 def generate_ir_for_dict(expr, context, input_values, instructions, symtable):
     # TBD
@@ -104,14 +104,13 @@ def generate_ir_for_function_call(expr, context, input_values, instructions, sym
     return instructions, symtable, new_register
 
 def generate_ir_for_variable(expr, context, input_values, instructions, symtable):
-    starting_var, field_path = expr.normalized_field_path.pop()
+    starting_var, field_path = expr.field_path.pop()
     if expr.is_temporary:
         starting_typeref = expr.evaluated_typeref
+    elif expr.field_resolution_result:
+        starting_typeref = expr.field_resolution_result.root_typeref
     else:
-        resolution_result = expr.field_resolution_result 
-        if not resolution_result:
-            ipdb.set_trace()
-        starting_typeref = resolution_result.root_typeref
+        starting_typeref = expr.evaluated_typeref
 
     curr_typeref = starting_typeref
     curr_path = starting_var
@@ -136,7 +135,7 @@ def generate_ir_for_variable(expr, context, input_values, instructions, symtable
 
 
 def generate_ir_for_setter(source_register, target_var, instructions, symtable):
-    starting_var, field_path = target_var.normalized_field_path.pop()
+    starting_var, field_path = target_var.field_path.pop()
     starting_register = symtable.get_register_for_path(starting_var)
     if target_var.is_temporary:
         starting_typeref = target_var.evaluated_typeref
