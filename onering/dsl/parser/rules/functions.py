@@ -135,22 +135,18 @@ def parse_statement(parser, function):
     if parser.next_token_is(TokenType.IDENTIFIER, "let"):
         exprs = parse_expression_chain(parser)
         is_temporary = True
-    elif parser.next_token_is(TokenType.IDENTIFIER, "call"):
-        exprs = parse_expression_chain(parser)
-        is_funccall = True
     else:
         exprs = parse_expression_chain(parser)
 
     # An expression must have more than 1 expression
-    if len(exprs) <= 1 and not is_funccall:
+    if len(exprs) <= 1:
         raise OneringException("A rule statement must have at least one expression")
 
-    # ensure last var IS a variable expression
-    if not is_funccall:
-        if not isinstance(exprs[-1], orexprs.VariableExpression):
-            raise OneringException("Final target of an expression MUST be a variable")
-
     parser.consume_tokens(TokenType.SEMI_COLON)
+
+    # ensure last var IS a variable expression
+    if not isinstance(exprs[-1], orexprs.VariableExpression):
+        raise OneringException("Final target of an expression MUST be a variable")
     return orexprs.Statement(exprs[:-1], exprs[-1], is_temporary)
 
 def parse_expression_chain(parser):
@@ -196,7 +192,7 @@ def parse_expression(parser):
     elif parser.peeked_token_is(TokenType.IDENTIFIER):
         # See if we have a function call or a var or a field path
         source = parse_field_path(parser, allow_abs_path = False, allow_child_selection = False)
-        out = orexprs.VariableExpression(source, readonly = True, source_type = orexprs.VarSource.AUTO)
+        out = orexprs.VariableExpression(source)
 
         func_args = []
         if parser.peeked_token_is(TokenType.OPEN_PAREN):
@@ -237,5 +233,17 @@ def parse_tuple_expression(parser):
             expr = parse_expression(parser)
             exprs.append(expr)
         parser.ensure_token(TokenType.CLOSE_PAREN)
-    return transformers.TupleExpression(exprs)
+    return orexprs.TupleExpression(exprs)
+
+def parse_list_expression(parser):
+    parser.ensure_token(TokenType.OPEN_SQUARE)
+    exprs = []
+    if not parser.next_token_is(TokenType.CLOSE_PAREN):
+        expr = parse_expression(parser)
+        exprs = [expr]
+        while parser.next_token_is(TokenType.COMMA):
+            expr = parse_expression(parser)
+            exprs.append(expr)
+        parser.ensure_token(TokenType.CLOSE_SQUARE)
+    return orexprs.ListExpression(exprs)
 

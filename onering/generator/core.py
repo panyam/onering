@@ -2,7 +2,7 @@
 import ipdb
 from onering.generator.symtable import SymbolTable
 from onering.generator import ir
-from onering.core.exprs import Expression, LiteralExpression, ListExpression, DictExpression, TupleExpression, FunctionCallExpression, VariableExpression, VarSource
+from onering.core.exprs import Expression, LiteralExpression, ListExpression, DictExpression, TupleExpression, FunctionCallExpression, VariableExpression
 
 """
 This module is responsible for generating code for a statement and all parts of an expression tree.
@@ -105,10 +105,12 @@ def generate_ir_for_function_call(expr, context, input_values, instructions, sym
 
 def generate_ir_for_variable(expr, context, input_values, instructions, symtable):
     starting_var, field_path = expr.normalized_field_path.pop()
-    if expr.source_type == VarSource.LOCAL:
+    if expr.is_temporary:
         starting_typeref = expr.evaluated_typeref
     else:
         resolution_result = expr.field_resolution_result 
+        if not resolution_result:
+            ipdb.set_trace()
         starting_typeref = resolution_result.root_typeref
 
     curr_typeref = starting_typeref
@@ -136,7 +138,7 @@ def generate_ir_for_variable(expr, context, input_values, instructions, symtable
 def generate_ir_for_setter(source_register, target_var, instructions, symtable):
     starting_var, field_path = target_var.normalized_field_path.pop()
     starting_register = symtable.get_register_for_path(starting_var)
-    if target_var.source_type == VarSource.LOCAL:
+    if target_var.is_temporary:
         starting_typeref = target_var.evaluated_typeref
         if field_path.length == 0:
             # Do a direct copy as no nesting into a local var

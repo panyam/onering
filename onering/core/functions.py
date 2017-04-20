@@ -48,7 +48,10 @@ class Function(Entity):
 
     @property
     def dest_fqn(self):
-        return self.typeref.output_typeref.fqn
+        if self.typeref.output_typeref:
+            return self.typeref.output_typeref.fqn
+        else:
+            return "None"
 
     def add_statement(self, stmt):
         if not isinstance(stmt, orexprs.Statement):
@@ -63,12 +66,12 @@ class Function(Entity):
     def local_variables(self, yield_src = True, yield_dest = True, yield_locals = True):
         if yield_src:
             for src_varname, src_typeref in self.source_variables:
-                yield src_varname, src_typeref, orexprs.VarSource.SOURCE
+                yield src_varname, src_typeref, False
         if yield_dest:
-            yield self.dest_varname, self.dest_typeref, orexprs.VarSource.DEST
+            yield self.dest_varname, self.dest_typeref, False
         if yield_locals:
             for vname, vtype in self.temp_variables.iteritems():
-                yield vname, vtype, orexprs.VarSource.LOCAL
+                yield vname, vtype, True
 
     def matches_input(self, context, input_typerefs):
         """Tells if the input types can be accepted as argument for this transformer."""
