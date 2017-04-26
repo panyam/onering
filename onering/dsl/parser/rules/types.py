@@ -150,7 +150,7 @@ def parse_enum_body(parser):
         value = None
         if parser.next_token_is(TokenType.EQUALS):
             value = parser.ensure_literal_value()
-        symbols.append(tlenums.EnumSymbol(name, None, value, annotations, parser.last_docstring))
+        symbols.append(tlenums.EnumSymbol(name, None, value, annotations, parser.last_docstring()))
         # consume comma silently
         parser.next_token_if(TokenType.COMMA, consume = True)
     parser.ensure_token(TokenType.CLOSE_BRACE)
