@@ -14,7 +14,8 @@ def generate_ir_for_function(function, context):
     # Set source and dest variables in symbol table
     for src_varname,src_typeref in function.source_variables:
         symtable.register_var(src_varname, src_typeref, False)
-    symtable.register_var(function.dest_varname, function.typeref.output_typeref, False)
+    if function.typeref.output_typeref:
+        symtable.register_var(function.dest_varname, function.typeref.output_typeref, False)
     instructions, symtable, _ = generate_ir_for_statements(function.all_statements, context, symtable = symtable)
     return instructions, symtable
 

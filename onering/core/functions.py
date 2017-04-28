@@ -17,7 +17,7 @@ class Function(Entity):
         self.typeref = typeref
         self.statements = []
         self.resolution = ResolutionStatus()
-        self.dest_varname = "dest"
+        self.dest_varname = "dest" if typeref else None
         self.is_external = False
 
         self.temp_variables = {}
