@@ -242,6 +242,10 @@ class VariableExpression(Expression):
                     break
             else:
                 if function.dest_typeref and function.dest_varname == first:
+                    # If we are dealing with an output variable, we dont want to directly reference the var
+                    # because the output value could be created (via a constructor) at the end.  Instead
+                    # save to other newly created temp vars and finally collect them and do bulk setters 
+                    # on the output var or a constructor on the output var or both.
                     self.field_resolution_result = resolve_path_from_record(function.dest_typeref, field_path_tail, context, None)
 
             if not self._evaluated_typeref:
