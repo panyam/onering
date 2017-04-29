@@ -33,7 +33,8 @@ class FunctionGraph(object):
         while queue:
             source_types, sofar = queue.popleft()
 
-            # Find all transformers that start with the given source_types
+            # Find all transformers that start with the given source_types 
+            # (or source_types + dest_typref for mutable functions)
             for func in self.all_functions:
                 # See if any of the transformers can accept this set of
                 # source types
@@ -47,4 +48,6 @@ class FunctionGraph(object):
                         ipdb.set_trace()
                         func_source_types = map(context.type_registry.get_final_type, function.src_fqns)
                         queue.append((func_source_types, sofar + [func]))
+                if func.matches_input(context, source_types + [target_typeref]):
+                    return sofar + [func]
         return []
