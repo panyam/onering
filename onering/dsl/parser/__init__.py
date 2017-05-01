@@ -72,7 +72,9 @@ class Parser(TokenStream):
 
     def add_entity(self, entity):
         if entity.name:
-            assert entity.fqn not in self.found_entities
+            if entity.fqn in self.found_entities:
+                ipdb.set_trace()
+                assert entity.fqn not in self.found_entities
             self.found_entities[entity.fqn] = entity
             self.current_module.add(entity)
 
