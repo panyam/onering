@@ -66,7 +66,7 @@ class Parser(TokenStream):
 
     def ensure_key(self, fqn_or_name_or_parts):
         entity = self.current_module.ensure_key(fqn_or_name_or_parts)
-        assert entity.fqn not in self.found_entities
+        assert entity.fqn not in self.found_entities, "Entity '%s' already exists" % entity.fqn
         self.found_entities[entity.fqn] = entity
         return entity
 
