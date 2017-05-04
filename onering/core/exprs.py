@@ -20,7 +20,7 @@ class Statement(object):
 
     @property
     def is_temporary(self):
-        return self.target_variable.is_temporary
+        return self.target_variable and self.target_variable.is_temporary
 
     def resolve_bindings_and_types(self, function, context):
         """
@@ -41,9 +41,13 @@ class Statement(object):
 
         last_expr = self.expressions[-1]
         if self.target_variable.is_temporary:
-            # Resolve field paths that should come from dest type
-            self.target_variable.evaluated_typeref = last_expr.evaluated_typeref
-            function.register_temp_var(str(self.target_variable.field_path), last_expr.evaluated_typeref)
+            varname = str(self.target_variable.field_path)
+            if varname == "_":
+                self.target_variable = None
+            else:
+                # Resolve field paths that should come from dest type
+                self.target_variable.evaluated_typeref = last_expr.evaluated_typeref
+                function.register_temp_var(varname, last_expr.evaluated_typeref)
 
 class Expression(object):
     """
