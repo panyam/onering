@@ -45,8 +45,7 @@ class FunctionGraph(object):
                         return sofar + [func]
                     elif func not in visited:
                         visited.add(func)
-                        ipdb.set_trace()
-                        func_source_types = map(context.type_registry.get_final_type, function.src_fqns)
+                        func_source_types = [t.final_entity for t in func.src_typerefs]
                         queue.append((func_source_types, sofar + [func]))
                 if func.matches_input(context, source_types + [target_typeref]):
                     return sofar + [func]
