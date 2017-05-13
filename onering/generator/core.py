@@ -2,7 +2,7 @@
 import ipdb
 from onering.generator.symtable import SymbolTable
 from onering.generator import ir
-from onering.core.exprs import Expression, LiteralExpression, ListExpression, DictExpression, TupleExpression, FunctionCallExpression, VariableExpression
+from onering.core.exprs import Expression, LiteralExpression, ListExpression, DictExpression, TupleExpression, FunctionCallExpression, VariableExpression, IfExpression
 
 """
 This module is responsible for generating code for a statement and all parts of an expression tree.
@@ -58,6 +58,7 @@ def generate_ir_for_expression(expr, context, input_values, instructions, symtab
         DictExpression: generate_ir_for_dict,
         FunctionCallExpression: generate_ir_for_function_call,
         VariableExpression: generate_ir_for_variable,
+        IfExpression: generate_ir_for_if_expression,
     }
     return irgenerators[type(expr)](expr, context, input_values, instructions, symtable)
 
@@ -103,6 +104,22 @@ def generate_ir_for_function_call(expr, context, input_values, instructions, sym
     new_register = symtable.next_register(expr.evaluated_typeref)
     instructions.append(ir.FunctionCallInstruction(expr.func_ref.final_entity.fqn, arg_values, new_register))
     return instructions, symtable, new_register
+
+def generate_ir_for_if_expression(ifexpr, context, input_values, instructions, symtable):
+    top_ifinstr = None
+    curr_instrs = instructions
+    for condition,stmt_block in ifexpr.cases:
+        # we are dealing with first condition
+        cond_instrs, symtable, value = generate_ir_for_expression(condition, context, None, curr_instrs, symtable)
+        body_instrs, symtable, _ = generate_ir_for_statements(stmt_block, context, None, symtable)
+        ifinstr = ir.IfStatement(ir.ValueOrVar(value, True), body_instrs)
+        if not top_ifinstr: top_ifinstr = ifinstr
+        curr_instrs.append(ifinstr)
+        curr_instrs = ifinstr.otherwise
+
+    if ifexpr.default_expression:
+        generate_ir_for_statements(ifexpr.default_expression, context, curr_instrs, symtable)
+    return instructions, symtable, top_ifinstr
 
 def generate_ir_for_variable(expr, context, input_values, instructions, symtable):
     starting_var, field_path = expr.field_path.pop()

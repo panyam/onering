@@ -1,5 +1,4 @@
 
-
 import ipdb
 from enum import Enum
 from onering import errors
@@ -162,7 +161,7 @@ class FunctionCallExpression(Expression):
 
         func_type = self.func_ref.final_entity
         if not func_type:
-            ipdb.set_trace()
+            raise errors.OneringException("Function '%s' is undefined" % self.func_ref.name)
 
         # Each of the function arguments is either a variable or a value.  
         # If it is a variable expression then it needs to be resolved starting from the
@@ -211,7 +210,7 @@ class VariableExpression(Expression):
         if self.is_temporary:
             self._evaluated_typeref = vartype
         else:
-            assert False, "cannot get evaluted type of a non local var: %s" % self.field_path
+            assert False, "cannot set evaluted type of a non local var: %s" % self.field_path
 
     def check_types(self, context):
         if not self.is_field_path: return
@@ -257,3 +256,30 @@ class VariableExpression(Expression):
                     ipdb.set_trace()
                     raise errors.OneringException("Invalid field path '%s'" % self.field_path)
                 self._evaluated_typeref = self.field_resolution_result.resolved_typeref
+
+class IfExpression(Expression):
+    """ Conditional expressions are used to represent if-else expressions. """
+    def __init__(self, cases, default_expression):
+        super(IfExpression, self).__init__()
+        self.cases = cases or []
+        self.default_expression = default_expression or []
+
+    def __repr__(self):
+        return "<CondExp - ID: 0x%x>" % (id(self))
+
+    def set_evaluated_typeref(self, vartype):
+        assert False, "cannot set evaluted type of an If expression (yet)"
+
+    def resolve_bindings_and_types(self, function, context):
+        """ Resolves bindings and types in all child expressions. """
+        assert self._evaluated_typeref == None, "Type has already been resolved, should not have been called twice."
+        from onering.core.resolvers import resolve_path_from_record
+
+        for condition, stmt_block in self.cases:
+            condition.resolve_bindings_and_types(function, context)
+            for stmt in stmt_block:
+                stmt.resolve_bindings_and_types(function, context)
+
+        for stmt in self.default_expression:
+            stmt.resolve_bindings_and_types(function, context)
+        self._evaluated_typeref = function.resolve_binding(tlcore.SymbolRef("void"))

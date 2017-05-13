@@ -5,6 +5,7 @@ from typelib import core as tlcore
 from typelib import functions as tlfunctions
 from onering import utils
 from onering.dsl.parser.rules.types import ensure_typeref
+from onering.errors import OneringException
 from onering.dsl.errors import SourceException, UnexpectedTokenException
 from onering.dsl.lexer import Token, TokenType
 from onering.dsl.parser.rules.annotations import parse_annotations
@@ -111,20 +112,30 @@ def parse_param_declaration(parser, require_name = True):
     return tlfunctions.ParamTypeArg(param_name, param_typeref, is_optional, default_value, annotations, docstring)
 
 def parse_function_body(parser, function):
+    for statement in parse_statement_block(parser):
+        function.add_statement(statement)
+
+def parse_statement_block(parser):
+    """ Parses a statement block.
+
+    statment_block := "{" statement * "}"
+
+    """
     parser.ensure_token(TokenType.OPEN_BRACE)
     while not parser.peeked_token_is(TokenType.CLOSE_BRACE):
-        statement = parse_statement(parser, function)
-        function.add_statement(statement)
+        yield parse_statement(parser)
     parser.ensure_token(TokenType.CLOSE_BRACE)
     parser.consume_tokens(TokenType.SEMI_COLON)
 
-def parse_statement(parser, function):
+def parse_statement(parser):
     """
     Parses a single statement.
 
-        statement := let_statment | stream_expr
+        statement := let_statment | stream_expr | if_expr
 
         let_statement := "let" stream_expr
+
+        if_expr := "if" condition "{" statements "}"
 
         stream_expr := expr ( => expr ) * => expr
     """
@@ -140,6 +151,7 @@ def parse_statement(parser, function):
 
     # An expression must have more than 1 expression
     if len(exprs) <= 1:
+        ipdb.set_trace()
         raise OneringException("A rule statement must have at least one expression")
 
     parser.consume_tokens(TokenType.SEMI_COLON)
@@ -168,6 +180,7 @@ def parse_expression(parser):
     Parse a function call expression or a literal.
 
         expr := literal
+                if_expression
                 list_expression
                 dict_expression
                 tuple_expression
@@ -189,6 +202,8 @@ def parse_expression(parser):
         out = parse_struct_expression(parser)
     elif parser.peeked_token_is(TokenType.OPEN_PAREN):
         out = parse_tuple_expression(parser)
+    elif parser.peeked_token_is(TokenType.IDENTIFIER, "if"):
+        out = parse_if_expression(parser)
     elif parser.peeked_token_is(TokenType.IDENTIFIER):
         # See if we have a function call or a var or a field path
         source = parse_field_path(parser, allow_abs_path = False, allow_child_selection = False)
@@ -246,4 +261,33 @@ def parse_list_expression(parser):
             exprs.append(expr)
         parser.ensure_token(TokenType.CLOSE_SQUARE)
     return orexprs.ListExpression(exprs)
+
+def parse_if_expression(parser):
+    """ Parse an if expression:
+
+        "if" condition statement_block
+        ( "elif" condition statement_block ) *
+        ( "else" statement_block ) ?
+    Parse an expression chain of the form 
+
+        expr => expr => expr => expr
+    """
+    parser.ensure_token(TokenType.IDENTIFIER, "if")
+    conditions = []
+    condition = parse_expression(parser)
+    body = list(parse_statement_block(parser))
+    conditions.append((condition, body))
+    default_expression = None
+
+    while True:
+        if parser.next_token_is(TokenType.IDENTIFIER, "elif"):
+            condition = parse_expression(parser)
+            body = list(parse_statement_block(parser))
+            conditions.append((condition, body))
+        elif parser.next_token_is(TokenType.IDENTIFIER, "else"):
+            default_expression = list(parse_statement_block(parser))
+        else:
+            break
+
+    return orexprs.IfExpression(conditions, default_expression)
 
