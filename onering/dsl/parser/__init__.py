@@ -46,8 +46,9 @@ class Parser(TokenStream):
         from onering.dsl.parser.rules.types import parse_typeref_decl
         self.register_entity_parser("typeref", parse_typeref_decl)
 
-        from onering.dsl.parser.rules.types import parse_record
-        self.register_entity_parser("record", parse_record)
+        from onering.dsl.parser.rules.types import parse_record_or_union
+        self.register_entity_parser("record", parse_record_or_union)
+        self.register_entity_parser("union", parse_record_or_union)
 
         from onering.dsl.parser.rules.types import parse_enum
         self.register_entity_parser("enum", parse_enum)

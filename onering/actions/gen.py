@@ -8,7 +8,7 @@ from onering.actions.base import ActionGroup
 
 class GeneratorActions(ActionGroup):
     """
-    Actions to generate language/platform specific models, transformers, derivations, etc from
+    Actions to generate language/platform specific models, transformers etc from
     schema files.
     """
     def __init__(self, context):
@@ -16,7 +16,7 @@ class GeneratorActions(ActionGroup):
 
     def codegen(self, schemas_or_fqns, platform = None, template = None):
         """
-        Generate code for the given type or derivation schemas.
+        Generate code for the given type schemas.
 
         **Parameters:**
             schemas_or_fqns -   A list of schema (typerefs) or FQNs whose code is to be generated.
@@ -34,8 +34,6 @@ class GeneratorActions(ActionGroup):
             source_typeref = entry
             if type(source_typeref) in (str, unicode):
                 source_typeref = self.context.type_registry.get_typeref(source_typeref)
-                if not source_typeref:
-                    source_typeref = self.context.get_derivation(source_typeref)
             orgenutils.generate_schemas(source_typeref, self.context, platform, template)
 
     def codegen_transformers(self, tgroups_or_fqns, platform = None, template = None):

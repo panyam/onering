@@ -6,7 +6,6 @@ from onering import errors
 from onering.utils.misc import ResolutionStatus, FQN
 from onering.core.utils import FieldPath
 from onering.core import exprs as orexprs
-from onering.core.projections import SimpleFieldProjection
 from typelib.annotations import Annotatable
 
 class Interface(Annotatable):

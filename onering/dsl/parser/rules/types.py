@@ -80,10 +80,20 @@ def parse_parametric_type(parser, annotations):
     parser.unget_token(next_token)
     return None
 
-def parse_newtyperef_preamble(parser, constructor, name_required = False):
+def parse_newtyperef_preamble(parser, constructor, name_required = False, allow_generics = True):
     name = None
-    if name_required:
+    if name_required or parser.peeked_token_is(TokenType.IDENTIFIER):
         name = parser.ensure_token(TokenType.IDENTIFIER)
+
+    # Type params
+    type_params = []
+    if allow_generics:
+        if parser.next_token_is(parser.GENERIC_OPEN_TOKEN):
+            type_params.append(parser.ensure_token(TokenType.IDENTIFIER))
+            while not parser.peeked_token_is(parser.GENERIC_CLOSE_TOKEN):
+                parser.ensure_token(TokenType.COMMA)
+                type_params.append(parser.ensure_token(TokenType.IDENTIFIER))
+            parser.ensure_token(parser.GENERIC_CLOSE_TOKEN)
 
     if name:
         print "Registering new %s: '%s'" % (constructor, name)
@@ -93,10 +103,10 @@ def parse_newtyperef_preamble(parser, constructor, name_required = False):
 
     assert newtyperef is not None, "A type was NOT parsed"
     docs = parser.last_docstring()
-    return newtyperef, docs
+    return newtyperef, type_params, docs
 
 def parse_parametric_type_body(parser, constructor, annotations = None):
-    newtyperef, docs = parse_newtyperef_preamble(parser, constructor)
+    newtyperef, type_params, docs = parse_newtyperef_preamble(parser, constructor, allow_generics = False)
 
     parser.ensure_token(parser.GENERIC_OPEN_TOKEN)
     child_typerefs = [ ensure_typeref(parser) ]
@@ -123,7 +133,7 @@ def parse_enum(parser, annotations = None):
         enum ( "[" type "]" ) ? enum_body
     """
     parser.ensure_token(TokenType.IDENTIFIER, "enum")
-    newtyperef, docs = parse_newtyperef_preamble(parser, "enum", True)
+    newtyperef, type_params, docs = parse_newtyperef_preamble(parser, "enum", True, allow_generics = False)
     type_args = None
     if parser.next_token_is(parser.GENERIC_OPEN_TOKEN):
         type_args = [ensure_typeref(parser)]
@@ -170,18 +180,26 @@ def parse_union_body(parser):
     return union_types
 
 ########################################################################
-##          Record and Field parsing
+##          Union/Record and Field parsing
 ########################################################################
 
-def parse_record(parser, annotations = None):
-    parser.ensure_token(TokenType.IDENTIFIER, "record")
-    newtyperef, docs = parse_newtyperef_preamble(parser, "record", True)
+def parse_record_or_union(parser, annotations = None):
+    constructor = parser.ensure_token(TokenType.IDENTIFIER)
+    assert constructor in ("record", "union")
+
+    newtyperef, type_params, docs = parse_newtyperef_preamble(parser, constructor)
+
     fields = parse_record_body(parser)
     if newtyperef.final_entity:
         ipdb.set_trace()
         assert False
     else:
-        newtyperef.target = records.RecordType(newtyperef.name, parser.current_module, fields, annotations = annotations, docs = docs)
+        if constructor == "record":
+            newtyperef.target = records.RecordType(newtyperef.name, parser.current_module, fields, type_params,
+                                                   annotations = annotations, docs = docs)
+        else:
+            newtyperef.target = records.UnionType(newtyperef.name, parser.current_module, fields, type_params,
+                                                  annotations = annotations, docs = docs)
     return newtyperef
 
 def parse_record_body(parser):

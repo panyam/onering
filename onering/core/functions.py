@@ -106,8 +106,7 @@ class Function(Entity):
 
     def resolve(self, context):
         """
-        Kicks of resolutions of all dependencies.  This must only be called after all derivations that produce records
-        have been resolved otherwise those records that are only derived will not be visible in the type_registry.
+        Kicks of resolutions of all dependencies.
         """
         def resolver_method():
             self._resolve(context)
@@ -121,12 +120,7 @@ class Function(Entity):
             1. Ensure field paths are correct
             2. All expressions have their evaluated types set
         """
-        # Resolve types here - bind them to somewhere along the module chain where they are visible!
-        src_typerefs = [arg.typeref for arg in self.typeref.args]
-        dest_typeref = self.typeref.output_typeref
-        for typeref in src_typerefs + [dest_typeref]:
-            # Yep find it up *its* module chain!
-            self.resolve_binding(typeref)
+        self.resolve_binding(self.typeref)
 
         # Now resolve all field paths appropriately
         for index,statement in enumerate(self.all_statements):

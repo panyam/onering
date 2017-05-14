@@ -50,8 +50,7 @@ class Statement(object):
 
 class Expression(object):
     """
-    Parent of all expressions.  All expressions must have a value.  Expressions only appear in functions
-    (or in derivations during type streaming but type streaming is "kind of" a function anyway.
+    Parent of all expressions.  All expressions must have a value.  Expressions only appear in functions.
     """
     def __init__(self):
         self._evaluated_typeref = None
@@ -283,3 +282,4 @@ class IfExpression(Expression):
         for stmt in self.default_expression:
             stmt.resolve_bindings_and_types(function, context)
         self._evaluated_typeref = function.resolve_binding(tlcore.SymbolRef("void"))
+

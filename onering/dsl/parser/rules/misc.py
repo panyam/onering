@@ -5,6 +5,7 @@ import ipdb
 from onering.dsl.lexer import Token, TokenType
 from onering.dsl import errors
 from onering.utils.misc import FQN
+from onering.core.utils import FieldPath
 
 def parse_field_path(parser, allow_abs_path = True, allow_child_selection = True):
     """
@@ -64,7 +65,6 @@ def parse_field_path(parser, allow_abs_path = True, allow_child_selection = True
     if starts_with_slash:
         field_path_parts.insert(0, "")
 
-    from onering.core import projections
-    out = projections.FieldPath(field_path_parts, selected_children)
+    out = FieldPath(field_path_parts, selected_children)
     if out.is_blank: out = None
     return out

@@ -63,7 +63,7 @@ class LoaderActions(ActionGroup):
 
     def load_onering_paths(self, paths_or_wildcards):
         """
-        Loads one or more onering files.   A onering file could contain models, derivations, 
+        Loads one or more onering files.   A onering file could contain models, 
         transformations, bindings etc.  The path can be a file or a folder (in which case 
         all files with the given extension in the path are loaded).
 
