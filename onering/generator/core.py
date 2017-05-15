@@ -2,7 +2,8 @@
 import ipdb
 from onering.generator.symtable import SymbolTable
 from onering.generator import ir
-from onering.core.exprs import Expression, LiteralExpression, ListExpression, DictExpression, TupleExpression, FunctionCallExpression, VariableExpression, IfExpression
+from typelib.exprs import Expression, VariableExpression, Function, FunctionCall
+from onering.core.exprs import ListExpression, DictExpression, TupleExpression, IfExpression, LiteralExpression
 
 """
 This module is responsible for generating code for a statement and all parts of an expression tree.
@@ -14,8 +15,8 @@ def generate_ir_for_function(function, context):
     # Set source and dest variables in symbol table
     for src_varname,src_typeref in function.source_variables:
         symtable.register_var(src_varname, src_typeref, False)
-    if function.typeref.output_typeref:
-        symtable.register_var(function.dest_varname, function.typeref.output_typeref, False)
+    if function.func_type.output_typeref:
+        symtable.register_var(function.dest_varname, function.func_type.output_typeref, False)
     instructions, symtable, _ = generate_ir_for_statements(function.all_statements, context, symtable = symtable)
     return instructions, symtable
 
@@ -30,7 +31,7 @@ def generate_ir_for_statements(statements, context, instructions = None, symtabl
     for index,statement in enumerate(statements):
         if statement.is_temporary:
             # Register var if this is temporary
-            symtable.register_var(statement.target_variable.field_path.get(0), statement.target_variable.evaluated_typeref, True)
+            symtable.register_var(statement.target_variable.field_path.get(0), statement.target_variable.evaluated_typeexpr, True)
 
     # Now do the normal generation
     for index,statement in enumerate(statements):
@@ -56,7 +57,7 @@ def generate_ir_for_expression(expr, context, input_values, instructions, symtab
         TupleExpression: generate_ir_for_tuple,
         ListExpression: generate_ir_for_list,
         DictExpression: generate_ir_for_dict,
-        FunctionCallExpression: generate_ir_for_function_call,
+        FunctionCall: generate_ir_for_function_call,
         VariableExpression: generate_ir_for_variable,
         IfExpression: generate_ir_for_if_expression,
     }
@@ -101,7 +102,7 @@ def generate_ir_for_function_call(expr, context, input_values, instructions, sym
     for arg in expr.func_args:
         instructions, symtable, value = generate_ir_for_expression(arg, context, None, instructions, symtable)
         arg_values.append(value)
-    new_register = symtable.next_register(expr.evaluated_typeref)
+    new_register = symtable.next_register(expr.evaluated_typeexpr)
     instructions.append(ir.FunctionCallInstruction(expr.func_ref.final_entity.fqn, arg_values, new_register))
     return instructions, symtable, new_register
 
@@ -124,11 +125,11 @@ def generate_ir_for_if_expression(ifexpr, context, input_values, instructions, s
 def generate_ir_for_variable(expr, context, input_values, instructions, symtable):
     starting_var, field_path = expr.field_path.pop()
     if expr.is_temporary:
-        starting_typeref = expr.evaluated_typeref
+        starting_typeref = expr.evaluated_typeexpr
     elif expr.field_resolution_result:
         starting_typeref = expr.field_resolution_result.root_typeref
     else:
-        starting_typeref = expr.evaluated_typeref
+        starting_typeref = expr.evaluated_typeexpr
 
     curr_typeref = starting_typeref
     curr_path = starting_var
@@ -157,7 +158,7 @@ def generate_ir_for_setter(source_register, target_var, instructions, symtable):
         starting_var, field_path = target_var.field_path.pop()
         starting_register = symtable.get_register_for_path(starting_var)
         if target_var.is_temporary:
-            starting_typeref = target_var.evaluated_typeref
+            starting_typeref = target_var.evaluated_typeexpr
             if field_path.length == 0:
                 # Do a direct copy as no nesting into a local var
                 instructions.append(ir.CopyVarInstruction(source_register, starting_register))

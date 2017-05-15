@@ -4,7 +4,6 @@ import ipdb
 from onering.dsl.errors import SourceException, UnexpectedTokenException
 from onering.errors import OneringException
 from onering.dsl.lexer import Token, TokenType
-from onering.core import modules
 from onering.core import exprs as orexprs
 from onering.dsl.parser.rules.annotations import parse_annotations
 from onering.dsl.parser.rules.misc import parse_field_path

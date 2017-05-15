@@ -6,13 +6,21 @@ from onering import resolver
 from onering import errors
 from onering.utils import dirutils
 from onering.core import fgraph
-from onering.core.modules import Module
+from onering.core import entities as ore
+
+BooleanType = tlcore.make_literal_type("boolean")
+ByteType = tlcore.make_literal_type("byte")
+IntType = tlcore.make_literal_type("int")
+LongType = tlcore.make_literal_type("long")
+FloatType = tlcore.make_literal_type("float")
+DoubleType = tlcore.make_literal_type("double")
+StringType = tlcore.make_literal_type("string")
 
 class OneringContext(dirutils.DirPointer):
     def __init__(self):
         dirutils.DirPointer.__init__(self)
         self.entity_resolver = resolver.EntityResolver("pdsc")
-        self.global_module = Module(None, None)
+        self.global_module = ore.Module(None, None)
         self.fgraph = fgraph.FunctionGraph(self)
         self.register_default_types()
 
@@ -28,10 +36,10 @@ class OneringContext(dirutils.DirPointer):
 
     def register_default_types(self):
         # register references to default types.
-        for t in [tlcore.AnyType, tlcore.BooleanType, tlcore.ByteType, 
-                    tlcore.IntType, tlcore.LongType, tlcore.FloatType, 
-                    tlcore.DoubleType, tlcore.StringType]:
-            self.global_module.add(tlcore.EntityRef(t, t.name, self.global_module))
+        for t in [tlcore.AnyType, BooleanType, ByteType, 
+                    IntType, LongType, FloatType, 
+                    DoubleType, StringType]:
+            self.global_module.add(t.name, t)
 
     def ensure_module(self, fqn):
         """ Ensures that a given module hierarchy exists. """
@@ -39,7 +47,7 @@ class OneringContext(dirutils.DirPointer):
         parts = fqn.split(".")
         for part in parts:
             if not curr.has_entity(part):
-                child = Module(part, curr)
+                child = ore.Module(part, curr)
                 curr.add(child)
                 curr = child
         return curr
