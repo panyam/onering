@@ -15,6 +15,7 @@ class Entity(Annotatable):
         self.entity_map = {}
         self.child_entities = []
         self.aliases = {}
+        self.resolver = None
 
     def set_tag(self, tag):
         self.tag = tag
@@ -22,8 +23,13 @@ class Entity(Annotatable):
 
     def set_alias(self, name, fqn):
         """Sets the alias of a particular name to an FQN."""
-        self.aliases[name] = tlcore.TypeVariable(fqn)
+        self.aliases[name] = tlcore.TypeName(fqn)
         return self
+
+    def resolve_type_name(self, name):
+        if name in self.entity_map and tlcore.istypeexpr(self.entity_map[name]):
+            return self.entity_map[name]
+        return None if self.resolver is None else self.resolver.resolve_type_name(name)
 
     def set_resolver(self, resolver):
         """ Before we can do any bindings.  Each expression (and entity) needs resolvers to know 

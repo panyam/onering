@@ -78,7 +78,7 @@ def parse_function_signature(parser, require_param_name = True):
         parser.ensure_token(TokenType.CLOSE_PAREN)
 
     # Now read the output type (if any)
-    output_typeexpr = tlcore.VoidType
+    output_typeexpr = tlcore.TypeName("void")
     output_varname = None
     if parser.next_token_is(TokenType.COLON):
         output_typeexpr = ensure_typeexpr(parser)
@@ -108,6 +108,9 @@ def parse_param_declaration(parser, require_name = True):
         parser.ensure_token(TokenType.COLON)
 
     param_typeexpr  = ensure_typeexpr(parser)
+    # if we declared an inline Type then dont refer to it directly but via a TypeName
+    if type(param_typeexpr) is tlcore.TypeFunction and param_typeexpr.name:
+        param_typeexpr = tlcore.TypeName(param_typeexpr.name)
     is_optional     = parser.next_token_is(TokenType.QMARK)
     default_value   = None
     if parser.next_token_is(TokenType.EQUALS):

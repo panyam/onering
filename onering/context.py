@@ -36,7 +36,9 @@ class OneringContext(dirutils.DirPointer):
                   orcore.LongType,
                   orcore.FloatType, 
                   orcore.DoubleType,
-                  orcore.StringType]:
+                  orcore.StringType,
+                  orcore.ArrayType,
+                  orcore.MapType]:
             self.global_module.add(t.name, t)
 
     def ensure_module(self, fqn):

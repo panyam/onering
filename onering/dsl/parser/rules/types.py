@@ -41,7 +41,7 @@ def parse_typeref_decl(parser, annotations, **kwargs):
     parser.ensure_token(TokenType.EQUALS)
 
     # create the typeref
-    typeref = tlcore.TypeRef(name, type_params, ensure_typeexpr(parser), annotations, docs)
+    typeref = tlcore.make_typeref(name, type_params, ensure_typeexpr(parser), annotations = annotations, docs = docs)
     print "Registering new typeref: '%s'" % name
     parser.add_entity(name, typeref)
     return typeref
@@ -52,7 +52,7 @@ def ensure_typeexpr(parser, annotations = None):
         assert issubclass(out.__class__, tlcore.TypeExpression)
     else:
         fqn = parser.ensure_fqn()
-        out = tlcore.TypeVariable(fqn)
+        out = tlcore.TypeName(fqn)
     return out
 
 def parse_type_initializer(parser, annotations):
@@ -71,7 +71,7 @@ def parse_type_initializer(parser, annotations):
             parser.ensure_token(TokenType.COMMA)
             child_typeexprs.append(ensure_typeexpr(parser))
         parser.ensure_token(parser.GENERIC_CLOSE_TOKEN)
-        return tlcore.TypeInitializer(next_token, child_typeexprs)
+        return tlcore.TypeInitializer(next_token.value, child_typeexprs)
 
     # Put token back in stream
     parser.unget_token(next_token)
@@ -202,6 +202,9 @@ def parse_field_declaration(parser):
     field_name = parser.ensure_token(TokenType.IDENTIFIER)
     parser.ensure_token(TokenType.COLON)
     field_typeexpr = ensure_typeexpr(parser)
+    # if we declared an inline Type then dont refer to it directly but via a TypeName
+    if type(field_typeexpr) is tlcore.TypeFunction and field_typeexpr.name:
+        field_typeexpr = tlcore.TypeName(field_typeexpr.name)
     is_optional = False
     default_value = None
 

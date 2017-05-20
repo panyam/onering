@@ -39,7 +39,7 @@ class ListExpression(Expression):
         self.values = values
 
     def set_resolver(self, resolver):
-        Expression.set_resolver(resolver)
+        Expression.set_resolver(self, resolver)
         for value in self.values:
             value.set_resolver(resolver)
 
@@ -72,9 +72,9 @@ class IfExpression(Expression):
         self.default_expression = default_expression or []
 
     def set_resolver(self, resolver):
-        Expression.set_resolver(resolver)
-        if default_expression:
-            self.default_expression.set_resolver(resolver)
+        Expression.set_resolver(self, resolver)
+        for stmt in self.default_expression:
+            stmt.set_resolver(resolver)
 
         for condition, stmt_block in self.cases:
             condition.set_resolver(resolver)
