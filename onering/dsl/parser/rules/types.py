@@ -20,10 +20,13 @@ def parse_entity(parser):
         type_declaration := annotation * ( typeref_decl | custom_type_decl )
     """
     annotations = parse_annotations(parser)
+    is_extern = False
+    if parser.next_token_if(TokenType.IDENTIFIER, "extern", consume = True):
+        is_extern = True
     entity_class = parser.ensure_token(TokenType.IDENTIFIER, peek = True)
     entity_parser = parser.get_entity_parser(entity_class)
     if entity_parser:
-        return entity_parser(parser, annotations = annotations)
+        return entity_parser(parser, is_external = is_extern, annotations = annotations)
     else:
         return parse_type_initializer(parser, annotations = annotations)
 
@@ -33,7 +36,6 @@ def parse_typeref_decl(parser, annotations, **kwargs):
 
         "typeref" <name> ( "<" type_params ">" ) ? "=" entity
     """
-
     parser.ensure_token(TokenType.IDENTIFIER, "typeref")
     name, type_params, docs = parse_typefunc_preamble(parser, name_required = True, allow_generics = True)
     parser.ensure_token(TokenType.EQUALS)
@@ -47,12 +49,10 @@ def parse_typeref_decl(parser, annotations, **kwargs):
 def ensure_typeexpr(parser, annotations = None):
     out = parse_entity(parser)
     if out:
-        if type(out) is not tlcore.TypeExpression:
-            # Try converting to a TypeExp
-            out = tlcore.TypeExpression(out)
+        assert issubclass(out.__class__, tlcore.TypeExpression)
     else:
         fqn = parser.ensure_fqn()
-        out = tlcore.TypeExpression(fqn)
+        out = tlcore.TypeVariable(fqn)
     return out
 
 def parse_type_initializer(parser, annotations):
@@ -121,7 +121,7 @@ def parse_extern_type(parser, annotations = None):
 ##          Enum and Union parsing
 ########################################################################
 
-def parse_enum(parser, annotations = None):
+def parse_enum(parser, is_external, annotations = None):
     """
     Parses an enum declaration of the form:
 
@@ -165,7 +165,7 @@ def parse_enum_body(parser):
 ##          Union/Record and Field parsing
 ########################################################################
 
-def parse_record_or_union(parser, annotations = None):
+def parse_record_or_union(parser, is_external, annotations = None):
     constructor = parser.ensure_token(TokenType.IDENTIFIER)
     assert constructor in ("record", "union")
 

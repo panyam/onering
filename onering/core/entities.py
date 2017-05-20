@@ -2,6 +2,8 @@
 from collections import defaultdict
 import ipdb
 from typelib import errors as tlerrors
+from typelib import core as tlcore
+from typelib import exprs as tlexprs
 from typelib.annotations import Annotatable
 
 class Entity(Annotatable):
@@ -11,7 +13,6 @@ class Entity(Annotatable):
         self._name = name
         self._parent = parent 
         self.entity_map = {}
-        self._symbol_refs = {}
         self.child_entities = []
         self.aliases = {}
 
@@ -21,8 +22,18 @@ class Entity(Annotatable):
 
     def set_alias(self, name, fqn):
         """Sets the alias of a particular name to an FQN."""
-        self.aliases[name] = self.add_symbol_ref(fqn)
+        self.aliases[name] = tlcore.TypeVariable(fqn)
         return self
+
+    def set_resolver(self, resolver):
+        """ Before we can do any bindings.  Each expression (and entity) needs resolvers to know 
+        how to bind/resolve names the expression itself refers.  This step recursively assigns
+        a resolver to every entity, expression that needs a resolver.  What the resolver should 
+        be and what it should do depends on the child.
+        """
+        self.resolver = resolver
+        for name, child in self.entity_map.iteritems():
+            child.set_resolver(self)
 
     @property
     def tag(self): return self.__class__.TAG 
@@ -38,13 +49,6 @@ class Entity(Annotatable):
                 ipdb.set_trace()
             out = self.parent.fqn + "." + out
         return out or ""
-
-    def add_symbol_ref(self, fqn):
-        if fqn not in self._symbol_refs:
-            # Ensure symbol refs dont have a parent as they are not bound to the parent but
-            # to some arbitrary scope that is using them to refer to the FQN
-            self._symbol_refs[fqn] = SymbolRef(fqn)
-        return self._symbol_refs[fqn]
 
     def add(self, name, entity):
         """ Adds a new child entity. """
@@ -89,7 +93,8 @@ class Entity(Annotatable):
         return curr
 
     def resolve_binding(self, typeref):
-        from resolver import resolve_entity
+        from typelib import resolver as tlresolver
+        from tlresolver import resolve_entity
         return resolve_entity(typeref, self)
 
     @property
@@ -199,15 +204,6 @@ class EntityRef(Entity):
     def set_target(self, newentity):
         # TODO - Check for cyclic references
         self._target = newentity
-
-class SymbolRef(EntityRef):
-    TAG = "SYM"
-    def __init__(self, fqn):
-        EntityRef.__init__(self, None, fqn, None)
-
-    @property
-    def fqn(self):
-        return self.name
 
 class Module(Entity):
     TAG = "MODULE"

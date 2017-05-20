@@ -2,10 +2,10 @@
 from __future__ import absolute_import
 import ipdb
 
+from typelib.utils import FieldPath
 from onering.dsl.lexer import Token, TokenType
 from onering.dsl import errors
 from onering.utils.misc import FQN
-from onering.core.utils import FieldPath
 
 def parse_field_path(parser, allow_abs_path = True, allow_child_selection = True):
     """

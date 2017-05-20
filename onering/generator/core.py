@@ -13,10 +13,8 @@ def generate_ir_for_function(function, context):
     symtable = SymbolTable()
 
     # Set source and dest variables in symbol table
-    for src_varname,src_typeref in function.source_variables:
-        symtable.register_var(src_varname, src_typeref, False)
-    if function.func_type.output_typeref:
-        symtable.register_var(function.dest_varname, function.func_type.output_typeref, False)
+    for typearg in function.func_type.args:
+        symtable.register_var(typearg.name, typearg.type_expr, False)
     instructions, symtable, _ = generate_ir_for_statements(function.all_statements, context, symtable = symtable)
     return instructions, symtable
 

@@ -2,19 +2,12 @@
 from __future__ import absolute_import
 import ipdb
 from typelib import core as tlcore
+from onering import core as orcore
 from onering import resolver
 from onering import errors
 from onering.utils import dirutils
 from onering.core import fgraph
 from onering.core import entities as ore
-
-BooleanType = tlcore.make_literal_type("boolean")
-ByteType = tlcore.make_literal_type("byte")
-IntType = tlcore.make_literal_type("int")
-LongType = tlcore.make_literal_type("long")
-FloatType = tlcore.make_literal_type("float")
-DoubleType = tlcore.make_literal_type("double")
-StringType = tlcore.make_literal_type("string")
 
 class OneringContext(dirutils.DirPointer):
     def __init__(self):
@@ -36,9 +29,14 @@ class OneringContext(dirutils.DirPointer):
 
     def register_default_types(self):
         # register references to default types.
-        for t in [tlcore.AnyType, BooleanType, ByteType, 
-                    IntType, LongType, FloatType, 
-                    DoubleType, StringType]:
+        for t in [tlcore.AnyType,
+                  orcore.BooleanType,
+                  orcore.ByteType, 
+                  orcore.IntType,
+                  orcore.LongType,
+                  orcore.FloatType, 
+                  orcore.DoubleType,
+                  orcore.StringType]:
             self.global_module.add(t.name, t)
 
     def ensure_module(self, fqn):

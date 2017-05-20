@@ -80,13 +80,6 @@ class Parser(TokenStream):
             self.found_entities[fqn] = entity
             self.current_module.add(name, entity)
 
-    def add_symbol_ref(self, fqn):
-        """
-        Adds an FQN as an unresolved entity in the current module if it is not already registered
-        otherwise returns it as is.  This is used for late binding of named entities.
-        """
-        return self.current_module.add_symbol_ref(fqn)
-
     def last_docstring(self, reset = True):
         out = self._last_docstring
         if reset:

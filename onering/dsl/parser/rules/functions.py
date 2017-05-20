@@ -2,9 +2,9 @@
 from __future__ import absolute_import
 import ipdb
 from typelib import core as tlcore
-from typelib import functions as tlfunctions
 from typelib import exprs as tlexprs
-from typelib import functions as tlfuncs
+from typelib.utils import FieldPath
+from onering import core as orcore
 from onering import utils
 from onering.dsl.parser.rules.types import ensure_typeexpr
 from onering.errors import OneringException
@@ -18,7 +18,7 @@ from onering.core import exprs as orexprs
 ##          Function type and definition parsing rules
 ########################################################################
 
-def parse_function(parser, annotations, **kwargs):
+def parse_function(parser, is_external, annotations, **kwargs):
     """Parses a function declaration.
 
     function        :=  function_type function_body ? 
@@ -33,14 +33,15 @@ def parse_function(parser, annotations, **kwargs):
     input_typeexprs, output_typeexpr, output_varname = parse_function_signature(parser)
 
     parent = parser.current_module if func_name else None
-    if parser.peeked_token_is(TokenType.OPEN_BRACE):
+    if is_external or parser.peeked_token_is(TokenType.OPEN_BRACE):
         functype = tlcore.make_func_type(func_name, type_params, input_typeexprs, output_typeexpr, parent)
         # Brace yourself for a function definition!!!
-        function = tlfuncs.Function(func_name, functype, annotations = annotations, docs = docs)
+        function = tlexprs.Function(func_name, functype, parser.current_module, annotations = annotations, docs = docs)
         function.dest_varname = output_varname or "dest"
         parser.add_entity(func_name, function)
         parser.onering_context.fgraph.register(function)
-        parse_function_body(parser, function)
+        if not is_external:
+            parse_function_body(parser, function)
         return function
     else:
         functype = tlcore.make_func_type(func_name, type_params, input_typeexprs, output_typeexpr, parent,
@@ -77,7 +78,7 @@ def parse_function_signature(parser, require_param_name = True):
         parser.ensure_token(TokenType.CLOSE_PAREN)
 
     # Now read the output type (if any)
-    output_typeexpr = tlcore.TypeExpression(tlcore.VoidType)
+    output_typeexpr = tlcore.VoidType
     output_varname = None
     if parser.next_token_is(TokenType.COLON):
         output_typeexpr = ensure_typeexpr(parser)
@@ -195,9 +196,18 @@ def parse_expression(parser):
     """
     out = None
     if parser.peeked_token_is(TokenType.NUMBER):
-        out = orexprs.LiteralExpression(parser.next_token().value)
+        value = parser.next_token().value
+        if type(value) is int:
+            parser.onering_context.IntType
+        elif type(value) is long:
+            parser.onering_context.LongType
+        elif type(value) is float:
+            parser.onering_context.DoubleType
+        else:
+            assert False
+        out = orexprs.LiteralExpression(value, vtype)
     elif parser.peeked_token_is(TokenType.STRING):
-        out = orexprs.LiteralExpression(parser.next_token().value)
+        out = orexprs.LiteralExpression(parser.next_token().value, orcore.StringType)
     elif parser.peeked_token_is(TokenType.OPEN_SQUARE):
         # Read a list
         out = parse_list_expression(parser)
@@ -233,7 +243,7 @@ def parse_expression(parser):
             parser.ensure_token(TokenType.CLOSE_PAREN)
 
             # Make sure function exists
-            out = orexprs.FunctionCall(parser.add_symbol_ref(source_name), func_args)
+            out = tlexprs.FunctionCall(tlexprs.VariableExpression(FieldPath(source_name)), func_args)
     else:
         raise UnexpectedTokenException(parser.peek_token(),
                                        TokenType.STRING, TokenType.NUMBER,
