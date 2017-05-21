@@ -30,6 +30,7 @@ class OneringContext(dirutils.DirPointer):
     def register_default_types(self):
         # register references to default types.
         for t in [tlcore.AnyType,
+                  tlcore.VoidType,
                   orcore.BooleanType,
                   orcore.ByteType, 
                   orcore.IntType,

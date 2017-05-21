@@ -43,16 +43,17 @@ class ListExpression(Expression):
         for value in self.values:
             value.set_resolver(resolver)
 
-    def resolve_bindings_and_types(self, parent_function, sym_resolver):
+    def resolve_bindings_and_types(self, parent_function):
         """
         Processes an expressions and resolves name bindings and creating new local vars 
         in the process if required.
         """
         for expr in self.values:
-            expr.resolve_bindings_and_types(parent_function, sym_resolver)
+            expr.resolve_bindings_and_types(parent_function)
 
         # TODO - Unify the types of child expressions and find the tightest type here Damn It!!!
         self._evaluated_typeexpr = tlcore.TypeInitializer(orcore.ArrayType, tlcore.AnyType)
+        self._evaluated_typeexpr.resolver = self.resolver
 
 class TupleExpression(Expression):
     def __init__(self, values):
@@ -90,7 +91,6 @@ class IfExpression(Expression):
     def resolve_bindings_and_types(self, parent_function):
         """ Resolves bindings and types in all child expressions. """
         assert self._evaluated_typeexpr == None, "Type has already been resolved, should not have been called twice."
-        from onering.core.resolvers import resolve_path_from_record
 
         for condition, stmt_block in self.cases:
             condition.resolve_bindings_and_types(parent_function)

@@ -1,5 +1,6 @@
 
 import ipdb
+from typelib import core as tlcore
 from onering.generator.symtable import SymbolTable
 from onering.generator import ir
 from typelib.exprs import Expression, VariableExpression, Function, FunctionCall
@@ -13,8 +14,10 @@ def generate_ir_for_function(function, context):
     symtable = SymbolTable()
 
     # Set source and dest variables in symbol table
-    for typearg in function.func_type.args:
+    for typearg in function.source_typeargs:
         symtable.register_var(typearg.name, typearg.type_expr, False)
+    if function.dest_typearg.type_expr.resolved_value != tlcore.VoidType:
+        symtable.register_var(function.dest_varname, function.dest_typearg, False)
     instructions, symtable, _ = generate_ir_for_statements(function.all_statements, context, symtable = symtable)
     return instructions, symtable
 
@@ -101,7 +104,7 @@ def generate_ir_for_function_call(expr, context, input_values, instructions, sym
         instructions, symtable, value = generate_ir_for_expression(arg, context, None, instructions, symtable)
         arg_values.append(value)
     new_register = symtable.next_register(expr.evaluated_typeexpr)
-    instructions.append(ir.FunctionCallInstruction(expr.func_ref.final_entity.fqn, arg_values, new_register))
+    instructions.append(ir.FunctionCallInstruction(expr.func_expr.root_value.fqn, arg_values, new_register))
     return instructions, symtable, new_register
 
 def generate_ir_for_if_expression(ifexpr, context, input_values, instructions, symtable):
@@ -120,24 +123,22 @@ def generate_ir_for_if_expression(ifexpr, context, input_values, instructions, s
         generate_ir_for_statements(ifexpr.default_expression, context, curr_instrs, symtable)
     return instructions, symtable, top_ifinstr
 
-def generate_ir_for_variable(expr, context, input_values, instructions, symtable):
-    starting_var, field_path = expr.field_path.pop()
-    if expr.is_temporary:
-        starting_typeref = expr.evaluated_typeexpr
-    elif expr.field_resolution_result:
-        starting_typeref = expr.field_resolution_result.root_typeref
-    else:
-        starting_typeref = expr.evaluated_typeexpr
+def generate_ir_for_variable(target_var, context, input_values, instructions, symtable):
+    starting_var, field_path = target_var.field_path.pop()
 
-    curr_typeref = starting_typeref
+    # We would never directly generate a getter/setter for functions
+    # (though langauge allows it we dont have the need to pass functions,,, yet)
+    assert not target_var.is_function
+
+    curr_typearg = target_var.root_value
     curr_path = starting_var
     curr_register = symtable.get_register_for_path(starting_var)
     curr_instrs = instructions
     while field_path.length > 0:
         next_field_name, tail_path = field_path.pop()
         next_path = curr_path + "/" + next_field_name
-        next_typeref = curr_typeref.final_entity.arg_for(next_field_name).typeref
-        next_register = symtable.get_register_for_path(next_path, next_typeref)
+        next_typearg = curr_typearg.type_expr.resolved_value.args.withname(next_field_name)
+        next_register = symtable.get_register_for_path(next_path, next_typearg.type_expr)
 
         # Get the next var and store into the var
         contains_instr = ir.ContainsInstruction(curr_register, next_field_name)
@@ -150,48 +151,40 @@ def generate_ir_for_variable(expr, context, input_values, instructions, symtable
     return instructions, symtable, curr_register
 
 
-
 def generate_ir_for_setter(source_register, target_var, instructions, symtable):
-    if target_var:
-        starting_var, field_path = target_var.field_path.pop()
-        starting_register = symtable.get_register_for_path(starting_var)
-        if target_var.is_temporary:
-            starting_typeref = target_var.evaluated_typeexpr
-            if field_path.length == 0:
-                # Do a direct copy as no nesting into a local var
-                instructions.append(ir.CopyVarInstruction(source_register, starting_register))
-                return instructions, symtable, None
-        else:
-            assert field_path.length > 0, "Source or Destination variables cannot be overwritten"
-            resolution_result = target_var.field_resolution_result 
-            if resolution_result == None: ipdb.set_trace()
-            starting_typeref = resolution_result.root_typeref
+    if not target_var:
+        return instructions, symtable, None
 
-        curr_typeref = starting_typeref
-        curr_path = starting_var
-        curr_register = starting_register
+    starting_var, field_path = target_var.field_path.pop()
+    starting_register = symtable.get_register_for_path(starting_var)
+    if target_var.is_temporary and field_path.length == 0:
+        # Do a direct copy as no nesting into a local var
+        instructions.append(ir.CopyVarInstruction(source_register, starting_register))
+        return instructions, symtable, None
 
-        while field_path.length > 1:
-            # At each level of the remaining field paths, keep finding and setting
-            # fields if they are null
-            next_field_name, tail_path = field_path.pop()
-            next_path = curr_path + "/" + next_field_name
-            next_typeref = curr_typeref.final_type.arg_for(next_field_name).typeref
-            next_register = symtable.get_register_for_path(next_path, next_typeref)
+    curr_typearg = target_var.root_value
+    curr_register = starting_register
+    curr_path = starting_var
+    while field_path.length > 1:
+        # At each level of the remaining field paths, keep finding and setting fields if they are null
+        next_field_name, tail_path = field_path.pop()
+        next_path = curr_path + "/" + next_field_name
+        next_typearg = curr_typearg.type_expr.resolved_value.args.withname(next_field_name)
+        next_register = symtable.get_register_for_path(next_path, next_typearg.type_expr)
 
-            # Get the next register and store into the register
-            contains_instr = ir.ContainsInstruction(curr_register, next_field_name)
-            set_default_instr = ir.NewInstruction(curr_typeref, next_register)
-            if_stmt = ir.IfStatement(contains_instr, [ set_default_instr ], None, negate = True)
-            instructions.append(if_stmt)
+        # Get the next register and store into the register
+        contains_instr = ir.ContainsInstruction(curr_register, next_field_name)
+        set_default_instr = ir.NewInstruction(curr_typearg, next_register)
+        if_stmt = ir.IfStatement(contains_instr, [ set_default_instr ], None, negate = True)
+        instructions.append(if_stmt)
 
-            get_instr = ir.GetFieldInstruction(curr_register, next_field_name, next_register)
-            instructions.append(get_instr)
+        get_instr = ir.GetFieldInstruction(curr_register, next_field_name, next_register)
+        instructions.append(get_instr)
 
-            curr_path, curr_register, field_path = next_path, next_register, tail_path
+        curr_path, curr_register, field_path = next_path, next_register, tail_path
 
-        assert field_path.length <= 1
-        # Means we have a single entry in the path left
-        # so the value can be directly set
-        instructions.append(ir.SetFieldInstruction(source_register, field_path.get(0), curr_register))
+    assert field_path.length <= 1
+    # Means we have a single entry in the path left
+    # so the value can be directly set
+    instructions.append(ir.SetFieldInstruction(source_register, field_path.get(0), curr_register))
     return instructions, symtable, None

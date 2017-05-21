@@ -17,19 +17,47 @@ class Entity(Annotatable):
         self.aliases = {}
         self.resolver = None
 
-    def set_tag(self, tag):
-        self.tag = tag
-        return self
-
     def set_alias(self, name, fqn):
         """Sets the alias of a particular name to an FQN."""
-        self.aliases[name] = tlcore.TypeName(fqn)
+        self.aliases[name] = fqn
         return self
 
+    @property
+    def fqn(self):
+        out = self.name
+        if self.parent and self.parent.fqn:
+            if out is None:
+                ipdb.set_trace()
+            out = self.parent.fqn + "." + out
+        return out or ""
+
+    def find_fqn(self, fqn):
+        """Looks for a FQN in either the aliases or child entities or recursively in the parent."""
+        out = None
+        curr = self
+        while curr and not out:
+            out = curr.aliases.get(fqn, None)
+            if not out:
+                out = curr.get(fqn)
+            if not out:
+                curr = curr.parent
+        return out
+
     def resolve_type_name(self, name):
-        if name in self.entity_map and tlcore.istypeexpr(self.entity_map[name]):
-            return self.entity_map[name]
-        return None if self.resolver is None else self.resolver.resolve_type_name(name)
+        entry = self.find_fqn(name)
+        while entry and type(entry) in (str, unicode):
+            entry = self.find_fqn(entry)
+        if self.resolver and (not entry or not tlcore.istypeexpr(entry)):
+            entry = self.resolver.resolve_type_name(name)
+        return entry
+
+    def resolve_name(self, name):
+        entry = self.find_fqn(name)
+        while entry and type(entry) in (str, unicode):
+            entry = self.find_fqn(entry)
+        if self.resolver and not entry:
+            entry = self.resolver.resolve_name(name)
+        return entry
 
     def set_resolver(self, resolver):
         """ Before we can do any bindings.  Each expression (and entity) needs resolvers to know 
@@ -40,21 +68,6 @@ class Entity(Annotatable):
         self.resolver = resolver
         for name, child in self.entity_map.iteritems():
             child.set_resolver(self)
-
-    @property
-    def tag(self): return self.__class__.TAG 
-
-    @tag.setter
-    def tag(self, value): self.TAG = value
-
-    @property
-    def fqn(self):
-        out = self.name
-        if self.parent and self.parent.fqn:
-            if out is None:
-                ipdb.set_trace()
-            out = self.parent.fqn + "." + out
-        return out or ""
 
     def add(self, name, entity):
         """ Adds a new child entity. """
@@ -73,18 +86,6 @@ class Entity(Annotatable):
                 return None
             curr = curr.entity_map[part]
         return curr
-
-    def find_fqn(self, fqn):
-        """Looks for a FQN in either the aliases or child entities or recursively in the parent."""
-        out = None
-        curr = self
-        while curr and not out:
-            out = curr.aliases.get(fqn, None)
-            if not out:
-                out = curr.get(fqn)
-            if not out:
-                curr = curr.parent
-        return out
 
     def ensure_key(self, fqn_or_name_or_parts):
         """Ensures that a descendant hierarchy of Entities or EntityRefs exists given the key path parts."""
@@ -109,6 +110,13 @@ class Entity(Annotatable):
     @property
     def parent(self): return self._parent
 
+    def __json__(self, **kwargs):
+        out = {}
+        if self.fqn:
+            # return self.name
+            out["fqn"] = self.fqn
+        return out
+
     """
     @name.setter
     def name(self, value):
@@ -122,7 +130,6 @@ class EntityRef(Entity):
     """
     A named reference to an entity.
     """
-    TAG = "REF"
     def __init__(self, entry, name, parent, annotations = None, docs = ""):
         Entity.__init__(self, name, parent, annotations, docs)
         if name and type(name) not in (str, unicode):
@@ -211,5 +218,4 @@ class EntityRef(Entity):
         # TODO - Check for cyclic references
         self._target = newentity
 
-class Module(Entity):
-    TAG = "MODULE"
+class Module(Entity): pass
