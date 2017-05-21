@@ -37,6 +37,7 @@ def parse_function(parser, is_external, annotations, **kwargs):
         functype = tlcore.make_func_type(func_name, type_params, input_typeexprs, output_typeexpr, parent)
         # Brace yourself for a function definition!!!
         function = tlexprs.Function(func_name, functype, parser.current_module, annotations = annotations, docs = docs)
+        function.is_external = is_external
         function.dest_varname = output_varname or "dest"
         parser.add_entity(func_name, function)
         parser.onering_context.fgraph.register(function)
