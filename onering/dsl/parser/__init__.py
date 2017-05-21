@@ -4,10 +4,11 @@ from __future__ import absolute_import
 import ipdb
 from onering.dsl.parser.tokstream import TokenStream
 from onering.dsl.errors import SourceException, UnexpectedTokenException
-from onering.core.modules import Module
 from typelib.utils import FQN
+from typelib import core as tlcore
 from onering.dsl.lexer import Token, TokenType
 from onering import errors
+from onering.core import entities as ore
 
 class Parser(TokenStream):
     """
@@ -71,20 +72,13 @@ class Parser(TokenStream):
         self.found_entities[entity.fqn] = entity
         return entity
 
-    def add_entity(self, entity):
-        if entity.name:
-            if entity.fqn in self.found_entities:
-                ipdb.set_trace()
-                assert entity.fqn not in self.found_entities
-            self.found_entities[entity.fqn] = entity
-            self.current_module.add(entity)
-
-    def add_symbol_ref(self, fqn):
-        """
-        Adds an FQN as an unresolved entity in the current module if it is not already registered
-        otherwise returns it as is.  This is used for late binding of named entities.
-        """
-        return self.current_module.add_symbol_ref(fqn)
+    def add_entity(self, name, entity):
+        if name:
+            parent_fqn = self.current_module.fqn
+            fqn = parent_fqn + "." + name
+            assert fqn not in self.found_entities, "Entity '%s' already exists in module '%s'" % (name, parent_fqn)
+            self.found_entities[fqn] = entity
+            self.current_module.add(name, entity)
 
     def last_docstring(self, reset = True):
         out = self._last_docstring
@@ -167,15 +161,15 @@ class Parser(TokenStream):
         for index,part in enumerate(parts):
             child = self.current_module.get(part)
             if child:
-                if not isinstance(child, Module):
+                if not isinstance(child, ore.Module):
                     raise OneringException("'%s' in '%s' is not a module" % (part, self.current_module.fqn))
                 self.current_module = child
             else:
                 if index == len(parts) - 1:
-                    child = Module(part, self.current_module, annotations, docs)
+                    child = ore.Module(part, self.current_module, annotations, docs)
                 else:
-                    child = Module(part, self.current_module)
-                self.current_module.add(child)
+                    child = ore.Module(part, self.current_module)
+                self.current_module.add(child.name, child)
                 self.current_module = child
         return last_module, self.current_module
 

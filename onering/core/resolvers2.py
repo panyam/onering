@@ -2,7 +2,7 @@
 from __future__ import absolute_import
 import ipdb
 from typelib import core as tlcore
-from onering.core.utils import FieldPath
+from typelib.utils import FieldPath
 
 class PathResolver(object):
     """

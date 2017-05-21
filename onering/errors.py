@@ -1,7 +1,9 @@
 
+import ipdb
 
 class OneringException(Exception):
     def __init__(self, msg):
+        ipdb.set_trace()
         Exception.__init__(self, msg)
 
 
