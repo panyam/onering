@@ -28,7 +28,7 @@ def parse_entity(parser):
     if entity_parser:
         return entity_parser(parser, is_external = is_extern, annotations = annotations)
     else:
-        return parse_type_initializer(parser, annotations = annotations)
+        return parse_type_initializer_or_name(parser, annotations = annotations)
 
 def parse_typeref_decl(parser, annotations, **kwargs):
     """
@@ -48,34 +48,30 @@ def parse_typeref_decl(parser, annotations, **kwargs):
 
 def ensure_typeexpr(parser, annotations = None):
     out = parse_entity(parser)
-    if out:
-        assert issubclass(out.__class__, tlcore.TypeExpression)
-    else:
-        fqn = parser.ensure_fqn()
-        out = tlcore.TypeName(fqn)
+    assert issubclass(out.__class__, tlcore.TypeExpression)
     return out
 
-def parse_type_initializer(parser, annotations):
+def parse_type_initializer_or_name(parser, annotations):
     """
     Parses a parametric type:
 
-        type_name "<" args ">"
+        type_name ( "<" args ">" ) ?
     """
-    if not parser.peeked_token_is(TokenType.IDENTIFIER): return None
-    next_token = parser.next_token()
+    if not parser.peeked_token_is(TokenType.IDENTIFIER):
+        ipdb.set_trace()
+        return None
+    fqn = parser.ensure_fqn()
 
-    # TODO - Check that next_token is actually not referring to a "primitive" type
     if parser.next_token_is(parser.GENERIC_OPEN_TOKEN):
         child_typeexprs = [ ensure_typeexpr(parser) ]
         while not parser.peeked_token_is(parser.GENERIC_CLOSE_TOKEN):
             parser.ensure_token(TokenType.COMMA)
             child_typeexprs.append(ensure_typeexpr(parser))
         parser.ensure_token(parser.GENERIC_CLOSE_TOKEN)
-        return tlcore.TypeInitializer(next_token.value, child_typeexprs)
+        return tlcore.TypeInitializer(fqn, child_typeexprs)
 
-    # Put token back in stream
-    parser.unget_token(next_token)
-    return None
+    # Otherwise we just have a TypeName
+    return tlcore.TypeName(fqn)
 
 def parse_typefunc_preamble(parser, name_required = False, allow_generics = True):
     name = None
