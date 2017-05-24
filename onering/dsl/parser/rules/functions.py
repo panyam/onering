@@ -33,23 +33,17 @@ def parse_function(parser, is_external, annotations, **kwargs):
     input_typeexprs, output_typeexpr, output_varname = parse_function_signature(parser)
 
     parent = parser.current_module if func_name else None
-    if is_external or parser.peeked_token_is(TokenType.OPEN_BRACE):
-        functype = tlcore.make_func_type(func_name, type_params, input_typeexprs, output_typeexpr, parent)
-        # Brace yourself for a function definition!!!
-        function = tlexprs.Function(func_name, functype, parser.current_module, annotations = annotations, docs = docs)
-        function.is_external = is_external
-        function.dest_varname = output_varname or "dest"
-        parser.add_entity(func_name, function)
-        parser.onering_context.fgraph.register(function)
-        if not is_external:
-            parse_function_body(parser, function)
-        return function
-    else:
-        functype = tlcore.make_func_type(func_name, type_params, input_typeexprs, output_typeexpr, parent,
-                                         annotations = annotations, docs = docs)
-        # Return a function type
-        parser.add_entity(func_name, functype)
-        return functype
+    functype = tlcore.make_func_type(func_name, type_params, input_typeexprs, output_typeexpr, parent)
+    function = tlexprs.Function(func_name, functype, parser.current_module, annotations = annotations, docs = docs)
+    function.is_external = is_external
+    function.dest_varname = output_varname or "dest"
+    function.is_external = is_external or not parser.peeked_token_is(TokenType.OPEN_BRACE)
+    parser.add_entity(func_name, function)
+    parser.onering_context.fgraph.register(function)
+
+    if not function.is_external:
+        parse_function_body(parser, function)
+    return function
 
 def parse_function_signature(parser, require_param_name = True):
     """Parses the type signature declaration in a function declaration:
@@ -120,8 +114,11 @@ def parse_param_declaration(parser, require_name = True):
     return tlcore.TypeArg(param_name, param_typeexpr, is_optional, default_value, annotations, docstring)
 
 def parse_function_body(parser, function):
-    for statement in parse_statement_block(parser):
-        function.add_statement(statement)
+    if not parser.peeked_token_is(TokenType.OPEN_BRACE):
+        function.is_external = True
+    else:
+        for statement in parse_statement_block(parser):
+            function.add_statement(statement)
 
 def parse_statement_block(parser):
     """ Parses a statement block.

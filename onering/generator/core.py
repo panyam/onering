@@ -16,7 +16,7 @@ def generate_ir_for_function(function, context):
     # Set source and dest variables in symbol table
     for typearg in function.source_typeargs:
         symtable.register_var(typearg.name, typearg.type_expr, False)
-    if function.dest_typearg and function.dest_typearg.type_expr.resolved_value != tlcore.VoidType:
+    if not function.returns_void:
         symtable.register_var(function.dest_varname, function.dest_typearg, False)
     instructions, symtable, _ = generate_ir_for_statements(function.all_statements, context, symtable = symtable)
     return instructions, symtable
