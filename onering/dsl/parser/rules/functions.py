@@ -75,7 +75,7 @@ def parse_function_signature(parser, require_param_name = True):
     # Now read the output type (if any)
     output_typeexpr = tlcore.TypeName("void")
     output_varname = None
-    if parser.next_token_is(TokenType.COLON):
+    if parser.next_token_is(TokenType.ARROW):
         output_typeexpr = ensure_typeexpr(parser)
         if parser.next_token_is(TokenType.IDENTIFIER, "as"):
             output_varname = parser.ensure_token(TokenType.IDENTIFIER)

@@ -14,7 +14,7 @@ class OneringContext(dirutils.DirPointer):
         dirutils.DirPointer.__init__(self)
         self.entity_resolver = resolver.EntityResolver("pdsc")
         self.global_module = ore.Module(None, None)
-        self.fgraph = fgraph.FunctionGraph(self)
+        self.fgraph = fgraph.FunctionGraph()
         self.register_default_types()
 
         self.output_dir = "./gen"

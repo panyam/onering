@@ -4,8 +4,7 @@ from collections import defaultdict, deque
 from typelib import unifier as tlunifier
 
 class FunctionGraph(object):
-    def __init__(self, context):
-        self.context = context
+    def __init__(self):
         self.function_edges = defaultdict(set)
         self.all_functions = []
 
@@ -42,8 +41,7 @@ class FunctionGraph(object):
                         return sofar + [func]
                     elif func not in visited:
                         visited.add(func)
-                        ipdb.set_trace()
-                        func_source_typeexprs = [t.final_entity for t in func.src_typerefs]
+                        func_source_typeexprs = [t.type_expr for t in func.source_typeargs]
                         queue.append((func_source_typeexprs, sofar + [func]))
                 if func.matches_input(source_typeexprs + [target_typeexpr]):
                     return sofar + [func]
