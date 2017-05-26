@@ -3,7 +3,6 @@ from collections import defaultdict
 import ipdb
 from typelib import errors as tlerrors
 from typelib import core as tlcore
-from typelib import exprs as tlexprs
 from typelib.annotations import Annotatable
 
 class Entity(Annotatable):

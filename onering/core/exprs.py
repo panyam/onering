@@ -4,7 +4,7 @@ from typelib import core as tlcore
 from onering import core as orcore
 from typelib.annotations import Annotatable
 from typelib import unifier as tlunifier
-from typelib.exprs import Expression
+from typelib.core import Expression
 from typelib.utils import FieldPath
 from onering import errors
 from onering.utils.misc import ResolutionStatus

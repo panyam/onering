@@ -3,7 +3,7 @@ import ipdb
 from typelib import core as tlcore
 from onering.generator.symtable import SymbolTable
 from onering.generator import ir
-from typelib.exprs import Expression, VariableExpression, Function, FunctionCall
+from typelib.core import Expression, Variable, Function, FunctionCall
 from onering.core.exprs import ListExpression, DictExpression, TupleExpression, IfExpression, LiteralExpression
 
 """
@@ -59,7 +59,7 @@ def generate_ir_for_expression(expr, context, input_values, instructions, symtab
         ListExpression: generate_ir_for_list,
         DictExpression: generate_ir_for_dict,
         FunctionCall: generate_ir_for_function_call,
-        VariableExpression: generate_ir_for_variable,
+        Variable: generate_ir_for_variable,
         IfExpression: generate_ir_for_if_expression,
     }
     return irgenerators[type(expr)](expr, context, input_values, instructions, symtable)
@@ -137,6 +137,8 @@ def generate_ir_for_variable(target_var, context, input_values, instructions, sy
     while field_path.length > 0:
         next_field_name, tail_path = field_path.pop()
         next_path = curr_path + "/" + next_field_name
+        if curr_typearg is None:
+            ipdb.set_trace()
         next_typearg = curr_typearg.type_expr.resolved_value.args.withname(next_field_name)
         next_register = symtable.get_register_for_path(next_path, next_typearg.type_expr)
 
