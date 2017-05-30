@@ -2,7 +2,7 @@
 from __future__ import absolute_import
 import ipdb
 from typelib import core as tlcore
-from onering import core as orcore
+from typelib import ext as tlext
 from onering import resolver
 from onering import errors
 from onering.utils import dirutils
@@ -31,15 +31,15 @@ class OneringContext(dirutils.DirPointer):
         # register references to default types.
         for t in [tlcore.AnyType,
                   tlcore.VoidType,
-                  orcore.BooleanType,
-                  orcore.ByteType, 
-                  orcore.IntType,
-                  orcore.LongType,
-                  orcore.FloatType, 
-                  orcore.DoubleType,
-                  orcore.StringType,
-                  orcore.ArrayType,
-                  orcore.MapType]:
+                  tlext.BooleanType,
+                  tlext.ByteType, 
+                  tlext.IntType,
+                  tlext.LongType,
+                  tlext.FloatType, 
+                  tlext.DoubleType,
+                  tlext.StringType,
+                  tlext.ArrayType,
+                  tlext.MapType]:
             self.global_module.add(t.name, t)
 
     def ensure_module(self, fqn):

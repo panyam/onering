@@ -4,7 +4,6 @@ import ipdb
 from typelib import core as tlcore
 from typelib import ext as tlext
 from typelib.utils import FieldPath
-from onering import core as orcore
 from onering import utils
 from onering.dsl.parser.rules.types import ensure_typeexpr
 from onering.errors import OneringException
@@ -115,9 +114,9 @@ def parse_function_body(parser, function):
     if not parser.peeked_token_is(TokenType.OPEN_BRACE):
         function.is_external = True
     else:
-        function.expression = parse_expression_list(parser)
+        function.expression = parse_expression_list(parser, function)
 
-def parse_expression_list(parser):
+def parse_expression_list(parser, function):
     """ Parses a statement block.
 
     expression_list := "{" expression * "}"
@@ -126,12 +125,12 @@ def parse_expression_list(parser):
     out = tlext.ExpressionList()
     parser.ensure_token(TokenType.OPEN_BRACE)
     while not parser.peeked_token_is(TokenType.CLOSE_BRACE):
-        out.add(parse_statement(parser))
+        out.add(parse_statement(parser, function))
     parser.ensure_token(TokenType.CLOSE_BRACE)
     parser.consume_tokens(TokenType.SEMI_COLON)
     return out
 
-def parse_statement(parser):
+def parse_statement(parser, function):
     """
     Parses a single statement.
 
@@ -163,7 +162,9 @@ def parse_statement(parser):
     # ensure last var IS a variable expression
     if not isinstance(exprs[-1], tlcore.Variable):
         raise OneringException("Final target of an expression MUST be a variable")
-    return tlext.Assignment(exprs[-1], tlext.ExpressionList(exprs[:-1]), is_temporary)
+    target_var = exprs[-1]
+    exprlist = tlext.ExpressionList(exprs[:-1])
+    return tlext.Assignment(function, target_var, exprlist, is_temporary)
 
 def parse_expression_chain(parser):
     """
@@ -207,7 +208,7 @@ def parse_expression(parser):
             assert False
         out = tlext.LiteralExpression(value, vtype)
     elif parser.peeked_token_is(TokenType.STRING):
-        out = tlext.LiteralExpression(parser.next_token().value, orcore.StringType)
+        out = tlext.LiteralExpression(parser.next_token().value, tlext.StringType)
     elif parser.peeked_token_is(TokenType.OPEN_SQUARE):
         # Read a list
         out = parse_list_expression(parser)

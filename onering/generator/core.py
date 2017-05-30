@@ -11,6 +11,9 @@ This module is responsible for generating code for a statement and all parts of 
 """
 
 def generate_ir_for_expression(expr, context, input_values, instructions, symtable):
+    if instructions is None: instructions = []
+    if symtable is None: symtable = SymbolTable()
+
     if expr is None:
         return instructions, symtable, None
 
@@ -29,7 +32,6 @@ def generate_ir_for_expression(expr, context, input_values, instructions, symtab
 
 def generate_ir_for_function(function, context):
     symtable = SymbolTable()
-
     assert not function.is_external, "External functions cannot be generated"
 
     # Set source and dest variables in symbol table
