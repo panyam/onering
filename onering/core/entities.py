@@ -58,7 +58,7 @@ class Entity(Annotatable):
             entry = self.resolver.resolve_name(name)
         return entry
 
-    def set_resolver(self, resolver):
+    def set_resolver(self, resolver, parent_function):
         """ Before we can do any bindings.  Each expression (and entity) needs resolvers to know 
         how to bind/resolve names the expression itself refers.  This step recursively assigns
         a resolver to every entity, expression that needs a resolver.  What the resolver should 
@@ -66,7 +66,7 @@ class Entity(Annotatable):
         """
         self.resolver = resolver
         for name, child in self.entity_map.iteritems():
-            child.set_resolver(self)
+            child.set_resolver(self, parent_function)
 
     def add(self, name, entity):
         """ Adds a new child entity. """

@@ -2,6 +2,7 @@
 from __future__ import absolute_import
 import ipdb
 from typelib import core as tlcore
+from typelib import ext as tlext
 from typelib.utils import FieldPath
 from onering import core as orcore
 from onering import utils
@@ -11,7 +12,6 @@ from onering.dsl.errors import SourceException, UnexpectedTokenException
 from onering.dsl.lexer import Token, TokenType
 from onering.dsl.parser.rules.annotations import parse_annotations
 from onering.dsl.parser.rules.misc import parse_field_path
-from onering.core import exprs as orexprs
 
 ########################################################################
 ##          Function type and definition parsing rules
@@ -34,7 +34,6 @@ def parse_function(parser, is_external, annotations, **kwargs):
     parent = parser.current_module if func_name else None
     functype = tlcore.make_func_type(func_name, type_params, input_typeexprs, output_typeexpr, parent)
     function = tlcore.Function(func_name, functype, parser.current_module, annotations = annotations, docs = docs)
-    function.is_external = is_external
     function.dest_varname = output_varname or "dest"
     function.is_external = is_external or not parser.peeked_token_is(TokenType.OPEN_BRACE)
     parser.add_entity(func_name, function)
@@ -102,7 +101,7 @@ def parse_param_declaration(parser, require_name = True):
         parser.ensure_token(TokenType.COLON)
 
     param_typeexpr  = ensure_typeexpr(parser)
-    # if we declared an inline Type then dont refer to it directly but via a Variable
+    # if we declared an inline Type then dont refer to it directly but via a TypeVariable
     if type(param_typeexpr) is tlcore.TypeFunction and param_typeexpr.name:
         param_typeexpr = tlcore.TypeVariable(param_typeexpr.name)
     is_optional     = parser.next_token_is(TokenType.QMARK)
@@ -116,20 +115,21 @@ def parse_function_body(parser, function):
     if not parser.peeked_token_is(TokenType.OPEN_BRACE):
         function.is_external = True
     else:
-        for statement in parse_statement_block(parser):
-            function.add_statement(statement)
+        function.expression = parse_expression_list(parser)
 
-def parse_statement_block(parser):
+def parse_expression_list(parser):
     """ Parses a statement block.
 
-    statment_block := "{" statement * "}"
+    expression_list := "{" expression * "}"
 
     """
+    out = tlext.ExpressionList()
     parser.ensure_token(TokenType.OPEN_BRACE)
     while not parser.peeked_token_is(TokenType.CLOSE_BRACE):
-        yield parse_statement(parser)
+        out.add(parse_statement(parser))
     parser.ensure_token(TokenType.CLOSE_BRACE)
     parser.consume_tokens(TokenType.SEMI_COLON)
+    return out
 
 def parse_statement(parser):
     """
@@ -163,7 +163,7 @@ def parse_statement(parser):
     # ensure last var IS a variable expression
     if not isinstance(exprs[-1], tlcore.Variable):
         raise OneringException("Final target of an expression MUST be a variable")
-    return tlcore.Statement(exprs[:-1], exprs[-1], is_temporary)
+    return tlext.Assignment(exprs[-1], tlext.ExpressionList(exprs[:-1]), is_temporary)
 
 def parse_expression_chain(parser):
     """
@@ -205,9 +205,9 @@ def parse_expression(parser):
             parser.onering_context.DoubleType
         else:
             assert False
-        out = orexprs.LiteralExpression(value, vtype)
+        out = tlext.LiteralExpression(value, vtype)
     elif parser.peeked_token_is(TokenType.STRING):
-        out = orexprs.LiteralExpression(parser.next_token().value, orcore.StringType)
+        out = tlext.LiteralExpression(parser.next_token().value, orcore.StringType)
     elif parser.peeked_token_is(TokenType.OPEN_SQUARE):
         # Read a list
         out = parse_list_expression(parser)
@@ -268,7 +268,7 @@ def parse_tuple_expression(parser):
             expr = parse_expression(parser)
             exprs.append(expr)
         parser.ensure_token(TokenType.CLOSE_PAREN)
-    return orexprs.TupleExpression(exprs)
+    return tlext.TupleExpression(exprs)
 
 def parse_list_expression(parser):
     parser.ensure_token(TokenType.OPEN_SQUARE)
@@ -280,7 +280,7 @@ def parse_list_expression(parser):
             expr = parse_expression(parser)
             exprs.append(expr)
         parser.ensure_token(TokenType.CLOSE_SQUARE)
-    return orexprs.ListExpression(exprs)
+    return tlext.ListExpression(exprs)
 
 def parse_if_expression(parser):
     """ Parse an if expression:
@@ -295,19 +295,19 @@ def parse_if_expression(parser):
     parser.ensure_token(TokenType.IDENTIFIER, "if")
     conditions = []
     condition = parse_expression(parser)
-    body = list(parse_statement_block(parser))
+    body = parse_expression_list(parser)
     conditions.append((condition, body))
     default_expression = None
 
     while True:
         if parser.next_token_is(TokenType.IDENTIFIER, "elif"):
             condition = parse_expression(parser)
-            body = list(parse_statement_block(parser))
+            body = parse_expression_list(parser)
             conditions.append((condition, body))
         elif parser.next_token_is(TokenType.IDENTIFIER, "else"):
-            default_expression = list(parse_statement_block(parser))
+            default_expression = parse_expression_list(parser)
         else:
             break
 
-    return orexprs.IfExpression(conditions, default_expression)
+    return tlext.IfExpression(conditions, default_expression)
 

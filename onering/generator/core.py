@@ -4,55 +4,16 @@ from typelib import core as tlcore
 from onering.generator.symtable import SymbolTable
 from onering.generator import ir
 from typelib.core import Expression, Variable, Function, FunctionCall
-from onering.core.exprs import ListExpression, DictExpression, TupleExpression, IfExpression, LiteralExpression
+from typelib.ext import ListExpression, DictExpression, TupleExpression, IfExpression, LiteralExpression, ExpressionList, Assignment
 
 """
 This module is responsible for generating code for a statement and all parts of an expression tree.
 """
 
-def generate_ir_for_function(function, context):
-    symtable = SymbolTable()
-
-    # Set source and dest variables in symbol table
-    for typearg in function.source_typeargs:
-        symtable.register_var(typearg.name, typearg.type_expr, False)
-    if not function.returns_void:
-        symtable.register_var(function.dest_varname, function.dest_typearg, False)
-    instructions, symtable, _ = generate_ir_for_statements(function.all_statements, context, symtable = symtable)
-    return instructions, symtable
-
-def generate_ir_for_statements(statements, context, instructions = None, symtable = None):
-    """
-    Generates the IR for a bunch of statements and returns the instruction list as well as the final symbol table required.
-    """
-    if not instructions: instructions = []
-    if not symtable: symtable = SymbolTable()
-
-    # Generate all "temp" vars across all statements first
-    for index,statement in enumerate(statements):
-        if statement.is_temporary:
-            # Register var if this is temporary
-            symtable.register_var(statement.target_variable.field_path.get(0), statement.target_variable.evaluated_typeexpr, True)
-
-    # Now do the normal generation
-    for index,statement in enumerate(statements):
-        generate_ir_for_statement(statement, context, instructions, symtable)
-
-    return instructions, symtable, None
-
-def generate_ir_for_statement(statement, context, instructions, symtable):
-    last_return = None
-    for expr in statement.expressions:
-        # Call the the generator for the expression with the last return value as its inputs
-        instructions, symtable, last_register = generate_ir_for_expression(expr, context, last_return, instructions, symtable)
-
-    # Generate a setter instruction too
-    generate_ir_for_setter(last_register, statement.target_variable, instructions, symtable)
-
-    # Statements dont have return values
-    return instructions, symtable, None
-
 def generate_ir_for_expression(expr, context, input_values, instructions, symtable):
+    if expr is None:
+        return instructions, symtable, None
+
     irgenerators = {
         LiteralExpression: generate_ir_for_literal,
         TupleExpression: generate_ir_for_tuple,
@@ -61,8 +22,48 @@ def generate_ir_for_expression(expr, context, input_values, instructions, symtab
         FunctionCall: generate_ir_for_function_call,
         Variable: generate_ir_for_variable,
         IfExpression: generate_ir_for_if_expression,
+        Assignment: generate_ir_for_assignment,
+        ExpressionList: generate_ir_for_expression_list,
     }
     return irgenerators[type(expr)](expr, context, input_values, instructions, symtable)
+
+def generate_ir_for_function(function, context):
+    symtable = SymbolTable()
+
+    assert not function.is_external, "External functions cannot be generated"
+
+    # Set source and dest variables in symbol table
+    for typearg in function.source_typeargs:
+        symtable.register_var(typearg.name, typearg.type_expr, False)
+    if not function.returns_void:
+        symtable.register_var(function.dest_varname, function.dest_typearg, False)
+    instructions, symtable, _ = generate_ir_for_expression(function.expression, context, None, [], symtable = symtable)
+    return instructions, symtable
+
+def generate_ir_for_expression_list(expression_list, context, input_values, instructions, symtable):
+    """
+    Generates the IR for a bunch of statements and returns the instruction list as well as the final symbol table required.
+    """
+    assert instructions is not None and symtable is not None
+    # Now do the normal generation
+    for index,expr in enumerate(expression_list.children):
+        generate_ir_for_expression(expr, context, input_values, instructions, symtable)
+    return instructions, symtable, None
+
+def generate_ir_for_assignment(assignment, context, input_values, instructions, symtable):
+    # Generate all "temp" vars across all statements first
+    if assignment.is_temporary:
+        # Register var if this is temporary
+        symtable.register_var(assignment.target_variable.field_path.get(0), assignment.target_variable.evaluated_typeexpr, True)
+
+    # Call the the generator for the expression with the last return value as its inputs
+    instructions, symtable, last_register = generate_ir_for_expression(assignment.expression, context, None, instructions, symtable)
+
+    # Generate a setter instruction too
+    generate_ir_for_setter(last_register, assignment.target_variable, instructions, symtable)
+
+    # Statements dont have return values
+    return instructions, symtable, None
 
 def generate_ir_for_literal(expr, context, input_values, instructions, symtable):
     # So there are no explicit "inputs", just locations or values that something is bound to
@@ -110,17 +111,17 @@ def generate_ir_for_function_call(expr, context, input_values, instructions, sym
 def generate_ir_for_if_expression(ifexpr, context, input_values, instructions, symtable):
     top_ifinstr = None
     curr_instrs = instructions
-    for condition,stmt_block in ifexpr.cases:
+    for condition,expr in ifexpr.cases:
         # we are dealing with first condition
         cond_instrs, symtable, value = generate_ir_for_expression(condition, context, None, curr_instrs, symtable)
-        body_instrs, symtable, _ = generate_ir_for_statements(stmt_block, context, None, symtable)
+        body_instrs, symtable, _ = generate_ir_for_expression(expr, context, None, symtable)
         ifinstr = ir.IfStatement(ir.ValueOrVar(value, True), body_instrs)
         if not top_ifinstr: top_ifinstr = ifinstr
         curr_instrs.append(ifinstr)
         curr_instrs = ifinstr.otherwise
 
     if ifexpr.default_expression:
-        generate_ir_for_statements(ifexpr.default_expression, context, curr_instrs, symtable)
+        generate_ir_for_expression(ifexpr.default_expression, context, curr_instrs, symtable)
     return instructions, symtable, top_ifinstr
 
 def generate_ir_for_variable(target_var, context, input_values, instructions, symtable):
@@ -131,6 +132,8 @@ def generate_ir_for_variable(target_var, context, input_values, instructions, sy
     assert not target_var.is_function
 
     curr_typearg = target_var.root_value
+    if not curr_typearg:
+        ipdb.set_trace()
     curr_path = starting_var
     curr_register = symtable.get_register_for_path(starting_var)
     curr_instrs = instructions
