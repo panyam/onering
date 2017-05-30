@@ -54,6 +54,8 @@ class SetFieldInstruction(object):
         target_register.set<field_key>(source_register)
     """
     def __init__(self, source_register, field_key, target_register):
+        if source_register is None or target_register is None:
+            ipdb.set_trace()
         self.source_register = source_register
         self.target_register = target_register
         self.field_key = field_key
