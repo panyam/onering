@@ -13,7 +13,7 @@ from onering.dsl.parser.rules.annotations import parse_annotations
 from onering.dsl.parser.rules.misc import parse_field_path
 
 ########################################################################
-##          Function type and definition parsing rules
+##          Fun type and definition parsing rules
 ########################################################################
 
 def parse_function(parser, is_external, annotations, **kwargs):
@@ -32,7 +32,7 @@ def parse_function(parser, is_external, annotations, **kwargs):
 
     parent = parser.current_module if func_name else None
     functype = tlcore.make_func_type(func_name, type_params, input_typeexprs, output_typeexpr, parent)
-    function = tlcore.Function(func_name, functype, parser.current_module, annotations = annotations, docs = docs)
+    function = tlcore.Fun(func_name, functype, parser.current_module, annotations = annotations, docs = docs)
     function.dest_varname = output_varname or "dest"
     function.is_external = is_external or not parser.peeked_token_is(TokenType.OPEN_BRACE)
     parser.add_entity(func_name, function)
@@ -70,7 +70,7 @@ def parse_function_signature(parser, require_param_name = True):
         parser.ensure_token(TokenType.CLOSE_PAREN)
 
     # Now read the output type (if any)
-    output_typeexpr = tlcore.TypeVariable("void")
+    output_typeexpr = tlcore.VoidType
     output_varname = None
     if parser.next_token_is(TokenType.ARROW):
         output_typeexpr = ensure_typeexpr(parser)
@@ -100,9 +100,9 @@ def parse_param_declaration(parser, require_name = True):
         parser.ensure_token(TokenType.COLON)
 
     param_typeexpr  = ensure_typeexpr(parser)
-    # if we declared an inline Type then dont refer to it directly but via a TypeVariable
-    if type(param_typeexpr) is tlcore.TypeFunction and param_typeexpr.name:
-        param_typeexpr = tlcore.TypeVariable(param_typeexpr.name)
+    # if we declared an inline Type then dont refer to it directly but via a Variable
+    if type(param_typeexpr) is tlcore.Fun and param_typeexpr.name:
+        param_typeexpr = tlcore.Variable(param_typeexpr.name)
     is_optional     = parser.next_token_is(TokenType.QMARK)
     default_value   = None
     if parser.next_token_is(TokenType.EQUALS):
@@ -251,7 +251,7 @@ def parse_expression(parser):
         if func_param_exprs or func_args:
             if source.length > 1:
                 raise OneringException("Fieldpaths cannot be used as functions")
-            out = tlcore.FunctionCall(tlcore.Variable(source), func_param_exprs, func_args)
+            out = tlcore.FunApp(tlcore.Variable(source), func_args)
     else:
         raise UnexpectedTokenException(parser.peek_token(),
                                        TokenType.STRING, TokenType.NUMBER,

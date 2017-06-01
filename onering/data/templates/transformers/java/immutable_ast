@@ -32,7 +32,7 @@ record ReturnStatement {
 }
 
 union Expression {
-    FunctionCall
+    FunCall
     Literal
     Variable
     Getter
@@ -44,7 +44,7 @@ record Constructor {
     arguments : array[Expression]
 }
 
-record FunctionCall {
+record FunCall {
     func_name : FQN
     arguments : array[Expression]
 }

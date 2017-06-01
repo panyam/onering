@@ -21,12 +21,12 @@ record FieldPath {
 }
 
 union Expression {
-    FunctionCall
+    FunCall
     Literal
     FieldPath
 }
 
-record FunctionCall {
+record FunCall {
     func_name : FQN
     arguments : array[Expression]
 }

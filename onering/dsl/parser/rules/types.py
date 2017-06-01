@@ -48,7 +48,7 @@ def parse_typeref_decl(parser, annotations, **kwargs):
 
 def ensure_typeexpr(parser, annotations = None):
     out = parse_entity(parser)
-    if not tlcore.istypeexpr(out):
+    if not issubclass(out.__class__, tlcore.Expression):
         ipdb.set_trace()
         assert False
     return out
@@ -70,10 +70,10 @@ def parse_type_initializer_or_name(parser, annotations):
             parser.ensure_token(TokenType.COMMA)
             child_typeexprs.append(ensure_typeexpr(parser))
         parser.ensure_token(parser.GENERIC_CLOSE_TOKEN)
-        return tlcore.TypeInitializer(fqn, child_typeexprs)
+        return tlcore.FunApp(tlcore.Variable(fqn), child_typeexprs, is_type_app = True)
 
-    # Otherwise we just have a TypeVariable
-    return tlcore.TypeVariable(fqn)
+    # Otherwise we just have a Variable
+    return tlcore.Variable(fqn)
 
 def parse_typefunc_preamble(parser, name_required = False, allow_generics = True):
     name = None
@@ -200,9 +200,9 @@ def parse_field_declaration(parser):
     field_name = parser.ensure_token(TokenType.IDENTIFIER)
     parser.ensure_token(TokenType.COLON)
     field_typeexpr = ensure_typeexpr(parser)
-    # if we declared an inline Type then dont refer to it directly but via a TypeVariable
-    if type(field_typeexpr) is tlcore.TypeFunction and field_typeexpr.name:
-        field_typeexpr = tlcore.TypeVariable(field_typeexpr.name)
+    # if we declared an inline Type then dont refer to it directly but via a Variable
+    if type(field_typeexpr) is tlcore.Fun and field_typeexpr.name:
+        field_typeexpr = tlcore.Variable(field_typeexpr.name)
     is_optional = False
     default_value = None
 

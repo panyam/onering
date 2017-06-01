@@ -18,7 +18,7 @@ class Platform(Annotatable):
 
     def add_function(self, function_or_fqn, native_fqn, annotations = None, docs = ""):
         function_fqn = function_or_fqn
-        if type(function_or_fqn) is functions.Function:
+        if type(function_or_fqn) is functions.Fun:
             function_fqn = function_or_fqn.fqn
 
         if function_fqn in self._functions:
@@ -32,7 +32,7 @@ class Platform(Annotatable):
         Returns the native platform specific binding of a function (or its fqn)
         """
         function_fqn = function_or_fqn
-        if type(function_or_fqn) is functions.Function:
+        if type(function_or_fqn) is functions.Fun:
             function_fqn = function_or_fqn.fqn
 
         self._functions[function_fqn]["fqn"]

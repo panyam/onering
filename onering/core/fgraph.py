@@ -3,7 +3,7 @@ import ipdb
 from collections import defaultdict, deque
 from typelib import unifier as tlunifier
 
-class FunctionGraph(object):
+class FunGraph(object):
     def __init__(self):
         self.function_edges = defaultdict(set)
         self.all_functions = []

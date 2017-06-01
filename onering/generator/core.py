@@ -3,7 +3,7 @@ import ipdb
 from typelib import core as tlcore
 from onering.generator.symtable import SymbolTable
 from onering.generator import ir
-from typelib.core import Expression, Variable, Function, FunctionCall
+from typelib.core import Expression, Variable, Fun, FunApp
 from typelib.ext import ListExpression, DictExpression, TupleExpression, IfExpression, LiteralExpression, ExpressionList, Assignment
 
 """
@@ -22,7 +22,7 @@ def generate_ir_for_expression(expr, context, instructions, symtable):
         TupleExpression: generate_ir_for_tuple,
         ListExpression: generate_ir_for_list,
         DictExpression: generate_ir_for_dict,
-        FunctionCall: generate_ir_for_function_call,
+        FunApp: generate_ir_for_fun_app,
         Variable: generate_ir_for_variable,
         IfExpression: generate_ir_for_if_expression,
         Assignment: generate_ir_for_assignment,
@@ -101,14 +101,14 @@ def generate_ir_for_dict(expr, context, instructions, symtable):
         out[key_values] = value_values
     return instructions, symtable, out
 
-def generate_ir_for_function_call(expr, context, instructions, symtable):
+def generate_ir_for_fun_app(expr, context, instructions, symtable):
     # Evaluate parameter values
     arg_values = []
     for arg in expr.func_args:
         instructions, symtable, value = generate_ir_for_expression(arg, context, instructions, symtable)
         arg_values.append(value)
     new_register = symtable.next_register(expr.evaluated_typeexpr)
-    instructions.append(ir.FunctionCallInstruction(expr.func_expr.root_value.fqn, arg_values, new_register))
+    instructions.append(ir.FunAppInstruction(expr.func_expr.root_value.fqn, arg_values, new_register))
     return instructions, symtable, new_register
 
 def generate_ir_for_if_expression(ifexpr, context, instructions, symtable):

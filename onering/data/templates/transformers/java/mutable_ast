@@ -34,13 +34,13 @@ record FieldSetter {
 }
 
 union Expression {
-    FunctionCall
+    FunCall
     Literal
     Variable
     Getter
 }
 
-record FunctionCall {
+record FunCall {
     func_name : FQN
     arguments : array[Expression]
 }

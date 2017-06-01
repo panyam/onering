@@ -8,7 +8,7 @@
     {{ render_getfield_instruction(instruction) }}
 {%- elif instruction.__class__.__name__ == "CopyVarInstruction" -%}
     {{ render_copyvar_instruction(instruction) }}
-{%- elif instruction.__class__.__name__ == "FunctionCallInstruction" -%}
+{%- elif instruction.__class__.__name__ == "FunCallInstruction" -%}
     {{ render_funccall_instruction(instruction) }}
 {%- elif instruction.__class__.__name__ == "ContainsInstruction" -%}
     {{ render_contains_instruction(instruction) }}

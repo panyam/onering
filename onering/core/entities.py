@@ -43,12 +43,7 @@ class Entity(Annotatable):
         return out
 
     def resolve_type_name(self, name):
-        entry = self.find_fqn(name)
-        while entry and type(entry) in (str, unicode):
-            entry = self.find_fqn(entry)
-        if self.resolver and (not entry or not tlcore.istypeexpr(entry)):
-            entry = self.resolver.resolve_type_name(name)
-        return entry
+        return self.resolve_name(name)
 
     def resolve_name(self, name):
         entry = self.find_fqn(name)

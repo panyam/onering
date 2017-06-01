@@ -63,7 +63,7 @@ class SetFieldInstruction(object):
     def __repr__(self):
         return "SET %s -> %s[%s]" % (self.source_register, self.target_register, self.field_key)
 
-class FunctionCallInstruction(object):
+class FunAppInstruction(object):
     """
     An instruction to call a particular function with the arguments as the values from a particular register
     and then set the output into the output_register.
