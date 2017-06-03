@@ -31,15 +31,18 @@ def parse_function(parser, is_external, annotations, **kwargs):
     input_typeexprs, output_typeexpr, output_varname = parse_function_signature(parser)
 
     parent = parser.current_module if func_name else None
-    functype = tlcore.make_func_type(func_name, type_params, input_typeexprs, output_typeexpr, parent)
+    functype = tlcore.make_func_type(func_name, input_typeexprs, output_typeexpr, parent)
     function = tlcore.Fun(func_name, functype, parser.current_module, annotations = annotations, docs = docs)
-    function.dest_varname = output_varname or "dest"
+    function.dest_typearg.name = output_varname
     function.is_external = is_external or not parser.peeked_token_is(TokenType.OPEN_BRACE)
-    parser.add_entity(func_name, function)
-    parser.onering_context.fgraph.register(function)
-
     if not function.is_external:
         parse_function_body(parser, function)
+
+    if type_params:
+        function = tlcore.TypeFun(func_name, type_params, function, parent, annotations = annotations, docs = docs)
+
+    parser.add_entity(func_name, function)
+    parser.onering_context.fgraph.register(function)
     return function
 
 def parse_function_signature(parser, require_param_name = True):
@@ -71,7 +74,7 @@ def parse_function_signature(parser, require_param_name = True):
 
     # Now read the output type (if any)
     output_typeexpr = tlcore.VoidType
-    output_varname = None
+    output_varname = "dest"
     if parser.next_token_is(TokenType.ARROW):
         output_typeexpr = ensure_typeexpr(parser)
         if parser.next_token_is(TokenType.IDENTIFIER, "as"):
@@ -206,9 +209,9 @@ def parse_expression(parser):
             parser.onering_context.DoubleType
         else:
             assert False
-        out = tlext.LiteralExpression(value, vtype)
+        out = tlcore.Literal(value, vtype)
     elif parser.peeked_token_is(TokenType.STRING):
-        out = tlext.LiteralExpression(parser.next_token().value, tlext.StringType)
+        out = tlcore.Literal(parser.next_token().value, tlext.StringType)
     elif parser.peeked_token_is(TokenType.OPEN_SQUARE):
         # Read a list
         out = parse_list_expression(parser)

@@ -14,7 +14,6 @@ class Entity(Annotatable):
         self.entity_map = {}
         self.child_entities = []
         self.aliases = {}
-        self.resolver = None
 
     def set_alias(self, name, fqn):
         """Sets the alias of a particular name to an FQN."""
@@ -42,26 +41,11 @@ class Entity(Annotatable):
                 curr = curr.parent
         return out
 
-    def resolve_type_name(self, name):
-        return self.resolve_name(name)
-
     def resolve_name(self, name):
         entry = self.find_fqn(name)
         while entry and type(entry) in (str, unicode):
             entry = self.find_fqn(entry)
-        if self.resolver and not entry:
-            entry = self.resolver.resolve_name(name)
         return entry
-
-    def set_resolver(self, resolver):
-        """ Before we can do any bindings.  Each expression (and entity) needs resolvers to know 
-        how to bind/resolve names the expression itself refers.  This step recursively assigns
-        a resolver to every entity, expression that needs a resolver.  What the resolver should 
-        be and what it should do depends on the child.
-        """
-        self.resolver = resolver
-        for name, child in self.entity_map.iteritems():
-            child.set_resolver(self)
 
     def add(self, name, entity):
         """ Adds a new child entity. """
@@ -80,11 +64,6 @@ class Entity(Annotatable):
                 return None
             curr = curr.entity_map[part]
         return curr
-
-    def resolve_binding(self, typeref):
-        from typelib import resolver as tlresolver
-        from tlresolver import resolve_entity
-        return resolve_entity(typeref, self)
 
     @property
     def name(self): return self._name

@@ -62,3 +62,9 @@ class OneringContext(dirutils.DirPointer):
                 from onering.core import platforms
                 self._platforms[name] = platforms.Platform(name, annotations, docs)
         return self._platforms[name]
+
+    def load_template(self, template_name):
+        out = self.template_loader.load_template(template_name)
+        out.globals["context"] = self
+        out.globals["typeexpr_for"] = self.global_module.get
+        return out

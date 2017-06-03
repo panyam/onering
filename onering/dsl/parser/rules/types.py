@@ -41,7 +41,9 @@ def parse_typeref_decl(parser, annotations, **kwargs):
     parser.ensure_token(TokenType.EQUALS)
 
     # create the typeref
-    typeref = tlcore.make_typeref(name, type_params, ensure_typeexpr(parser), annotations = annotations, docs = docs)
+    typeref = tlcore.make_typeref(name, ensure_typeexpr(parser), annotations = annotations, docs = docs)
+    if type_params:
+        typeref = tlcore.TypeFun(name, type_params, typeref, None, annotations = annotations, docs = docs)
     print "Registering new typeref: '%s'" % name
     parser.add_entity(name, typeref)
     return typeref
@@ -169,9 +171,11 @@ def parse_record_or_union(parser, is_external, annotations = None):
 
     name, type_params, docs = parse_typefunc_preamble(parser)
     fields = parse_record_body(parser)
-    type_func = tlcore.make_type(constructor, name, type_params, fields, None, annotations = annotations, docs = docs)
-    parser.add_entity(name, type_func)
-    return type_func
+    outtype = tlcore.make_type(constructor, name, fields, None, annotations = annotations, docs = docs)
+    if type_params:
+        outtype = tlcore.TypeFun(name, type_params, outtype, None, annotations = annotations, docs = docs)
+    parser.add_entity(name, outtype)
+    return outtype
 
 def parse_record_body(parser):
     """
