@@ -34,8 +34,7 @@ def parse_function(parser, is_external, annotations, **kwargs):
     functype = tlcore.make_func_type(func_name, input_typeexprs, output_typeexpr, parent)
     function = tlcore.Fun(func_name, functype, parser.current_module, annotations = annotations, docs = docs)
     function.dest_typearg.name = output_varname
-    function.is_external = is_external or not parser.peeked_token_is(TokenType.OPEN_BRACE)
-    if not function.is_external:
+    if not is_external:
         parse_function_body(parser, function)
 
     if type_params:
@@ -114,9 +113,7 @@ def parse_param_declaration(parser, require_name = True):
     return tlcore.TypeArg(param_name, param_typeexpr, is_optional, default_value, annotations, docstring)
 
 def parse_function_body(parser, function):
-    if not parser.peeked_token_is(TokenType.OPEN_BRACE):
-        function.is_external = True
-    else:
+    if parser.peeked_token_is(TokenType.OPEN_BRACE):
         function.expression = parse_expression_list(parser, function)
 
 def parse_expression_list(parser, function):
@@ -147,13 +144,8 @@ def parse_statement(parser, function):
     """
     annotations = parse_annotations(parser)
 
-    is_temporary = False
-    is_funccall = False
-    if parser.next_token_is(TokenType.IDENTIFIER, "let"):
-        exprs = parse_expression_chain(parser)
-        is_temporary = True
-    else:
-        exprs = parse_expression_chain(parser)
+    is_temporary = parser.next_token_is(TokenType.IDENTIFIER, "let")
+    exprs = parse_expression_chain(parser)
 
     # An expression must have more than 1 expression
     if len(exprs) <= 1:
@@ -167,7 +159,12 @@ def parse_statement(parser, function):
         raise OneringException("Final target of an expression MUST be a variable")
     target_var = exprs[-1]
     exprlist = tlext.ExpressionList(exprs[:-1])
-    return tlext.Assignment(function, target_var, exprlist, is_temporary)
+    if target_var.field_path.get(0) == '_':
+        return exprlist
+    else:
+        if is_temporary:
+            function.register_temp_var(target_var.field_path.get(0))
+        return tlext.Assignment(function, target_var, exprlist)
 
 def parse_expression_chain(parser):
     """

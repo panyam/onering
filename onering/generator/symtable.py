@@ -1,5 +1,6 @@
 
 import ipdb
+from typelib import core as tlcore
 import itertools
 
 class Register(object):
@@ -62,6 +63,9 @@ class SymbolTable(object):
         """
         Given a type_expr, returns the next register name for that type.
         """
+        if type(type_expr) is not tlcore.Type:
+            ipdb.set_trace()
+            assert False
         return self.register_var(None, type_expr, True)
 
     def register_var(self, varname, type_expr, is_local):

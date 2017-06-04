@@ -58,15 +58,20 @@ def generate_ir_for_expression_list(expression_list, resolver_stack, instruction
 
 def generate_ir_for_assignment(assignment, resolver_stack, instructions, symtable):
     # Generate all "temp" vars across all statements first
-    if assignment.is_temporary:
-        # Register var if this is temporary
-        symtable.register_var(assignment.target_variable.field_path.get(0), assignment.target_variable.evaluated_typeexpr, True)
+    target_var = assignment.target_variable.field_path.get(0)
+    if assignment.parent_function.is_temp_variable(target_var):
+        # Since the assignment is to a temporary var, now is a chance to set the temp var's
+        # type if it is not already set
+        exprtype = assignment.evaltype(resolver_stack)
+        if assignment.parent_function.temp_var_type(target_var) is None:
+            assignment.parent_function.register_temp_var(target_var, exprtype)
+        symtable.register_var(target_var, exprtype, True)
 
     # Call the the generator for the expression with the last return value as its inputs
     instructions, symtable, last_register = generate_ir_for_expression(assignment.expression, resolver_stack, instructions, symtable)
 
     # Generate a setter instruction too
-    generate_ir_for_setter(last_register, assignment.target_variable, instructions, symtable)
+    generate_ir_for_setter(last_register, assignment.target_variable, resolver_stack, instructions, symtable)
 
     # Statements dont have return values
     return instructions, symtable, None
@@ -112,8 +117,11 @@ def generate_ir_for_fun_app(expr, resolver_stack, instructions, symtable):
     for arg in expr.func_args:
         instructions, symtable, value = generate_ir_for_expression(arg, resolver_stack, instructions, symtable)
         arg_values.append(value)
-    new_register = symtable.next_register(expr.evaluated_typeexpr)
-    instructions.append(ir.FunAppInstruction(expr.func_expr.root_value.fqn, arg_values, new_register))
+    function = expr.func_expr.resolve(resolver_stack)
+    func_type = function.func_type
+    output_type = func_type.output_arg.type_expr.resolve(resolver_stack)
+    new_register = symtable.next_register(output_type)
+    instructions.append(ir.FunAppInstruction(function.fqn, arg_values, new_register))
     return instructions, symtable, new_register
 
 def generate_ir_for_if_expression(ifexpr, resolver_stack, instructions, symtable):
@@ -133,74 +141,60 @@ def generate_ir_for_if_expression(ifexpr, resolver_stack, instructions, symtable
     return instructions, symtable, top_ifinstr
 
 def generate_ir_for_variable(target_var, resolver_stack, instructions, symtable):
-    starting_var, field_path = target_var.field_path.pop()
-
     # We would never directly generate a getter/setter for functions
-    # (though langauge allows it we dont have the need to pass functions,,, yet)
+    # (though core allows it we dont have the need to pass functions,,, yet)
     value = target_var.resolve(resolver_stack)
-    assert value.is_typearg
-    ipdb.set_trace()
-    assert not target_var.is_function
+    assert type(value) is tlcore.TypeArg
 
-    # if str(target_var.field_path) == "src/statusCode": ipdb.set_trace()
-    curr_typearg = target_var.root_value
-    # if not curr_typearg: ipdb.set_trace()
-    curr_path = starting_var
-    curr_register = symtable.get_register_for_path(starting_var)
+    curr_register = None
     curr_instrs = instructions
-    while field_path.length > 0:
-        next_field_name, tail_path = field_path.pop()
-        next_path = curr_path + "/" + next_field_name
-        if curr_typearg is None:
-            ipdb.set_trace()
-        next_typearg = curr_typearg.type_expr.resolve(resolver_stack).args.withname(next_field_name)
-        next_register = symtable.get_register_for_path(next_path, next_typearg.type_expr)
-
-        # Get the next var and store into the var
-        contains_instr = ir.ContainsInstruction(curr_register, next_field_name)
-        get_instr = ir.GetFieldInstruction(curr_register, next_field_name, next_register)
-        if_stmt = ir.IfStatement(contains_instr, [ get_instr ], None)
-        curr_instrs.append(if_stmt)
-        curr_instrs = if_stmt.body
-        curr_path, curr_register, field_path = next_path, next_register, tail_path
+    for curr_field_name, curr_path, curr_typearg in value.unwrap_with_field_path(target_var.field_path, resolver_stack):
+        last_register = curr_register
+        if curr_register is None:
+            curr_register = symtable.get_register_for_path(curr_field_name)
+        else:
+            curr_type = curr_typearg.type_expr.resolve(resolver_stack)
+            curr_register = symtable.get_register_for_path(curr_path, curr_type)
+            # Get the next var and store into the var
+            contains_instr = ir.ContainsInstruction(last_register, curr_field_name)
+            get_instr = ir.GetFieldInstruction(last_register, curr_field_name, curr_register)
+            if_stmt = ir.IfStatement(contains_instr, [ get_instr ], None)
+            curr_instrs.append(if_stmt)
+            curr_instrs = if_stmt.body
 
     return instructions, symtable, curr_register
 
 
-def generate_ir_for_setter(source_register, target_var, instructions, symtable):
+def generate_ir_for_setter(source_register, target_var, resolver_stack, instructions, symtable):
     if not target_var:
+        ipdb.set_trace()
         return instructions, symtable, None
 
-    starting_var, field_path = target_var.field_path.pop()
-    starting_register = symtable.get_register_for_path(starting_var)
-    if target_var.is_temporary and field_path.length == 0:
-        # Do a direct copy as no nesting into a local var
-        instructions.append(ir.CopyVarInstruction(source_register, starting_register))
-        return instructions, symtable, None
+    # if "dest/status" == str(target_var.field_path): ipdb.set_trace()
+    value = target_var.resolve(resolver_stack)
+    if type(value) is not tlcore.TypeArg:
+        ipdb.set_trace()
+    curr_register = None
+    curr_instrs = instructions
+    for curr_field_name, curr_path, curr_typearg in value.unwrap_with_field_path(target_var.field_path, resolver_stack):
+        last_register = curr_register
+        if curr_register is None:
+            curr_register = symtable.get_register_for_path(curr_field_name)
+        else:
+            curr_type = curr_typearg.type_expr.resolve(resolver_stack)
+            curr_register = symtable.get_register_for_path(curr_path, curr_type)
+            # Get the next var and store into the var
+            contains_instr = ir.ContainsInstruction(last_register, curr_field_name)
+            set_default_instr = ir.NewInstruction(curr_typearg, curr_register)
+            if_stmt = ir.IfStatement(contains_instr, [ set_default_instr ], None, negate = True)
+            instructions.append(if_stmt)
 
-    curr_typearg = target_var.root_value
-    curr_register = starting_register
-    curr_path = starting_var
-    while field_path.length > 1:
-        # At each level of the remaining field paths, keep finding and setting fields if they are null
-        next_field_name, tail_path = field_path.pop()
-        next_path = curr_path + "/" + next_field_name
-        next_typearg = curr_typearg.type_expr.resolve(resolver_stack).args.withname(next_field_name)
-        next_register = symtable.get_register_for_path(next_path, next_typearg.type_expr)
+            get_instr = ir.GetFieldInstruction(last_register, curr_field_name, curr_register)
+            instructions.append(get_instr)
 
-        # Get the next register and store into the register
-        contains_instr = ir.ContainsInstruction(curr_register, next_field_name)
-        set_default_instr = ir.NewInstruction(curr_typearg, next_register)
-        if_stmt = ir.IfStatement(contains_instr, [ set_default_instr ], None, negate = True)
-        instructions.append(if_stmt)
-
-        get_instr = ir.GetFieldInstruction(curr_register, next_field_name, next_register)
-        instructions.append(get_instr)
-
-        curr_path, curr_register, field_path = next_path, next_register, tail_path
-
-    assert field_path.length <= 1
-    # Means we have a single entry in the path left
-    # so the value can be directly set
-    instructions.append(ir.SetFieldInstruction(source_register, field_path.get(0), curr_register))
+    if not last_register:
+        # Do a copy
+        instructions.append(ir.CopyVarInstruction(source_register, curr_register))
+    else:
+        instructions.append(ir.SetFieldInstruction(source_register, target_var.field_path.get(-1), last_register))
     return instructions, symtable, None
