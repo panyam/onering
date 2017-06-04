@@ -93,6 +93,6 @@ class ContainsInstruction(object):
         self.field_name = field_name
 
 class NewInstruction(object):
-    def __init__(self, value_typeref, target_register):
-        self.value_typeref = value_typeref
+    def __init__(self, value_typearg, target_register):
+        self.value_typearg = value_typearg
         self.target_register = target_register
