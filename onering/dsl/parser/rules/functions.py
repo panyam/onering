@@ -71,13 +71,15 @@ def parse_function_signature(parser, require_param_name = True):
         parser.ensure_token(TokenType.CLOSE_PAREN)
 
     # Now read the output type (if any)
-    output_typeexpr = tlcore.VoidType
-    output_varname = "dest"
+    output_typearg = None
     if parser.next_token_is(TokenType.ARROW):
+        output_typeexpr = None
+        output_varname = "dest"
         output_typeexpr = ensure_typeexpr(parser)
         if parser.next_token_is(TokenType.IDENTIFIER, "as"):
             output_varname = parser.ensure_token(TokenType.IDENTIFIER)
-    return input_params, tlcore.TypeArg(output_varname, output_typeexpr)
+        output_typearg = tlcore.TypeArg(output_varname, output_typeexpr)
+    return input_params, output_typearg 
 
 def parse_param_declaration(parser, require_name = True):
     """
