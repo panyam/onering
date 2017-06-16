@@ -135,7 +135,7 @@ class TypeTrieNode(object):
 
         However it could also be a complex type like map[ktype, vtype] or in this case 
         each combination of args to this complex type must also be maintained, 
-        eg for array[byte, String], array[int, Long], array[$1, $2], then the 
+        eg for list[byte, String], list[int, Long], list[$1, $2], then the 
         "map" node must contain 3 options = (byte, String), (int, Long), ($1, $2) to 
         indicate which template string is to be picked.
 

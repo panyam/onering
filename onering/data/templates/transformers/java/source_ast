@@ -1,6 +1,6 @@
 
 record Transformer {
-    statements : array[Statement]
+    statements : list[Statement]
 }
 
 record Statement {
@@ -17,7 +17,7 @@ union Variable {
 typeref LocalVar = string
 
 record FieldPath {
-    components : array[string]
+    components : list[string]
 }
 
 union Expression {
@@ -28,7 +28,7 @@ union Expression {
 
 record FunCall {
     func_name : FQN
-    arguments : array[Expression]
+    arguments : list[Expression]
 }
 
 union Literal {

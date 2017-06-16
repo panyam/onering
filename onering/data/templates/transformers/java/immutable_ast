@@ -1,6 +1,6 @@
 
 record Transformer {
-    statements : array[Statement]
+    statements : list[Statement]
 }
 
 union Statement {
@@ -12,8 +12,8 @@ union Statement {
 
 record IfStatement {
     condition : Expression
-    body : array[Statement]
-    otherwise : array[Statement]
+    body : list[Statement]
+    otherwise : list[Statement]
 }
 
 record VariableDeclaration {
@@ -41,12 +41,12 @@ union Expression {
 
 record Constructor {
     datatype : Type
-    arguments : array[Expression]
+    arguments : list[Expression]
 }
 
 record FunCall {
     func_name : FQN
-    arguments : array[Expression]
+    arguments : list[Expression]
 }
 
 union Literal {
