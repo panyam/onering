@@ -38,7 +38,7 @@ class OneringContext(dirutils.DirPointer):
                   tlext.FloatType, 
                   tlext.DoubleType,
                   tlext.StringType,
-                  tlext.ArrayType,
+                  tlext.ListType,
                   tlext.MapType]:
             self.global_module.add(t.name, t)
 
