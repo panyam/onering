@@ -1,6 +1,7 @@
 import ipdb
 import os
 import glob
+import importlib
 from onering.utils import dirutils
 from onering.actions import LoaderActions
 
@@ -23,6 +24,12 @@ class PlatformConfig(object):
         self.dependencies = kwargs.get("dependencies", [])
         self.imports = kwargs.get("imports", [])
         self.exports = kwargs.get("exports", [])
+        self.generator_class = kwargs.get("generator_class", "onering.targets." + name + ".Generator")
+
+    def get_generator_class(self):
+        comps = self.generator_class.split(".")
+        basemod = ".".join(comps[:-1])
+        return importlib.import_module(basemod).Generator
 
 class Package(object):
     """
@@ -123,3 +130,11 @@ class Package(object):
             dirutils.ensure_dir(dest_dir)
             for f in glob.glob(source):
                 shutil.copy(f, dest_dir)
+
+    def get_generator(self, platform_name = None):
+        if platform_name is None:
+            platform_name = self.current_platform.name
+        platform = self.platform_configs[platform_name]
+        generator_class = platform.get_generator_class()
+        generator = generator_class(self)
+        return generator
