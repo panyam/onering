@@ -1,6 +1,6 @@
 
 import os
-from onering import errors
+from onering.core import errors
 
 def ensure_dir(target_dir):
     if not os.path.isdir(target_dir):

@@ -5,9 +5,8 @@ from typelib import core as tlcore
 from typelib import ext as tlext
 from typelib.utils import FieldPath
 from onering import utils
+from onering.dsl import errors
 from onering.dsl.parser.rules.types import ensure_typeexpr
-from onering.errors import OneringException
-from onering.dsl.errors import SourceException, UnexpectedTokenException
 from onering.dsl.lexer import Token, TokenType
 from onering.dsl.parser.rules.annotations import parse_annotations
 from onering.dsl.parser.rules.misc import parse_field_path
@@ -150,13 +149,13 @@ def parse_statement(parser, function):
     # An expression must have more than 1 expression
     if len(exprs) <= 1:
         ipdb.set_trace()
-        raise OneringException("A rule statement must have at least one expression")
+        raise errors.OneringException("A rule statement must have at least one expression")
 
     parser.consume_tokens(TokenType.SEMI_COLON)
 
     # ensure last var IS a variable expression
     if not isinstance(exprs[-1], tlcore.Variable):
-        raise OneringException("Final target of an expression MUST be a variable")
+        raise errors.OneringException("Final target of an expression MUST be a variable")
     target_var = exprs[-1]
     exprlist = tlext.ExpressionList(exprs[:-1])
     if target_var.field_path.get(0) == '_':
@@ -250,10 +249,10 @@ def parse_expression(parser):
 
         if func_param_exprs or func_args:
             if source.length > 1:
-                raise OneringException("Fieldpaths cannot be used as functions")
+                raise errors.OneringException("Fieldpaths cannot be used as functions")
             out = tlcore.FunApp(tlcore.Variable(source), func_args)
     else:
-        raise UnexpectedTokenException(parser.peek_token(),
+        raise errors.UnexpectedTokenException(parser.peek_token(),
                                        TokenType.STRING, TokenType.NUMBER,
                                        TokenType.OPEN_BRACE, TokenType.OPEN_SQUARE,
                                        TokenType.LT)

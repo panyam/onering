@@ -1,10 +1,8 @@
 
 from __future__ import absolute_import
 import ipdb
-from onering.dsl.errors import SourceException, UnexpectedTokenException
-from onering.errors import OneringException
+from onering.dsl import errors
 from onering.dsl.lexer import Token, TokenType
-from onering.core import exprs as orexprs
 from onering.dsl.parser.rules.annotations import parse_annotations
 from onering.dsl.parser.rules.misc import parse_field_path
 from onering.utils.misc import FQN
@@ -53,7 +51,7 @@ def parse_declaration(parser, module):
     else:
         from onering.dsl.parser.rules.types import parse_entity
         if not parse_entity(parser):
-            raise UnexpectedTokenException(parser.peek_token())
+            raise errors.UnexpectedTokenException(parser.peek_token())
     parser.consume_tokens(TokenType.SEMI_COLON)
     return True
 

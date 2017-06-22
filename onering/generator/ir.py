@@ -1,6 +1,6 @@
 
 import ipdb
-from onering import errors
+from onering.core import errors
 from onering.dsl import lexer
 
 class ValueOrVar(object):
@@ -17,6 +17,7 @@ class ValueOrVar(object):
     def __str__(self):
         val = self.entry
         if type(self.entry) is lexer.Token:
+            ipdb.set_trace()
             val = self.entry.value
         if type(val) in (str, unicode):
             return "\"%s\"" % val

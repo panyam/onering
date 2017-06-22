@@ -3,12 +3,11 @@ from __future__ import absolute_import
 
 import ipdb
 from onering.dsl.parser.tokstream import TokenStream
-from onering.dsl.errors import SourceException, UnexpectedTokenException
+from onering.dsl import errors
 from typelib.utils import FQN
 from typelib import core as tlcore
 from onering.dsl.lexer import Token, TokenType
-from onering import errors
-from onering.core import entities as ore
+from onering.core import modules as ormods
 
 class Parser(TokenStream):
     """
@@ -108,7 +107,7 @@ class Parser(TokenStream):
         elif self.peeked_token_is(TokenType.OPEN_BRACE):
             raise errors.OneringException("Json Dict literals not yet implemented")
         else:
-            raise UnexpectedTokenException(self.peek_token(), TokenType.STRING, TokenType.NUMBER, TokenType.IDENTIFIER)
+            raise errors.UnexpectedTokenException(self.peek_token(), TokenType.STRING, TokenType.NUMBER, TokenType.IDENTIFIER)
 
     def ensure_fqn(self, delim_token = None):
         """
@@ -144,11 +143,11 @@ class Parser(TokenStream):
             # parse_namespace()
             from onering.dsl.parser.rules.modules import parse_module_body
             parse_module_body(self, self.root_module)
-        except SourceException:
+        except errors.SourceException:
             raise
         except errors.OneringException, exc:
             # Change its message to reflect the line and col
-            raise SourceException(self.line, self.column, exc.message)
+            raise errors.SourceException(self.line, self.column, exc.message)
         except:
             raise
         # Take care of injections!
@@ -161,14 +160,14 @@ class Parser(TokenStream):
         for index,part in enumerate(parts):
             child = self.current_module.get(part)
             if child:
-                if not isinstance(child, ore.Module):
+                if not isinstance(child, ormods.Module):
                     raise OneringException("'%s' in '%s' is not a module" % (part, self.current_module.fqn))
                 self.current_module = child
             else:
                 if index == len(parts) - 1:
-                    child = ore.Module(part, self.current_module, annotations, docs)
+                    child = ormods.Module(part, self.current_module, annotations, docs)
                 else:
-                    child = ore.Module(part, self.current_module)
+                    child = ormods.Module(part, self.current_module)
                 self.current_module.add(child.name, child)
                 self.current_module = child
         return last_module, self.current_module

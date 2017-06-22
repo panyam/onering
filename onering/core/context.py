@@ -4,16 +4,16 @@ import ipdb
 from typelib import core as tlcore
 from typelib import ext as tlext
 from onering import resolver
-from onering import errors
 from onering.utils import dirutils
+from onering.core import errors
 from onering.core import fgraph
-from onering.core import entities as ore
+from onering.core import modules as ormods
 
 class OneringContext(dirutils.DirPointer):
     def __init__(self):
         dirutils.DirPointer.__init__(self)
         self.entity_resolver = resolver.EntityResolver("pdsc")
-        self.global_module = ore.Module(None, None)
+        self.global_module = ormods.Module(None, None)
         self.fgraph = fgraph.FunGraph()
         self.register_default_types()
 
@@ -48,7 +48,7 @@ class OneringContext(dirutils.DirPointer):
         parts = fqn.split(".")
         for part in parts:
             if not curr.has_entity(part):
-                child = ore.Module(part, curr)
+                child = ormods.Module(part, curr)
                 curr.add(child)
                 curr = child
         return curr
