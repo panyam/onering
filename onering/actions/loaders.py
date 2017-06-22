@@ -4,7 +4,7 @@ from collections import defaultdict
 import fnmatch
 import os, sys, ipdb
 from onering import dsl
-from onering import resolver
+from onering.loaders import resolver
 from onering.utils.misc import collect_files
 from onering.actions.base import ActionGroup
 
