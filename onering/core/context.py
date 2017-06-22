@@ -3,7 +3,6 @@ from __future__ import absolute_import
 import ipdb
 from typelib import core as tlcore
 from typelib import ext as tlext
-from onering import resolver
 from onering.utils import dirutils
 from onering.core import errors
 from onering.core import fgraph
@@ -12,7 +11,6 @@ from onering.core import modules as ormods
 class OneringContext(dirutils.DirPointer):
     def __init__(self):
         dirutils.DirPointer.__init__(self)
-        self.entity_resolver = resolver.EntityResolver("pdsc")
         self.global_module = ormods.Module(None, None)
         self.fgraph = fgraph.FunGraph()
         self.register_default_types()

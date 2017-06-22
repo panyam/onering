@@ -1,7 +1,7 @@
 
 import os, sys
 import ipdb
-from onering import resolver
+from onering.loaders import resolver
 from onering import utils as orutils
 from onering.actions.base import ActionGroup
 
