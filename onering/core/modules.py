@@ -5,8 +5,7 @@ from typelib import errors as tlerrors
 from typelib import core as tlcore
 from typelib.annotations import Annotatable
 
-class Entity(Annotatable):
-    """Base class of all onering entities."""
+class Module(Annotatable):
     def __init__(self, name, parent = None, annotations = None, docs = ""):
         Annotatable.__init__(self, annotations, docs)
         self._name = name
@@ -49,7 +48,7 @@ class Entity(Annotatable):
 
     def add(self, name, entity):
         """ Adds a new child entity. """
-        assert name and name not in self.entity_map, "Entity '%s' already exists" % name
+        assert name and name not in self.entity_map, "Child entity '%s' already exists" % name
         self.entity_map[name] = entity
         self.child_entities.append(entity)
 
@@ -86,5 +85,3 @@ class Entity(Annotatable):
     def _set_name(self, value):
         self._name = value
     """
-
-class Module(Entity): pass
