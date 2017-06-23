@@ -1,8 +1,8 @@
 
 import ipdb
 from typelib import core as tlcore
-from onering.generator.symtable import SymbolTable
-from onering.generator import ir
+from onering.codegen.symtable import SymbolTable
+from onering.codegen import ir
 from typelib.core import Expression, Variable, Fun, FunApp, Literal
 from typelib.ext import ListExpression, DictExpression, TupleExpression, IfExpression, ExpressionList, Assignment
 
