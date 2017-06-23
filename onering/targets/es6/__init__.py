@@ -23,6 +23,11 @@ class Generator(base.Generator):
     def open_file(self, filename):
         return File(self, filename)
 
+    def load_template(self, template_name, **extra_globals):
+        templ = base.Generator.load_template(self, template_name, **extra_globals)
+        templ.globals["gen_constructor"] = make_constructor
+        return templ
+
     def generate(self, context):
         self._generate_preamble(context)
 
@@ -55,12 +60,12 @@ class Generator(base.Generator):
             # Now write out aliases in which ever file they were found
             filename = imputils.base_filename_for_fqn(self.package, fqn)
             filename = "lib/" + filename;
-            outfile = allfiles[filename]
+            outfile = self.ensure_file(filename)
             # TODO: figure out how to write out to aliases and see if they are supported
             # self._write_alias_to_file(fqn, alias, outfile)
 
         # Close all the files we have open
-        [f.close() for f in allfiles.itervalues()]
+        self.close_files()
 
     def _generate_preamble(self, context):
         """ Generates the package.json for a given package in the output dir."""
@@ -92,29 +97,29 @@ class Generator(base.Generator):
         if entity.constructor == "record":
             # How to find the template for this typeref?
             templ = self.load_template("es6/class.tpl")
-            outfile.write(templ.render(record = TypeViewModel(fqn, entity, outfile)))
+            outfile.write(templ.render(record = TypeViewModel(fqn, entity, self)))
         elif entity.constructor == "enum":
             # How to find the template for this typeref?
             templ = self.load_template("es6/enum.tpl")
-            outfile.write(templ.render(enum = TypeViewModel(fqn, entity, outfile)))
+            outfile.write(templ.render(enum = TypeViewModel(fqn, entity, self)))
         elif entity.constructor == "union":
             # How to find the template for this typeref?
             templ = self.load_template("es6/union.tpl")
-            outfile.write(templ.render(union = TypeViewModel(fqn, entity, outfile)))
+            outfile.write(templ.render(union = TypeViewModel(fqn, entity, self)))
 
     def _write_function_to_file(self, fqn, entity, outfile):
         """ Generates all required functions. """
-        funview = FunViewModel(entity, outfile)
+        funview = FunViewModel(entity, self)
         outfile.write(funview.render(outfile.importer))
 
     def _write_typefun_to_file(self, fqn, entity, outfile):
         """ Generates a type function. """
-        typefunview = TypeFunViewModel(entity, outfile)
+        typefunview = TypeFunViewModel(entity, self)
         outfile.write(typefunview.render(outfile.importer))
 
     def _write_apicall_to_file(self, fqn, entity, outfile):
         """ Generates the client to access the real service."""
-        apicall = ApiCallViewModel(fqn, entity, outfile)
+        apicall = ApiCallViewModel(fqn, entity, self)
         outfile.write(apicall.render(outfile.importer))
 
 class File(base.File):
@@ -150,7 +155,7 @@ class File(base.File):
 
     def close(self):
         """ Close the output file. """
-        self.output_file.write(self.importer.render_imports())
+        self.write(self.importer.render_imports())
         base.File.close(self)
 
 def make_constructor(typeexpr, resolver_stack, importer):
@@ -187,16 +192,16 @@ def make_constructor(typeexpr, resolver_stack, importer):
     assert False, "Cannot create constructor for invalid type: %s" % repr(resolved_type)
 
 class TypeViewModel(object):
-    def __init__(self, fqn, thetype, outfile):
-        self.context = outfile.context
+    def __init__(self, fqn, thetype, generator):
+        self.generator = generator
         self.thetype = thetype
         self.fqn = fqn = FQN(fqn, None)
 
 class ApiCallViewModel(object):
-    def __init__(self, fqn, function, target):
+    def __init__(self, fqn, function, generator):
         self.function = function
         self.fqn = FQN(fqn, None)
-        self.target = target
+        self.generator = generator
 
         http_annotation = function.annotations.get_first("protocol.http")
         # Now collect things that can be inherited from parents, like transformers,
@@ -265,38 +270,37 @@ class ApiCallViewModel(object):
 
     def render(self, importer, genspec = False):
         print "Generating Api Call: %s" % self.fqn.fqn
-        templ = self.target.load_template("es6/apicall.tpl", importer = importer)
+        templ = self.generator.load_template("es6/apicall.tpl", importer = importer)
         return templ.render(view = self, function = self.function,
                             resolver_stack = tlcore.ResolverStack(self.function, None))
 
 class TypeFunViewModel(object):
-    def __init__(self, function, target, resolver_stack = None):
+    def __init__(self, function, generator, resolver_stack = None):
         if resolver_stack == None:
             resolver_stack = tlcore.ResolverStack(function.parent, None)
         self.resolver_stack = resolver_stack.push(function)
-        self.target = target
+        self.generator = generator
         self.function = function
 
     def render(self, importer):
         print "Generating Fun: %s" % self.function.fqn
-        templ = self.load_template("es6/typefun.tpl", importer = importer)
+        templ = self.generator.load_template("es6/typefun.tpl", importer = importer)
         templ.globals["resolver_stack"] = self.resolver_stack
         return templ.render(view = self, function = self.function, resolver_stack = self.resolver_stack)
 
 
 class FunViewModel(object):
-    def __init__(self, function, outfile, resolver_stack = None):
+    def __init__(self, function, generator, resolver_stack = None):
         print "Fun Value: ", function
         assert not function.is_type_fun
         if resolver_stack == None:
             resolver_stack = tlcore.ResolverStack(function.parent, None)
         self.resolver_stack = resolver_stack.push(function)
-        self.outfile = outfile
+        self.generator = generator
         self.function = function
         self.instructions, self.symtable = orgencore.generate_ir_for_function(function, self.resolver_stack)
 
     def render(self, importer):
         print "Generating Fun: %s" % self.function.fqn
-        templ = self.outfile.load_template("es6/function.tpl")
-        templ.globals["resolver_stack"] = self.resolver_stack
+        templ = self.generator.load_template("es6/function.tpl", importer = importer, resolver_stack = self.resolver_stack)
         return templ.render(view = self, function = self.function, resolver_stack = self.resolver_stack)
