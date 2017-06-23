@@ -27,8 +27,8 @@ class Generator(base.Generator):
         templ.globals["gen_constructor"] = make_constructor
         return templ
 
-    def generate(self, context):
-        self._generate_preamble(context)
+    def generate(self):
+        self._generate_preamble()
 
         aliases = []
         for fqn,entity in self.package.found_entities.iteritems():
@@ -40,20 +40,12 @@ class Generator(base.Generator):
             # Ensure that particular module is declared for use in this file
             outfile.ensure_module(fqn)
 
-            if is_type_entity(entity):
-                if entity.constructor == "typeref":
-                    aliases.append((fqn,entity))
-                else:
-                    self._write_model_to_file(fqn, entity, outfile)
-            elif is_fun_entity(entity):
-                self._write_function_to_file(fqn, entity, outfile)
-            elif is_api_functype(entity):
-                outfile.ensure_import("agcommon", "../../apizen_common")
-                outfile.ensure_import("agcutils", "../../apizen_common/lib/utils")
-                self._write_apicall_to_file(fqn, entity, outfile)
-            elif is_type_fun_entity(entity):
-                self._write_typefun_to_file(fqn, entity, outfile)
-            outfile.write("\n")
+            if is_type_entity(entity) and entity.constructor == "typeref":
+                # Comeback to aliases at the end
+                aliases.append((fqn,entity))
+            else:
+                self.write_entity(fqn, entity, outfile)
+                outfile.write("\n")
 
         for fqn,alias in aliases:
             # Now write out aliases in which ever file they were found
@@ -66,7 +58,7 @@ class Generator(base.Generator):
         # Close all the files we have open
         self.close_files()
 
-    def _generate_preamble(self, context):
+    def _generate_preamble(self):
         """ Generates the package.json for a given package in the output dir."""
         mainfile = self.ensure_file("lib/main.js")
         mainfile.write(self.load_template("es6/main.js.tpl").render()).close()
@@ -85,6 +77,16 @@ class Generator(base.Generator):
         value = entity.args[0].type_expr.resolve(resolver_stack)
         outfile.write("exports.%s = %s;\n" % (fqn.fqn, value.fqn))
         outfile.write("%s = exports.%s;\n\n" % (fqn.fqn, fqn.fqn))
+
+    def write_entity(self, fqn, entity, outfile):
+        if is_type_entity(entity):
+            self._write_model_to_file(fqn, entity, outfile)
+        elif is_fun_entity(entity):
+            self._write_function_to_file(fqn, entity, outfile)
+        elif is_type_fun_entity(entity):
+            self._write_typefun_to_file(fqn, entity, outfile)
+        else:
+            print "No writer found for entity: ", fqn, entity
 
     def _write_model_to_file(self, fqn, entity, outfile):
         """ Generates the POJO corresponding to the particular module/type entity. """
@@ -115,11 +117,6 @@ class Generator(base.Generator):
         """ Generates a type function. """
         typefunview = TypeFunViewModel(entity, self)
         outfile.write(typefunview.render(outfile.importer))
-
-    def _write_apicall_to_file(self, fqn, entity, outfile):
-        """ Generates the client to access the real service."""
-        apicall = ApiCallViewModel(fqn, entity, self)
-        outfile.write(apicall.render(outfile.importer))
 
 class File(base.File):
     """ A file to which a collection of entries are written to. """
@@ -195,83 +192,6 @@ class TypeViewModel(object):
         self.generator = generator
         self.thetype = thetype
         self.fqn = fqn = FQN(fqn, None)
-
-class ApiCallViewModel(object):
-    def __init__(self, fqn, function, generator):
-        self.function = function
-        self.fqn = FQN(fqn, None)
-        self.generator = generator
-
-        http_annotation = function.annotations.get_first("protocol.http")
-        # Now collect things that can be inherited from parents, like transformers,
-        # qp_args, header_args and so on
-        method = http_annotation.first_value_of("method", "GET")
-        transformers = []
-        decoders = []
-        header_args = set()
-        ignore_args = set()
-        qp_args = set()
-        endpoint = ""
-        curr = function
-        content_type = None
-        resolver_stack = self.resolver_stack
-        while curr:
-            htannot = curr.annotations.get_first("protocol.http")
-            if htannot:
-                if not endpoint or (not endpoint.startswith("http://") and not endpoint.startswith("https://")):
-                    curr_endpoint = htannot.first_value_of("endpoint")
-                    if curr_endpoint:
-                        endpoint = curr_endpoint + (endpoint or "")
-                if not content_type:
-                    content_type = htannot.first_value_of("contentType")
-                for t in htannot.first_value_of("headers", "").split(","):
-                    if t.strip():
-                        header_args.add(t.strip())
-                for t in htannot.first_value_of("ignore", "").split(","):
-                    if t.strip():
-                        ignore_args.add(t.strip())
-                for t in htannot.first_value_of("qp", "").split(","):
-                    if t.strip():
-                        qp_args.add(t.strip())
-            trans_annotations = curr.annotations.get_all("protocol.http.transformer")
-            decoder_annotations = curr.annotations.get_all("protocol.http.decoder")
-            transformers[0:0] = [(a.value,resolver_stack.resolve_name(a.value))  for a in trans_annotations]
-            decoders[0:0] = [(a.value,resolver_stack.resolve_name(a.value))  for a in decoder_annotations]
-            curr = curr.parent
-
-        for transformer in transformers:
-            # ensure it exists.
-            assert transformer[1] is not None, ("Transformer is invalid: ", transformer)
-        for decoder in decoders:
-            # ensure it exists.
-            assert decoder[1] is not None, ("Decoder is invalid: ", decoder)
-
-        self.protocol = {
-            "http": {
-                "method": method,
-                "content_type": content_type,
-                "endpoint": endpoint,
-                "qp_args": qp_args,
-                "header_args": header_args,
-                "ignore_args": ignore_args,
-                "transformers": transformers,
-                "decoders": decoders
-            }
-        }
-
-    @property
-    def args(self):
-        return self.function.source_typeargs
-
-    @property
-    def resolver_stack(self):
-        return self.function.default_resolver_stack
-
-    def render(self, importer, genspec = False):
-        print "Generating Api Call: %s" % self.fqn.fqn
-        templ = self.generator.load_template("es6/apicall.tpl", importer = importer)
-        return templ.render(view = self, function = self.function,
-                            resolver_stack = tlcore.ResolverStack(self.function, None))
 
 class TypeFunViewModel(object):
     def __init__(self, function, generator, resolver_stack = None):

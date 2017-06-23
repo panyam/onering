@@ -24,7 +24,12 @@ class PlatformConfig(object):
         self.dependencies = kwargs.get("dependencies", [])
         self.imports = kwargs.get("imports", [])
         self.exports = kwargs.get("exports", [])
-        self.generator_class = kwargs.get("generator_class", "onering.targets." + name + ".Generator")
+        self.generator_class = "onering.targets." + name + ".Generator"
+        if "generator_class" in kwargs:
+            self.generator_class = kwargs["generator_class"]
+        elif "generator" in kwargs:
+            genargs = kwargs["generator"]
+            self.generator_class = genargs["class"]
 
     def get_generator_class(self):
         comps = self.generator_class.split(".")
