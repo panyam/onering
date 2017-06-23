@@ -16,7 +16,7 @@ class OneringContext(dirutils.DirPointer):
         self.register_default_types()
         self.template_dirs = []
 
-        from onering.templates import loader as tplloader
+        from onering.core import templates as tplloader
         self.template_loader = tplloader.TemplateLoader(self.template_dirs)
 
     def register_default_types(self):
@@ -35,7 +35,4 @@ class OneringContext(dirutils.DirPointer):
             self.global_module.add(t.name, t)
 
     def load_template(self, template_name):
-        out = self.template_loader.load_template(template_name)
-        out.globals["context"] = self
-        # out.globals["typeexpr_for"] = self.global_module.get
-        return out
+        return self.template_loader.load_template(template_name)

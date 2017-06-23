@@ -53,8 +53,9 @@ class Generator(object):
         self._allfiles = {}
 
     def load_template(self, template_name, **extra_globals):
-        templ = self.context.load_template(template_name)
+        templ = self.package.load_template(template_name)
         templ = initialise_template(templ)
+        templ.globals["context"] = self.context
         templ.globals["package"] = self.package
         templ.globals.update(extra_globals)
         return templ

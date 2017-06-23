@@ -4,6 +4,7 @@ import glob
 import importlib
 from onering.utils import dirutils
 from onering.actions import LoaderActions
+from onering.core import templates as tplloader
 
 class PlatformConfig(object):
     """ Platform specific configs.  """
@@ -85,6 +86,8 @@ class Package(object):
         self.found_entities = {}
         self.platform_configs = {}
         self.current_platform = None
+        self.template_dirs = [td if os.path.isabs(td) else os.path.join(self.package_dir, td)
+                                for td in kwargs.get("template_dirs", [])]
         for key,value in kwargs.iteritems():
             if not key.startswith("platform_"): continue
             platform = key[len("platform_"):].strip()
@@ -92,13 +95,17 @@ class Package(object):
             if not self.current_platform:
                 self.current_platform = self.platform_configs[platform]
 
-    def load_from_path(self, package_spec_path):
+    def load_from_path(self, package_spec_path, context):
         pkgcode = compile(open(package_spec_path).read(), package_spec_path, "exec")
         pkgdata = {}
         exec pkgcode in pkgdata
 
         self.package_dir = os.path.abspath(os.path.dirname(package_spec_path))
         self.load(**pkgdata)
+        self.template_loader = tplloader.TemplateLoader(self.template_dirs, parent_loader = context.template_loader)
+    
+    def load_template(self, template_name):
+        return self.template_loader.load_template(template_name)
 
     @classmethod
     def load_spec(cls, package_spec_path, context):
@@ -106,7 +113,7 @@ class Package(object):
 
         # pkgdata is all we need!
         package = Package()
-        package.load_from_path(package_spec_path)
+        package.load_from_path(package_spec_path, context)
 
         context.pushdir()
 

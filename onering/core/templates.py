@@ -1,20 +1,20 @@
 
 from __future__ import absolute_import
-from jinja2 import BaseLoader, TemplateNotFound, StrictUndefined
-from jinja2 import Environment, PackageLoader
 import pkgutil
 import os
 from os.path import join, exists, getmtime
 import ipdb
-from . import utils
+from jinja2 import BaseLoader, TemplateNotFound, StrictUndefined
+from jinja2 import Environment, PackageLoader
 
 class TemplateLoader(BaseLoader):
     """
     Responsible for loading templates given a name.
     """
-    def __init__(self, template_dirs = None, default_extension = ".tpl"):
+    def __init__(self, template_dirs = None, default_extension = ".tpl", parent_loader = None):
         self.template_dirs = template_dirs or []
         self.template_extension = default_extension or ""
+        self.parent_loader = parent_loader
 
     def get_source(self, environment, template_name):
         final_path = template_name
@@ -30,8 +30,12 @@ class TemplateLoader(BaseLoader):
                         final_path = full_path
                         break
             else:
-                source = pkgutil.get_data("onering", "data/templates/" + template_name).decode('utf-8')
-                return source, final_path, lambda: True
+                # See if parent can return it
+                if self.parent_loader:
+                    return self.parent_loader.get_source(environment, template_name)
+                else:
+                    source = pkgutil.get_data("onering", "data/templates/" + template_name).decode('utf-8')
+                    return source, final_path, lambda: True
 
         with file(final_path) as f:
             source = f.read().decode('utf-8')
