@@ -1,5 +1,0 @@
-
-platform java {
-    type list[$1] => "java.util.List<$1>"
-    type map[$1, $2] => "java.util.Map<$1, $2>"
-}
