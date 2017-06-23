@@ -14,12 +14,6 @@ class OneringContext(dirutils.DirPointer):
         self.global_module = ormods.Module(None, None)
         self.fgraph = fgraph.FunGraph()
         self.register_default_types()
-
-        self.output_dir = "./gen"
-        self.platform_aliases = {
-            "java": "onering.generator.backends.java.JavaTargetBackend"
-        }
-        self.default_platform = "java"
         self.template_dirs = []
 
         from onering.templates import loader as tplloader
@@ -40,29 +34,8 @@ class OneringContext(dirutils.DirPointer):
                   tlext.MapType]:
             self.global_module.add(t.name, t)
 
-    def ensure_module(self, fqn):
-        """ Ensures that a given module hierarchy exists. """
-        curr = self.global_module
-        parts = fqn.split(".")
-        for part in parts:
-            if not curr.has_entity(part):
-                child = ormods.Module(part, curr)
-                curr.add(child)
-                curr = child
-        return curr
-
-    def get_platform(self, name, register = False, annotations = None, docs = ""):
-        """
-        Get a platform binding container by its name.
-        """
-        if register:
-            if name not in self._platforms:
-                from onering.core import platforms
-                self._platforms[name] = platforms.Platform(name, annotations, docs)
-        return self._platforms[name]
-
     def load_template(self, template_name):
         out = self.template_loader.load_template(template_name)
         out.globals["context"] = self
-        out.globals["typeexpr_for"] = self.global_module.get
+        # out.globals["typeexpr_for"] = self.global_module.get
         return out

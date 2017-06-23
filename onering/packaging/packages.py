@@ -131,10 +131,10 @@ class Package(object):
             for f in glob.glob(source):
                 shutil.copy(f, dest_dir)
 
-    def get_generator(self, platform_name = None):
+    def get_generator(self, context, output_dir, platform_name = None):
         if platform_name is None:
             platform_name = self.current_platform.name
         platform = self.platform_configs[platform_name]
         generator_class = platform.get_generator_class()
-        generator = generator_class(self)
+        generator = generator_class(context, self, output_dir)
         return generator

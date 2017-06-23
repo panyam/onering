@@ -8,6 +8,7 @@ from onering.utils.dirutils import open_file_for_writing
 from onering.generator.backends import common as orgencommon
 from onering.generator import core as orgencore
 from onering.packaging.utils import is_type_entity, is_type_fun_entity, is_fun_entity, is_api_functype
+from onering.targets import base
 import imputils
 
 """
@@ -15,25 +16,22 @@ This module is responsible for all logic and handling around the generation of a
 self contained nodejs package from a package spec.
 """
 
-class Generator(object):
-    def __init__(self, package):
-        self.package = package
+class Generator(base.Generator):
+    def __init__(self, context, package, output_dir):
+        base.Generator.__init__(self, context, package, output_dir)
 
-    def generate(self, context, output_dir):
-        package = self.package
-        self._generate_preamble(context, output_dir)
+    def open_file(self, filename):
+        return File(self, filename)
 
-        allfiles = {}
+    def generate(self, context):
+        self._generate_preamble(context)
+
         aliases = []
-        for fqn,entity in package.found_entities.iteritems():
+        for fqn,entity in self.package.found_entities.iteritems():
             # send this to a particular file based on its fqn
-            filename = imputils.base_filename_for_fqn(package, fqn)
+            filename = imputils.base_filename_for_fqn(self.package, fqn)
             filename = "lib/" + filename;
-            newcreated = False
-            if filename not in allfiles:
-                allfiles[filename] = File(context, package, output_dir, filename)
-                newcreated = True
-            outfile = allfiles[filename]
+            outfile = self.ensure_file(filename)
 
             # Ensure that particular module is declared for use in this file
             outfile.ensure_module(fqn)
@@ -55,7 +53,7 @@ class Generator(object):
 
         for fqn,alias in aliases:
             # Now write out aliases in which ever file they were found
-            filename = imputils.base_filename_for_fqn(package, fqn)
+            filename = imputils.base_filename_for_fqn(self.package, fqn)
             filename = "lib/" + filename;
             outfile = allfiles[filename]
             # TODO: figure out how to write out to aliases and see if they are supported
@@ -64,17 +62,16 @@ class Generator(object):
         # Close all the files we have open
         [f.close() for f in allfiles.itervalues()]
 
-    def _generate_preamble(self, context, output_dir):
+    def _generate_preamble(self, context):
         """ Generates the package.json for a given package in the output dir."""
-        package = self.package
-        mainfile = File(context, package, output_dir, "lib/main.js")
-        mainfile.write(mainfile.load_template("es6/main.js.tpl").render()).close()
+        mainfile = self.ensure_file("lib/main.js")
+        mainfile.write(self.load_template("es6/main.js.tpl").render()).close()
 
-        indexfile = File(context, package, output_dir, "index.js")
-        indexfile.write(indexfile.load_template("es6/index.js.tpl").render()).close()
+        indexfile = self.ensure_file("index.js")
+        indexfile.write(self.load_template("es6/index.js.tpl").render()).close()
 
-        pkgfile = File(context, package, output_dir, "package.json")
-        pkgfile.write(pkgfile.load_template("es6/package.json.tpl").render()).close()
+        pkgfile = self.ensure_file("package.json")
+        pkgfile.write(self.load_template("es6/package.json.tpl").render()).close()
 
 
     def _write_alias_to_file(self, fqn, entity, outfile):
@@ -94,15 +91,15 @@ class Generator(object):
         print "Generating %s model" % fqn
         if entity.constructor == "record":
             # How to find the template for this typeref?
-            templ = outfile.load_template("es6/class.tpl")
+            templ = self.load_template("es6/class.tpl")
             outfile.write(templ.render(record = TypeViewModel(fqn, entity, outfile)))
         elif entity.constructor == "enum":
             # How to find the template for this typeref?
-            templ = outfile.load_template("es6/enum.tpl")
+            templ = self.load_template("es6/enum.tpl")
             outfile.write(templ.render(enum = TypeViewModel(fqn, entity, outfile)))
         elif entity.constructor == "union":
             # How to find the template for this typeref?
-            templ = outfile.load_template("es6/union.tpl")
+            templ = self.load_template("es6/union.tpl")
             outfile.write(templ.render(union = TypeViewModel(fqn, entity, outfile)))
 
     def _write_function_to_file(self, fqn, entity, outfile):
@@ -120,42 +117,13 @@ class Generator(object):
         apicall = ApiCallViewModel(fqn, entity, outfile)
         outfile.write(apicall.render(outfile.importer))
 
-def render_template_string(template_string, data):
-    ipdb.set_trace()
-    from jinja2 import Template, StrictUndefined
-    template = initialise_template(Template(template_string, undefined=StrictUndefined))
-    return template.render(**data)
-
-def initialise_template(templ):
-    templ.globals["camel_case"] = orgencommon.camel_case
-    templ.globals["debug"] = orgencommon.debug_print
-    templ.globals["map"] = map
-    templ.globals["ResolverStack"] = tlcore.ResolverStack
-    templ.globals["str"] = str
-    templ.globals["type"] = type
-    templ.globals["filter"] = filter
-    templ.globals["gen_constructor"] = make_constructor
-    templ.globals["render_template_str"] = render_template_string
-    return templ
-
-class File(object):
+class File(base.File):
     """ A file to which a collection of entries are written to. """
-    def __init__(self, context, package, output_dir, fname):
-        self.context = context
-        self.package = package
-        self.output_dir = output_dir
-        self.filename = fname
+    def __init__(self, generator, fname):
+        base.File.__init__(self, generator, fname)
         self.ensured_modules = set()
         self.ensured_imports = set()
-        self.output_file = open_file_for_writing(self.output_dir, self.filename)
-        self.importer = imputils.Importer(package.current_platform)
-
-    def load_template(self, template_name):
-        templ = self.context.load_template(template_name)
-        templ = initialise_template(templ)
-        templ.globals["importer"] = self.importer
-        templ.globals["package"] = self.package
-        return templ
+        self.importer = imputils.Importer(generator.package.current_platform)
 
     def ensure_import(self, alias, path, submodule = None):
         key = alias + ":" + path + ":" + str(submodule)
@@ -180,20 +148,10 @@ class File(object):
                     self.write("%s = {}\n" % out)
             self.ensured_modules.add(out)
 
-    @property
-    def output_path(self):
-        return os.path.abspath(os.path.join(self.output_dir, self.filename))
-
     def close(self):
         """ Close the output file. """
         self.output_file.write(self.importer.render_imports())
-        self.output_file.close()
-
-    def write(self, value, flush = False):
-        self.output_file.write(value)
-        if flush:
-            self.output_file.flush()
-        return self
+        base.File.close(self)
 
 def make_constructor(typeexpr, resolver_stack, importer):
     """Generates the constructor call for a given type."""
@@ -235,10 +193,10 @@ class TypeViewModel(object):
         self.fqn = fqn = FQN(fqn, None)
 
 class ApiCallViewModel(object):
-    def __init__(self, fqn, function, outfile):
+    def __init__(self, fqn, function, target):
         self.function = function
         self.fqn = FQN(fqn, None)
-        self.outfile = outfile
+        self.target = target
 
         http_annotation = function.annotations.get_first("protocol.http")
         # Now collect things that can be inherited from parents, like transformers,
@@ -307,38 +265,21 @@ class ApiCallViewModel(object):
 
     def render(self, importer, genspec = False):
         print "Generating Api Call: %s" % self.fqn.fqn
-        templ = self.outfile.load_template("es6/apicall.tpl")
+        templ = self.target.load_template("es6/apicall.tpl", importer = importer)
         return templ.render(view = self, function = self.function,
                             resolver_stack = tlcore.ResolverStack(self.function, None))
-        """
-        if not genspec:
-        else:
-            resolver_stack = self.function.default_resolver_stack
-            resolved_type = self.function.func_type.resolve(resolver_stack)
-            def flatten_type(typeobj):
-                return {
-                            'fqn': typeobj.fqn,
-                            'inputs': [{'name': arg.name, 'type': flatten_type(arg.type_expr) for arg in typeobj.args],
-                            'output': typeobj.output_arg.type_expr
-                        }
-            ipdb.set_trace()
-            templ = self.outfile.load_template("es6/apispec.tpl")
-            return templ.render(view = self, function = self.function,
-                                resolver_stack = self.function.default_resolver_stack
-        """
-
 
 class TypeFunViewModel(object):
-    def __init__(self, function, outfile, resolver_stack = None):
+    def __init__(self, function, target, resolver_stack = None):
         if resolver_stack == None:
             resolver_stack = tlcore.ResolverStack(function.parent, None)
         self.resolver_stack = resolver_stack.push(function)
-        self.outfile = outfile
+        self.target = target
         self.function = function
 
     def render(self, importer):
         print "Generating Fun: %s" % self.function.fqn
-        templ = self.outfile.load_template("es6/typefun.tpl")
+        templ = self.load_template("es6/typefun.tpl", importer = importer)
         templ.globals["resolver_stack"] = self.resolver_stack
         return templ.render(view = self, function = self.function, resolver_stack = self.resolver_stack)
 
@@ -359,4 +300,3 @@ class FunViewModel(object):
         templ = self.outfile.load_template("es6/function.tpl")
         templ.globals["resolver_stack"] = self.resolver_stack
         return templ.render(view = self, function = self.function, resolver_stack = self.resolver_stack)
-
