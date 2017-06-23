@@ -6,7 +6,7 @@ from typelib import core as tlcore
 from onering.utils.misc import FQN
 from onering.utils.dirutils import open_file_for_writing
 from onering.codegen import core as orgencore
-from onering.packaging.utils import is_type_entity, is_type_fun_entity, is_fun_entity, is_api_functype
+from onering.packaging.utils import is_type_entity, is_type_fun_entity, is_fun_entity
 from onering.targets import base
 import imputils
 
