@@ -3,14 +3,14 @@ import ipdb
 from typelib import core as tlcore
 from onering.codegen.symtable import SymbolTable
 from onering.codegen import ir
-from typelib.core import Expression, Variable, Fun, FunApp, Literal
-from typelib.ext import ListExpression, DictExpression, TupleExpression, IfExpression, ExpressionList, Assignment
+from typelib.core import Expr, Variable, Fun, FunApp, Literal
+from typelib.ext import ListExpr, DictExpr, TupleExpr, IfExpr, ExprList, Assignment
 
 """
-This module is responsible for generating code for a statement and all parts of an expression tree.
+This module is responsible for generating code for a statement and all parts of an expr tree.
 """
 
-def generate_ir_for_expression(expr, resolver_stack, instructions, symtable):
+def generate_ir_for_expr(expr, resolver_stack, instructions, symtable):
     if instructions is None: instructions = []
     if symtable is None: symtable = SymbolTable()
 
@@ -19,14 +19,14 @@ def generate_ir_for_expression(expr, resolver_stack, instructions, symtable):
 
     irgenerators = {
         Literal: generate_ir_for_literal,
-        TupleExpression: generate_ir_for_tuple,
-        ListExpression: generate_ir_for_list,
-        DictExpression: generate_ir_for_dict,
+        TupleExpr: generate_ir_for_tuple,
+        ListExpr: generate_ir_for_list,
+        DictExpr: generate_ir_for_dict,
         FunApp: generate_ir_for_fun_app,
         Variable: generate_ir_for_variable,
-        IfExpression: generate_ir_for_if_expression,
+        IfExpr: generate_ir_for_if_expr,
         Assignment: generate_ir_for_assignment,
-        ExpressionList: generate_ir_for_expression_list,
+        ExprList: generate_ir_for_expr_list,
     }
     t = type(expr)
     if t not in irgenerators:
@@ -42,18 +42,18 @@ def generate_ir_for_function(function, resolver_stack):
         symtable.register_var(typearg.name, typearg.type_expr, False)
     if not function.returns_void:
         symtable.register_var(function.dest_typearg.name, function.dest_typearg, False)
-    instructions, symtable, _ = generate_ir_for_expression(function.expression, resolver_stack, [], symtable = symtable)
+    instructions, symtable, _ = generate_ir_for_expr(function.expr, resolver_stack, [], symtable = symtable)
     return instructions, symtable
 
-def generate_ir_for_expression_list(expression_list, resolver_stack, instructions, symtable):
+def generate_ir_for_expr_list(expr_list, resolver_stack, instructions, symtable):
     """
     Generates the IR for a bunch of statements and returns the instruction list as well as the final symbol table required.
     """
     assert instructions is not None and symtable is not None
     # Now do the normal generation
     last_register = None
-    for index,expr in enumerate(expression_list.children):
-        instructions, symtable, last_register = generate_ir_for_expression(expr, resolver_stack, instructions, symtable)
+    for index,expr in enumerate(expr_list.children):
+        instructions, symtable, last_register = generate_ir_for_expr(expr, resolver_stack, instructions, symtable)
     return instructions, symtable, last_register
 
 def generate_ir_for_assignment(assignment, resolver_stack, instructions, symtable):
@@ -67,8 +67,8 @@ def generate_ir_for_assignment(assignment, resolver_stack, instructions, symtabl
             assignment.parent_function.register_temp_var(target_var, exprtype)
         symtable.register_var(target_var, exprtype, True)
 
-    # Call the the generator for the expression with the last return value as its inputs
-    instructions, symtable, last_register = generate_ir_for_expression(assignment.expression, resolver_stack, instructions, symtable)
+    # Call the the generator for the expr with the last return value as its inputs
+    instructions, symtable, last_register = generate_ir_for_expr(assignment.expr, resolver_stack, instructions, symtable)
 
     # Generate a setter instruction too
     generate_ir_for_setter(last_register, assignment.target_variable, resolver_stack, instructions, symtable)
@@ -85,18 +85,18 @@ def generate_ir_for_literal(expr, resolver_stack, instructions, symtable):
     return instructions, symtable, ir.ValueOrVar(expr.value, True)
 
 def generate_ir_for_tuple(expr, resolver_stack, instructions, symtable):
-    # First evaluate all child expressions
+    # First evaluate all child exprs
     child_values = []
     for child in expr.values:
-        instructions, symtable, value = generate_ir_for_expression(child, resolver_stack, instructions, symtable)
+        instructions, symtable, value = generate_ir_for_expr(child, resolver_stack, instructions, symtable)
         child_values.append(value)
     return instructions, symtable, child_values
 
 def generate_ir_for_list(expr, resolver_stack, instructions, symtable):
-    # First evaluate all child expressions
+    # First evaluate all child exprs
     child_values = []
     for child in expr.values:
-        instructions, symtable, value = generate_ir_for_expression(child, resolver_stack, instructions, symtable)
+        instructions, symtable, value = generate_ir_for_expr(child, resolver_stack, instructions, symtable)
         child_values.append(value)
     return instructions, symtable, ir.ValueOrVar(child_values, True)
 
@@ -104,8 +104,8 @@ def generate_ir_for_dict(expr, resolver_stack, instructions, symtable):
     # TBD
     out = {}
     for k,v in expr.values.iteritems():
-        instructions, symtable, key_values = generate_ir_for_expression(k, resolver_stack, instructions, symtable)
-        instructions, symtable, value_values = generate_ir_for_expression(v, resolver_stack, instructions, symtable)
+        instructions, symtable, key_values = generate_ir_for_expr(k, resolver_stack, instructions, symtable)
+        instructions, symtable, value_values = generate_ir_for_expr(v, resolver_stack, instructions, symtable)
         out[key_values] = value_values
     return instructions, symtable, out
 
@@ -115,7 +115,7 @@ def generate_ir_for_fun_app(expr, resolver_stack, instructions, symtable):
         ipdb.set_trace()
     arg_values = []
     for arg in expr.func_args:
-        instructions, symtable, value = generate_ir_for_expression(arg, resolver_stack, instructions, symtable)
+        instructions, symtable, value = generate_ir_for_expr(arg, resolver_stack, instructions, symtable)
         arg_values.append(value)
     function = expr.func_expr.resolve(resolver_stack)
     func_type = function.func_type
@@ -126,20 +126,20 @@ def generate_ir_for_fun_app(expr, resolver_stack, instructions, symtable):
     instructions.append(ir.FunAppInstruction(function.fqn, arg_values, new_register))
     return instructions, symtable, new_register
 
-def generate_ir_for_if_expression(ifexpr, resolver_stack, instructions, symtable):
+def generate_ir_for_if_expr(ifexpr, resolver_stack, instructions, symtable):
     top_ifinstr = None
     curr_instrs = instructions
     for condition,expr in ifexpr.cases:
         # we are dealing with first condition
-        cond_instrs, symtable, value = generate_ir_for_expression(condition, resolver_stack, curr_instrs, symtable)
-        body_instrs, symtable, _ = generate_ir_for_expression(expr, resolver_stack, None, symtable)
+        cond_instrs, symtable, value = generate_ir_for_expr(condition, resolver_stack, curr_instrs, symtable)
+        body_instrs, symtable, _ = generate_ir_for_expr(expr, resolver_stack, None, symtable)
         ifinstr = ir.IfStatement(ir.ValueOrVar(value, True), body_instrs)
         if not top_ifinstr: top_ifinstr = ifinstr
         curr_instrs.append(ifinstr)
         curr_instrs = ifinstr.otherwise
 
-    if ifexpr.default_expression:
-        generate_ir_for_expression(ifexpr.default_expression, resolver_stack, curr_instrs, symtable)
+    if ifexpr.default_expr:
+        generate_ir_for_expr(ifexpr.default_expr, resolver_stack, curr_instrs, symtable)
     return instructions, symtable, top_ifinstr
 
 def generate_ir_for_variable(target_var, resolver_stack, instructions, symtable):

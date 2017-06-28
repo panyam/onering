@@ -113,15 +113,15 @@ def parse_param_declaration(parser, require_name = True):
 
 def parse_function_body(parser, function):
     if parser.peeked_token_is(TokenType.OPEN_BRACE):
-        function.expression = parse_expression_list(parser, function)
+        function.expr = parse_expr_list(parser, function)
 
-def parse_expression_list(parser, function):
+def parse_expr_list(parser, function):
     """ Parses a statement block.
 
-    expression_list := "{" expression * "}"
+    expr_list := "{" expr * "}"
 
     """
-    out = tlext.ExpressionList()
+    out = tlext.ExprList()
     parser.ensure_token(TokenType.OPEN_BRACE)
     while not parser.peeked_token_is(TokenType.CLOSE_BRACE):
         out.add(parse_statement(parser, function))
@@ -144,20 +144,20 @@ def parse_statement(parser, function):
     annotations = parse_annotations(parser)
 
     is_temporary = parser.next_token_is(TokenType.IDENTIFIER, "let")
-    exprs = parse_expression_chain(parser)
+    exprs = parse_expr_chain(parser)
 
-    # An expression must have more than 1 expression
+    # An expr must have more than 1 expr
     if len(exprs) <= 1:
         ipdb.set_trace()
-        raise errors.OneringException("A rule statement must have at least one expression")
+        raise errors.OneringException("A rule statement must have at least one expr")
 
     parser.consume_tokens(TokenType.SEMI_COLON)
 
-    # ensure last var IS a variable expression
+    # ensure last var IS a variable expr
     if not isinstance(exprs[-1], tlcore.Variable):
-        raise errors.OneringException("Final target of an expression MUST be a variable")
+        raise errors.OneringException("Final target of an expr MUST be a variable")
     target_var = exprs[-1]
-    exprlist = tlext.ExpressionList(exprs[:-1])
+    exprlist = tlext.ExprList(exprs[:-1])
     if target_var.field_path.get(0) == '_':
         return exprlist
     else:
@@ -165,29 +165,29 @@ def parse_statement(parser, function):
             function.register_temp_var(target_var.field_path.get(0))
         return tlext.Assignment(function, target_var, exprlist)
 
-def parse_expression_chain(parser):
+def parse_expr_chain(parser):
     """
-    Parse an expression chain of the form 
+    Parse an expr chain of the form 
 
         expr => expr => expr => expr
     """
-    out = [ parse_expression(parser) ]
+    out = [ parse_expr(parser) ]
 
     # if the next is a "=>" then start streaming!
     while parser.peeked_token_is(TokenType.STREAM):
         parser.ensure_token(TokenType.STREAM)
-        out.append(parse_expression(parser))
+        out.append(parse_expr(parser))
     return out
 
-def parse_expression(parser):
+def parse_expr(parser):
     """
-    Parse a function call expression or a literal.
+    Parse a function call expr or a literal.
 
         expr := literal
-                if_expression
-                list_expression
-                dict_expression
-                tuple_expression
+                if_expr
+                list_expr
+                dict_expr
+                tuple_expr
                 dot_delimited_field_path
                 stream_expr
                 expr "[" key "]"
@@ -210,13 +210,13 @@ def parse_expression(parser):
         out = tlcore.Literal(parser.next_token().value, tlext.StringType)
     elif parser.peeked_token_is(TokenType.OPEN_SQUARE):
         # Read a list
-        out = parse_list_expression(parser)
+        out = parse_list_expr(parser)
     elif parser.peeked_token_is(TokenType.OPEN_BRACE):
-        out = parse_struct_expression(parser)
+        out = parse_struct_expr(parser)
     elif parser.peeked_token_is(TokenType.OPEN_PAREN):
-        out = parse_tuple_expression(parser)
+        out = parse_tuple_expr(parser)
     elif parser.peeked_token_is(TokenType.IDENTIFIER, "if"):
-        out = parse_if_expression(parser)
+        out = parse_if_expr(parser)
     elif parser.peeked_token_is(TokenType.IDENTIFIER):
         # See if we have a function call or a var or a field path
         source = parse_field_path(parser, allow_abs_path = False, allow_child_selection = False)
@@ -233,12 +233,12 @@ def parse_expression(parser):
             parser.ensure_token(parser.GENERIC_CLOSE_TOKEN)
 
         if func_param_exprs or parser.peeked_token_is(TokenType.OPEN_PAREN):
-            # function expression, so ensure field path has only one entry
+            # function expr, so ensure field path has only one entry
             # Treat the source as a function name that will be resolved later on
             parser.ensure_token(TokenType.OPEN_PAREN)
             while not parser.peeked_token_is(TokenType.CLOSE_PAREN):
-                # read another expression
-                expr = parse_expression(parser)
+                # read another expr
+                expr = parse_expr(parser)
                 func_args.append(expr)
                 if parser.next_token_is(TokenType.COMMA):
                     # TODO: ensure next val is an IDENTIFIER or a literal value
@@ -258,56 +258,56 @@ def parse_expression(parser):
                                        TokenType.LT)
     return out
 
-def parse_tuple_expression(parser):
+def parse_tuple_expr(parser):
     parser.ensure_token(TokenType.OPEN_PAREN)
     exprs = []
     if not parser.next_token_is(TokenType.CLOSE_PAREN):
-        expr = parse_expression(parser)
+        expr = parse_expr(parser)
         exprs = [expr]
         while parser.next_token_is(TokenType.COMMA):
-            expr = parse_expression(parser)
+            expr = parse_expr(parser)
             exprs.append(expr)
         parser.ensure_token(TokenType.CLOSE_PAREN)
-    return tlext.TupleExpression(exprs)
+    return tlext.TupleExpr(exprs)
 
-def parse_list_expression(parser):
+def parse_list_expr(parser):
     parser.ensure_token(TokenType.OPEN_SQUARE)
     exprs = []
     if not parser.next_token_is(TokenType.CLOSE_PAREN):
-        expr = parse_expression(parser)
+        expr = parse_expr(parser)
         exprs = [expr]
         while parser.next_token_is(TokenType.COMMA):
-            expr = parse_expression(parser)
+            expr = parse_expr(parser)
             exprs.append(expr)
         parser.ensure_token(TokenType.CLOSE_SQUARE)
-    return tlext.ListExpression(exprs)
+    return tlext.ListExpr(exprs)
 
-def parse_if_expression(parser):
-    """ Parse an if expression:
+def parse_if_expr(parser):
+    """ Parse an if expr:
 
         "if" condition statement_block
         ( "elif" condition statement_block ) *
         ( "else" statement_block ) ?
-    Parse an expression chain of the form 
+    Parse an expr chain of the form 
 
         expr => expr => expr => expr
     """
     parser.ensure_token(TokenType.IDENTIFIER, "if")
     conditions = []
-    condition = parse_expression(parser)
-    body = parse_expression_list(parser)
+    condition = parse_expr(parser)
+    body = parse_expr_list(parser)
     conditions.append((condition, body))
-    default_expression = None
+    default_expr = None
 
     while True:
         if parser.next_token_is(TokenType.IDENTIFIER, "elif"):
-            condition = parse_expression(parser)
-            body = parse_expression_list(parser)
+            condition = parse_expr(parser)
+            body = parse_expr_list(parser)
             conditions.append((condition, body))
         elif parser.next_token_is(TokenType.IDENTIFIER, "else"):
-            default_expression = parse_expression_list(parser)
+            default_expr = parse_expr_list(parser)
         else:
             break
 
-    return tlext.IfExpression(conditions, default_expression)
+    return tlext.IfExpr(conditions, default_expr)
 

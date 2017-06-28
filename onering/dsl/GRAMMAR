@@ -74,40 +74,40 @@ transformers_body := "{" transformer_decl * "}"
 
 transformer_decl := src_type<FQN> "=>" dest_type<FQN> "{" transformer_rule * "}"
 
-transformer_rule := temp_var_decl | stream_expression
+transformer_rule := temp_var_decl | stream_expr
 
-temp_var_decl := "let" varname<IDENT> "=" expression
+temp_var_decl := "let" varname<IDENT> "=" expr
 
-expression :=   literal_expression
-            |   list_expression
-            |   dict_expression
-            |   tuple_texpression
+expr :=   literal_expr
+            |   list_expr
+            |   dict_expr
+            |   tuple_texpr
             |   dot_delimited_field_path
-            |   stream_expression
-            |   function_expression
+            |   stream_expr
+            |   function_expr
 
-literal_expression := STRING | NUMBER | BOOL
+literal_expr := STRING | NUMBER | BOOL
 
-list_expression :=  "[" "]"
-                |   "[" expression ( "," expression ) * "]"
+list_expr :=  "[" "]"
+                |   "[" expr ( "," expr ) * "]"
 
-tuple_expression := "(" ")"
-                |   "(" expression ( "," expression ) * ")"
+tuple_expr := "(" ")"
+                |   "(" expr ( "," expr ) * ")"
 
-dict_expression := "{" "}"
-                |   "{" IDENT ":" expression ( ","  IDENT ":" expression ) * "}"
+dict_expr := "{" "}"
+                |   "{" IDENT ":" expr ( ","  IDENT ":" expr ) * "}"
 
-function_expression :=  fun<FQN> tuple_expression
+function_expr :=  fun<FQN> tuple_expr
                     |   fun<FQN> "(" ")"
 
-stream_expression := expression "=>" expression
+stream_expr := expr "=>" expr
 
 """
-Every expression should return a value.
+Every expr should return a value.
 
-transformer rule shoudl always end with either an expression - if it is a "let" statement
+transformer rule shoudl always end with either an expr - if it is a "let" statement
 
-and for a stream expression it should end with a field_path or and identifier (and NOT any other expression type).
+and for a stream expr it should end with a field_path or and identifier (and NOT any other expr type).
 
 Will this transformer rule work?
 

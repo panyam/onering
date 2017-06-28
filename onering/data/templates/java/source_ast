@@ -5,7 +5,7 @@ record Transformer {
 
 record Statement {
     is_temporary : boolean
-    expression : Expression
+    expr : Expr
     target : Variable
 }
 
@@ -20,7 +20,7 @@ record FieldPath {
     components : list[string]
 }
 
-union Expression {
+union Expr {
     FunCall
     Literal
     FieldPath
@@ -28,7 +28,7 @@ union Expression {
 
 record FunCall {
     func_name : FQN
-    arguments : list[Expression]
+    arguments : list[Expr]
 }
 
 union Literal {

@@ -11,7 +11,7 @@ union Statement {
 }
 
 record IfStatement {
-    condition : Expression
+    condition : Expr
     body : list[Statement]
     otherwise : list[Statement]
 }
@@ -19,19 +19,19 @@ record IfStatement {
 record VariableDeclaration {
     varname : string
     vartype : Type
-    initial_value : Expression ?
+    initial_value : Expr ?
 }
 
 record ValueAssignment {
     varname : string
-    value : Expression
+    value : Expr
 }
 
 record ReturnStatement {
-    retvalue : Expression
+    retvalue : Expr
 }
 
-union Expression {
+union Expr {
     FunCall
     Literal
     Variable
@@ -41,12 +41,12 @@ union Expression {
 
 record Constructor {
     datatype : Type
-    arguments : list[Expression]
+    arguments : list[Expr]
 }
 
 record FunCall {
     func_name : FQN
-    arguments : list[Expression]
+    arguments : list[Expr]
 }
 
 union Literal {
@@ -56,6 +56,6 @@ union Literal {
 }
 
 record Getter {
-    source : Expression
+    source : Expr
     field_name : string
 }

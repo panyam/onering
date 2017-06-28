@@ -6,9 +6,9 @@ May be tree walker entry point should be a Py file to begin with?   Or somehow j
 def transform_tree(input):
     output = oast.Transformer()
     for stmt in input.Statements:
-        # registers only generate "locations" where values of certain expression can be set and referred to
+        # registers only generate "locations" where values of certain expr can be set and referred to
         # The idea is first the register allocation is done 
-        generate_registers_for_expression(stmt.expr, input, output)
+        generate_registers_for_expr(stmt.expr, input, output)
         if stmt.target_variable.len == 1:
             generate_val_assignment(stmt.target_variable}}, {{stmt.expr.register}}")
         else:
@@ -43,7 +43,7 @@ if a.hasB():
         d = c
 
 In the second case we have registers for a, b and c (d is written so it wont need it)
-We should allow a rule that only declares a variable for a register (instead of rendering the entire expression associated with as is) if its read count is greater than a particular threshold.
+We should allow a rule that only declares a variable for a register (instead of rendering the entire expr associated with as is) if its read count is greater than a particular threshold.
 
 So for the above if the threshold == 1 then a and b will be declared but c wont be.
 

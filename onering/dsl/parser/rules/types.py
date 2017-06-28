@@ -50,7 +50,7 @@ def parse_typeref_decl(parser, annotations, **kwargs):
 
 def ensure_typeexpr(parser, annotations = None):
     out = parse_entity(parser)
-    if not issubclass(out.__class__, tlcore.Expression):
+    if not issubclass(out.__class__, tlcore.Expr):
         ipdb.set_trace()
         assert False
     return out

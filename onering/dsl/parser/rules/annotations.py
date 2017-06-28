@@ -23,7 +23,7 @@ def parse_annotation(parser):
 
         leaf_annotation := "@" FQN "=" ( NUMBER | STRING )
         compound_annotaiton := "@" FQN "(" parameters ")"
-        parameter_expressions := FQN | FQN "=" ( NUMBER, STRING, FQN )
+        parameter_exprs := FQN | FQN "=" ( NUMBER, STRING, FQN )
     """
     parser.ensure_token(TokenType.AT)
     fqn = parser.ensure_fqn()
