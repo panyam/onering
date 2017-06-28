@@ -72,7 +72,7 @@ def parse_type_initializer_or_name(parser, annotations):
             parser.ensure_token(TokenType.COMMA)
             child_typeexprs.append(ensure_typeexpr(parser))
         parser.ensure_token(parser.GENERIC_CLOSE_TOKEN)
-        return tlcore.FunApp(tlcore.Variable(fqn), child_typeexprs, is_type_app = True)
+        return tlcore.TypeApp(tlcore.Variable(fqn), child_typeexprs)
 
     # Otherwise we just have a Variable
     return tlcore.Variable(fqn)
