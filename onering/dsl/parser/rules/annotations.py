@@ -49,9 +49,9 @@ def parse_compound_annotation_body(parser, fqn):
     Parses compound annotation body of the form:
 
         compound_annotation_body := "(" ( param_spec ( "," param_spec ) * ) ? ")"
-                                 |  "(" literal ")"
+                                 |  "(" expression ")"
 
-        param_spec := name ( "=" value ) ?
+        param_spec := name ( "=" expression ) ?
     """
     param_specs = []
     parser.ensure_token(TokenType.OPEN_PAREN)

@@ -88,13 +88,11 @@ class Parser(TokenStream):
     def reset_last_docstring(self):
         self._last_docstring = ""
 
-    def read_ident_list(self, delim = TokenType.COMMA):
-        names = [self.ensure_token(TokenType.IDENTIFIER)]
-        while self.next_token_is(delim):
-            names.append(self.ensure_token(TokenType.IDENTIFIER))
-        return names
-
     def ensure_literal_value(self):
+        from onering.dsl.parser.rules.exprs import parse_expr
+        return parse_expr(self)
+
+        """
         if self.peeked_token_is(TokenType.NUMBER):
             # TODO: handle long vs int vs float etc
             return self.ensure_token(TokenType.NUMBER)
@@ -108,6 +106,7 @@ class Parser(TokenStream):
             raise errors.OneringException("Json Dict literals not yet implemented")
         else:
             raise errors.UnexpectedTokenException(self.peek_token(), TokenType.STRING, TokenType.NUMBER, TokenType.IDENTIFIER)
+        """
 
     def ensure_fqn(self, delim_token = None):
         """
