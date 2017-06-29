@@ -72,10 +72,10 @@ def parse_type_initializer_or_name(parser, annotations):
             parser.ensure_token(TokenType.COMMA)
             child_typeexprs.append(ensure_typeexpr(parser))
         parser.ensure_token(parser.GENERIC_CLOSE_TOKEN)
-        return tlcore.TypeApp(tlcore.Variable(fqn), child_typeexprs)
+        return tlcore.TypeApp(tlcore.Var(fqn), child_typeexprs)
 
-    # Otherwise we just have a Variable
-    return tlcore.Variable(fqn)
+    # Otherwise we just have a Var
+    return tlcore.Var(fqn)
 
 def parse_typefunc_preamble(parser, name_required = False, allow_generics = True):
     name = None
@@ -204,9 +204,9 @@ def parse_field_declaration(parser):
     field_name = parser.ensure_token(TokenType.IDENTIFIER)
     parser.ensure_token(TokenType.COLON)
     field_typeexpr = ensure_typeexpr(parser)
-    # if we declared an inline Type then dont refer to it directly but via a Variable
+    # if we declared an inline Type then dont refer to it directly but via a Var
     if type(field_typeexpr) is tlcore.Fun and field_typeexpr.name:
-        field_typeexpr = tlcore.Variable(field_typeexpr.name)
+        field_typeexpr = tlcore.Var(field_typeexpr.name)
     is_optional = False
     default_value = None
 

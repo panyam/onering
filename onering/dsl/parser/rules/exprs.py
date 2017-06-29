@@ -50,7 +50,7 @@ def parse_statement(parser, function):
     parser.consume_tokens(TokenType.SEMI_COLON)
 
     # ensure last var IS a variable expr
-    if not isinstance(exprs[-1], tlcore.Variable):
+    if not isinstance(exprs[-1], tlcore.Var):
         raise errors.OneringException("Final target of an expr MUST be a variable")
     target_var = exprs[-1]
     exprlist = tlext.ExprList(exprs[:-1])
@@ -116,7 +116,7 @@ def parse_expr(parser):
     elif parser.peeked_token_is(TokenType.IDENTIFIER):
         # See if we have a function call or a var or a field path
         source = parse_field_path(parser, allow_abs_path = False, allow_child_selection = False)
-        out = tlcore.Variable(source)
+        out = tlcore.Var(source)
 
         # check if we have a function call
         func_param_exprs = []
@@ -146,7 +146,7 @@ def parse_expr(parser):
         if func_param_exprs or func_args:
             if source.length > 1:
                 raise errors.OneringException("Fieldpaths cannot be used as functions")
-            out = tlcore.FunApp(tlcore.Variable(source), func_args)
+            out = tlcore.FunApp(tlcore.Var(source), func_args)
     else:
         raise errors.UnexpectedTokenException(parser.peek_token(),
                                        TokenType.STRING, TokenType.NUMBER,

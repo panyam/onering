@@ -3,7 +3,7 @@ import ipdb
 from typelib import core as tlcore
 from onering.codegen.symtable import SymbolTable
 from onering.codegen import ir
-from typelib.core import Expr, Variable, Fun, FunApp
+from typelib.core import Expr, Var, Fun, FunApp
 from typelib.ext import ListExpr, DictExpr, TupleExpr, IfExpr, ExprList, Assignment, Literal
 
 """
@@ -23,7 +23,7 @@ def generate_ir_for_expr(expr, resolver_stack, instructions, symtable):
         ListExpr: generate_ir_for_list,
         DictExpr: generate_ir_for_dict,
         FunApp: generate_ir_for_fun_app,
-        Variable: generate_ir_for_variable,
+        Var: generate_ir_for_variable,
         IfExpr: generate_ir_for_if_expr,
         Assignment: generate_ir_for_assignment,
         ExprList: generate_ir_for_expr_list,

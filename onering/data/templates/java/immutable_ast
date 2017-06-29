@@ -4,7 +4,7 @@ record Transformer {
 }
 
 union Statement {
-    VariableDeclaration
+    VarDeclaration
     ValueAssignment
     IfStatement
     ReturnStatement
@@ -16,7 +16,7 @@ record IfStatement {
     otherwise : list[Statement]
 }
 
-record VariableDeclaration {
+record VarDeclaration {
     varname : string
     vartype : Type
     initial_value : Expr ?
@@ -34,7 +34,7 @@ record ReturnStatement {
 union Expr {
     FunCall
     Literal
-    Variable
+    Var
     Getter
     Constructor
 }

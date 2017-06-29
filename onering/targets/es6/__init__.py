@@ -157,7 +157,7 @@ class File(base.File):
 def make_constructor(typeexpr, resolver_stack, importer):
     """Generates the constructor call for a given type."""
     resolved_type = typeexpr
-    while type(resolved_type) is tlcore.Variable or type(resolved_type) is tlcore.TypeApp:
+    while type(resolved_type) is tlcore.Var or type(resolved_type) is tlcore.TypeApp:
         resolved_type = resolved_type.resolve(resolver_stack)
     if type(resolved_type) is not tlcore.Type: ipdb.set_trace()
     assert type(resolved_type) is tlcore.Type

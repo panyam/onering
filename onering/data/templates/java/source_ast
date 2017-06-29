@@ -6,10 +6,10 @@ record Transformer {
 record Statement {
     is_temporary : boolean
     expr : Expr
-    target : Variable
+    target : Var
 }
 
-union Variable {
+union Var {
     FieldPath
     LocalVar
 }
