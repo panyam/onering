@@ -3,8 +3,8 @@ import ipdb
 from typelib import core as tlcore
 from onering.codegen.symtable import SymbolTable
 from onering.codegen import ir
-from typelib.core import Expr, Variable, Fun, FunApp, Literal
-from typelib.ext import ListExpr, DictExpr, TupleExpr, IfExpr, ExprList, Assignment
+from typelib.core import Expr, Variable, Fun, FunApp
+from typelib.ext import ListExpr, DictExpr, TupleExpr, IfExpr, ExprList, Assignment, Literal
 
 """
 This module is responsible for generating code for a statement and all parts of an expr tree.

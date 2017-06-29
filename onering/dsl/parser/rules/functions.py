@@ -205,9 +205,9 @@ def parse_expr(parser):
             parser.onering_context.DoubleType
         else:
             assert False
-        out = tlcore.Literal(value, vtype)
+        out = tlext.Literal(value, vtype)
     elif parser.peeked_token_is(TokenType.STRING):
-        out = tlcore.Literal(parser.next_token().value, tlext.StringType)
+        out = tlext.Literal(parser.next_token().value, tlext.StringType)
     elif parser.peeked_token_is(TokenType.OPEN_SQUARE):
         # Read a list
         out = parse_list_expr(parser)
