@@ -118,10 +118,10 @@ def generate_ir_for_fun_app(expr, resolver_stack, instructions, symtable):
         instructions, symtable, value = generate_ir_for_expr(arg, resolver_stack, instructions, symtable)
         arg_values.append(value)
     function = expr.func_expr.resolve(resolver_stack)
-    func_type = function.func_type
+    fun_type = function.fun_type
     new_register = None
-    if func_type.output_arg:
-        output_type = func_type.output_arg.type_expr.resolve(resolver_stack)
+    if fun_type.output_arg:
+        output_type = fun_type.output_arg.type_expr.resolve(resolver_stack)
         new_register = symtable.next_register(output_type)
     instructions.append(ir.FunAppInstruction(function.fqn, arg_values, new_register))
     return instructions, symtable, new_register

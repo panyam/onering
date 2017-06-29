@@ -30,7 +30,7 @@ def parse_function(parser, is_external, annotations, **kwargs):
     input_typeargs, output_typearg = parse_function_signature(parser)
 
     parent = parser.current_module if func_name else None
-    functype = tlcore.make_func_type(func_name, input_typeargs, output_typearg, parent)
+    functype = tlcore.make_fun_type(func_name, input_typeargs, output_typearg, parent)
     function = tlcore.Fun(func_name, functype, None, parser.current_module, annotations = annotations, docs = docs)
     if not is_external:
         parse_function_body(parser, function)
