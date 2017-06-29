@@ -4,3 +4,4 @@ pyyaml
 avro
 thriftpy
 typelib
+pytest

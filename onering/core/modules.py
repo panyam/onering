@@ -77,11 +77,11 @@ class Module(Annotatable):
             out["fqn"] = self.fqn
         return out
 
-    """
-    @name.setter
-    def name(self, value):
-        self._set_name(value)
-
-    def _set_name(self, value):
-        self._name = value
-    """
+    def debug_show(self, level = 0):
+        print ("  " * (level)) + "Module:"
+        print ("  " * (level + 1)) + "Children:"
+        for key,value in self.entity_map.iteritems():
+            print ("  " * (level + 2)) + ("%s: %s" % (key, value))
+        print ("  " * (level + 1)) + "Aliases:"
+        for key,value in self.aliases.iteritems():
+            print ("  " * (level + 2)) + ("%s: %s" % (key, value))
