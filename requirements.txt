@@ -5,3 +5,4 @@ avro
 thriftpy
 typelib
 pytest
+pytest-mock
