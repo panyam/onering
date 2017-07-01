@@ -16,7 +16,8 @@ class Register(object):
         self.symtable = symtable
         self.name = name
         self.is_named = name is not None and type(name) in (str, unicode)
-        self.type_expr = type_expr
+        self.type_expr = type_expr 
+        self.type_unknown = type_expr is None
         self._label = None
         if self.is_named:
             self._label = self.name

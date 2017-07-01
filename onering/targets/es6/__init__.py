@@ -1,11 +1,11 @@
 
 import os
-import ipdb
+from ipdb import set_trace
 from typelib import annotations as tlannotations
 from typelib import core as tlcore
 from onering.utils.misc import FQN
 from onering.utils.dirutils import open_file_for_writing
-from onering.codegen import core as orgencore
+from onering.codegen import option2 as orgen2
 from onering.packaging.utils import is_type_entity, is_type_fun_entity, is_fun_entity
 from onering.targets import base
 import imputils
@@ -159,7 +159,8 @@ def make_constructor(typeexpr, resolver_stack, importer):
     resolved_type = typeexpr
     while type(resolved_type) is tlcore.Var or type(resolved_type) is tlcore.TypeApp:
         resolved_type = resolved_type.resolve(resolver_stack)
-    if type(resolved_type) is not tlcore.Type: ipdb.set_trace()
+    if type(resolved_type) is not tlcore.Type:
+        set_trace()
     assert type(resolved_type) is tlcore.Type
     if resolved_type.name == "map":
         return "{}"
@@ -178,11 +179,11 @@ def make_constructor(typeexpr, resolver_stack, importer):
                     return "0.0";
                 elif resolved_type.name == "string":
                     return '""';
-                ipdb.set_trace()
+                set_trace()
             elif resolved_type.constructor == "record":
                 return "new %s()" % importer.ensure(resolved_type.fqn)
         else:
-            ipdb.set_trace()
+            set_trace()
             assert type(resolved_type) is tlcore.TypeParam
     assert False, "Cannot create constructor for invalid type: %s" % repr(resolved_type)
 
@@ -199,12 +200,20 @@ class TypeFunViewModel(object):
         self.resolver_stack = resolver_stack.push(function)
         self.generator = generator
         self.function = function
+        if type(function.expr) is tlcore.Fun:
+            self.child_view = FunViewModel(self.function.expr, generator, self.resolver_stack)
+        elif type(function.expr) is tlcore.Type:
+            self.child_view = TypeViewModel("", self.function.expr, generator)
+        else:
+            set_trace()
+            assert False, "Child expressions can only be types or functions"
+        self.returns_function = type(function.expr) is tlcore.Fun
 
-    def render(self, importer):
+    def render(self, importer, with_variable = True):
         print "Generating Fun: %s" % self.function.fqn
         templ = self.generator.load_template("es6/typefun.tpl", importer = importer)
         templ.globals["resolver_stack"] = self.resolver_stack
-        return templ.render(view = self, function = self.function, resolver_stack = self.resolver_stack)
+        return templ.render(view = self, function = self.function, resolver_stack = self.resolver_stack, with_variable = with_variable)
 
 
 class FunViewModel(object):
@@ -216,9 +225,9 @@ class FunViewModel(object):
         self.resolver_stack = resolver_stack.push(function)
         self.generator = generator
         self.function = function
-        self.instructions, self.symtable = orgencore.generate_ir_for_function(function, self.resolver_stack)
+        self.instructions, self.symtable = orgen2.generate_ir_for_function(function, self.resolver_stack)
 
-    def render(self, importer):
+    def render(self, importer, with_variable = True):
         print "Generating Fun: %s" % self.function.fqn
         templ = self.generator.load_template("es6/function.tpl", importer = importer, resolver_stack = self.resolver_stack)
-        return templ.render(view = self, function = self.function, resolver_stack = self.resolver_stack)
+        return templ.render(view = self, function = self.function, resolver_stack = self.resolver_stack, with_variable = with_variable)

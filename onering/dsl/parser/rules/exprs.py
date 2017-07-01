@@ -59,7 +59,7 @@ def parse_statement(parser, function):
     else:
         if is_temporary:
             function.register_temp_var(target_var.field_path.get(0))
-        return tlext.Assignment(function, target_var, exprlist)
+        return tlext.Assignment(target_var, exprlist)
 
 def parse_expr_chain(parser):
     """

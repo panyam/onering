@@ -110,3 +110,4 @@ def test_record_parsing():
     assert entity.args[2].name == "c"
     assert entity.args[2].type_expr.constructor == "record"
     assert entity.args[2].type_expr.name == None
+

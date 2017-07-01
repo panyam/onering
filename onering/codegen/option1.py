@@ -58,6 +58,7 @@ def generate_ir_for_expr_list(expr_list, resolver_stack, instructions, symtable)
 
 def generate_ir_for_assignment(assignment, resolver_stack, instructions, symtable):
     # Generate all "temp" vars across all statements first
+    ipdb.set_trace()
     target_var = assignment.target_variable.field_path.get(0)
     if assignment.parent_function.is_temp_variable(target_var):
         # Since the assignment is to a temporary var, now is a chance to set the temp var's
@@ -172,7 +173,6 @@ def generate_ir_for_setter(source_register, target_var, resolver_stack, instruct
         ipdb.set_trace()
         return instructions, symtable, None
 
-    # if "dest/status" == str(target_var.field_path): ipdb.set_trace()
     value = target_var.resolve(resolver_stack)
     if type(value) is not tlcore.TypeArg:
         ipdb.set_trace()
