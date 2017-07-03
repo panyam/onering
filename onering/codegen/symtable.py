@@ -3,7 +3,7 @@ import ipdb
 from typelib import core as tlcore
 import itertools
 
-class Register(object):
+class Register(tlcore.Expr):
     """
     A location where a value of a field or constant is stored.
     The advantage of using abstract registers instead of variable "names" is that the names
@@ -22,6 +22,12 @@ class Register(object):
         if self.is_named:
             self._label = self.name
 
+    def _evaltype(self, resolver_stack):
+        return self.type_expr
+
+    def _resolve(self, resolver_stack):
+        return self
+
     @property
     def label(self):
         if not self._label:
@@ -39,13 +45,19 @@ class Register(object):
     def __str__(self):
         return self.label
 
-class SymbolTable(object):
+class SymbolTable(tlcore.Expr):
     def __init__(self, parent = None, counter = None):
         self.counter = counter or itertools.count()
         self._parent_table = parent
         self._curr_symtable = self
         self._registers = []
         self._register_for_path = {}
+
+    def _evaltype(self, resolver_stack):
+        return None
+
+    def _resolve(self, resolver_stack):
+        return self
 
     @property
     def declarations(self):

@@ -3,9 +3,10 @@ import os
 from ipdb import set_trace
 from typelib import annotations as tlannotations
 from typelib import core as tlcore
+from typelib import ext as tlext
 from onering.utils.misc import FQN
 from onering.utils.dirutils import open_file_for_writing
-from onering.codegen import option2 as orgen2
+from onering.codegen import desugar, symtable
 from onering.packaging.utils import is_type_entity, is_type_fun_entity, is_fun_entity
 from onering.targets import base
 import imputils
@@ -18,6 +19,7 @@ self contained nodejs package from a package spec.
 class Generator(base.Generator):
     def __init__(self, context, package, output_dir):
         base.Generator.__init__(self, context, package, output_dir)
+        self.renderer = ExpressionRenderer(self)
 
     def open_file(self, filename):
         return File(self, filename)
@@ -25,6 +27,7 @@ class Generator(base.Generator):
     def load_template(self, template_name, **extra_globals):
         templ = base.Generator.load_template(self, template_name, **extra_globals)
         templ.globals["gen_constructor"] = make_constructor
+        templ.globals["render_expr"] = self.render_expr
         return templ
 
     def generate(self):
@@ -117,6 +120,10 @@ class Generator(base.Generator):
         """ Generates a type function. """
         typefunview = TypeFunViewModel(entity, self)
         outfile.write(typefunview.render(outfile.importer))
+
+    def render_expr(self, expr):
+        """ Renders an expression onto the current template. """
+        self.renderer.render(expr)
 
 class File(base.File):
     """ A file to which a collection of entries are written to. """
@@ -224,10 +231,60 @@ class FunViewModel(object):
             resolver_stack = tlcore.ResolverStack(function.parent, None)
         self.resolver_stack = resolver_stack.push(function)
         self.generator = generator
-        self.function = function
-        self.instructions, self.symtable = orgen2.generate_ir_for_function(function, self.resolver_stack)
+        self.function, self.symtable = desugar.transform_function(function, self.resolver_stack)
 
     def render(self, importer, with_variable = True):
         print "Generating Fun: %s" % self.function.fqn
         templ = self.generator.load_template("es6/function.tpl", importer = importer, resolver_stack = self.resolver_stack)
         return templ.render(view = self, function = self.function, resolver_stack = self.resolver_stack, with_variable = with_variable)
+
+
+class ExpressionRenderer(object):
+    def __init__(self, generator):
+        self.generator = generator
+        self.renderers = {
+            tlcore.Var: self.render_var,
+            tlext.Literal: self.render_literal,
+            tlext.ExprList: self.render_exprlist,
+            tlext.IfExpr: self.render_ifexpr,
+            tlext.NewExpr: self.render_newexpr,
+            tlext.ListExpr: self.render_listexpr,
+            tlext.DictExpr: self.render_dictexpr,
+            tlext.TupleExpr: self.render_tupleexpr,
+            symtable.SymbolTable: self.render_symtable,
+            tlext.Assignment: self.render_assignment,
+        }
+
+    def render(self, expr):
+        return self.renderers[type(expr)](expr)
+
+    def render_literal(self, expr):
+        pass
+
+    def render_var(self, expr):
+        pass
+
+    def render_exprlist(self, expr):
+        pass
+
+    def render_ifexpr(self, expr):
+        pass
+
+    def render_newexpr(self, expr):
+        pass
+
+    def render_listexpr(self, expr):
+        pass
+
+    def render_dictexpr(self, expr):
+        pass
+
+    def render_tupleexpr(self, expr):
+        pass
+
+    def render_symtable(self, expr):
+        pass
+
+    def render_assignment(self, expr):
+        pass
+

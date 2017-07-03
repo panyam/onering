@@ -1,5 +1,5 @@
 
-import ipdb
+from ipdb import set_trace
 from typelib import core as tlcore
 from typelib.core import Expr, Var, Fun, FunApp
 from typelib.ext import ListExpr, DictExpr, TupleExpr, IfExpr, ExprList, Assignment, Literal, NewExpr
@@ -8,22 +8,28 @@ from onering.codegen import ir
 from onering.codegen.ir import NotExpr, ContainsExpr, GetterExpr, SetterExpr
 
 """
-This module is responsible for generating code for a statement and all parts of an expr tree.
+This module is responsible for generating code for a statement and all parts of an expr tree. 
+Part of this process is to take the source expression tree, desugaring (and sometimes sugaring) 
+it where necessary and creating another (valid) expression tree that can be fed to the renderer.
 """
 
-def generate_ir_for_function(function, resolver_stack):
+def transform_function(function, resolver_stack):
     symtable = SymbolTable()
     assert not function.is_external, "External functions cannot be generated"
+    output = ExprList()
+    output.add(symtable)
 
     # Set source and dest variables in symbol table
     for typearg in function.source_typeargs:
         symtable.register_var(typearg.name, typearg.type_expr.resolve(resolver_stack), False)
     if not function.returns_void:
         symtable.register_var(function.dest_typearg.name, function.dest_typearg.resolve(resolver_stack), False)
-    expr = expr_transformer(function.expr, resolver_stack, symtable = symtable)
-    return expr, symtable
+    newexpr, _ = transform_expr(function.expr, resolver_stack, symtable = symtable)
+    output.extend(newexpr)
+    newfunc = Fun(function.name, function.fun_type, output, function.parent, function.annotations, function.docs)
+    return newfunc, symtable
 
-def expr_transformer(expr, resolver_stack, symtable):
+def transform_expr(expr, resolver_stack, symtable):
     """ Expression transformers take the source expression tree and transform them to a form suitable for the target.  
     For instance field paths may need to be converted into a chain of if checks and so on.
 
@@ -34,29 +40,30 @@ def expr_transformer(expr, resolver_stack, symtable):
 
     transformers = {
         Literal: default_transformer,
-        Assignment: assignment_transformer,
-        TupleExpr: tuple_transformer,
-        ListExpr: list_transformer,
-        DictExpr: dict_transformer,
-        FunApp: funapp_transformer,
-        Var: variable_transformer,
-        IfExpr: ifexpr_transformer,
-        ExprList: exprlist_transformer,
+        Assignment: transform_assignment,
+        TupleExpr: transform_tuple,
+        ListExpr: transform_list,
+        DictExpr: transform_dict,
+        FunApp: transform_app,
+        Var: transform_variable,
+        IfExpr: transform_ifexpr,
+        ExprList: transform_exprlist,
     }
     t = type(expr)
     if t not in transformers:
-        ipdb.set_trace()
+        set_trace()
     return transformers[t](expr, resolver_stack, symtable)
 
 def default_transformer(expr, resolver_stack, symtable):
     """ By default an expression is not transformed. """
     return expr, None
 
-def exprlist_transformer(expr_list, resolver_stack, symtable):
+def transform_exprlist(expr_list, resolver_stack, symtable):
     """ Transform child expressions of an ExprList """
-    return ExprList([expr_transformer(expr, resolver_stack, symtable) for expr in expr_list.children]), None
+    children = [transform_expr(expr, resolver_stack, symtable)[0] for expr in expr_list.children]
+    return ExprList(children), None
 
-def assignment_transformer(assignment, resolver_stack, symtable):
+def transform_assignment(assignment, resolver_stack, symtable):
     """ Transform an assignment expression. """
     # Generate all "temp" vars across all statements first
     target_var = assignment.target_variable.field_path.get(0)
@@ -67,43 +74,45 @@ def assignment_transformer(assignment, resolver_stack, symtable):
         symtable.register_var(target_var, exprtype, True)
 
     # Call the the generator for the expr with the last return value as its inputs
-    input_expr, last_register = expr_transformer(assignment.expr, resolver_stack, symtable)
+    input_expr, last_register = transform_expr(assignment.expr, resolver_stack, symtable)
 
     # Generate a setter instruction too
-    setter_expr, target_var = setter_transformer(last_register, assignment.target_variable, resolver_stack, symtable)
+    setter_expr, target_var = transform_setter(last_register, assignment.target_variable, resolver_stack, symtable)
 
     output = ExprList()
     output.extend(input_expr)
     output.extend(setter_expr)
     return output, last_register
 
-def tuple_transformer(tuple_expr, resolver_stack, symtable):
+def transform_tuple(tuple_expr, resolver_stack, symtable):
     # First evaluate all child exprs
-    return TupleExpr([expr_transformer(expr, resolver_stack, symtable) for expr in tuple_expr.values]), None
+    children = [transform_expr(expr, resolver_stack, symtable)[1] for expr in list_expr.values]
+    return TupleExpr(children), None
 
-def list_transformer(list_expr, resolver_stack, symtable):
+def transform_list(list_expr, resolver_stack, symtable):
     # First evaluate all child exprs
-    return ListExpr([expr_transformer(expr, resolver_stack, symtable) for expr in list_expr.values]), None
+    children = [transform_expr(expr, resolver_stack, symtable)[1] for expr in list_expr.values]
+    return ListExpr(children), None
 
-def dict_transformer(dict_expr, resolver_stack, symtable):
+def transform_dict(dict_expr, resolver_stack, symtable):
     # First evaluate all child exprs
-    keys = [expr_transformer(expr, resolver_stack, symtable) for expr in dict_expr.keys]
-    values = [expr_transformer(expr, resolver_stack, symtable) for expr in dict_expr.values]
+    keys = [transform_expr(expr, resolver_stack, symtable)[1] for expr in dict_expr.keys]
+    values = [transform_expr(expr, resolver_stack, symtable)[1] for expr in dict_expr.values]
     return DictExpr(keys, values), None
 
-def funapp_transformer(expr, resolver_stack, symtable):
+def transform_app(expr, resolver_stack, symtable):
     # Evaluate parameter values
     arg_exprs = []
     arg_vars = []
     for arg in expr.func_args:
-        arg_expr,arg_register = expr_transformer(arg, resolver_stack, symtable)
+        arg_expr,arg_register = transform_expr(arg, resolver_stack, symtable)
         arg_exprs.append(arg_expr)
         arg_vars.append(arg_register)
     function = expr.func_expr.resolve(resolver_stack)
     fun_type = function.fun_type
 
     if expr.is_type_app:
-        ipdb.set_trace()
+        set_trace()
         fun_app_expr = tlcore.TypeApp(function, arg_exprs)
     else:
         fun_app_expr = tlcore.FunApp(function, arg_exprs)
@@ -117,15 +126,15 @@ def funapp_transformer(expr, resolver_stack, symtable):
         output = fun_app_expr
     return output, new_register
 
-def ifexpr_transformer(ifexpr, resolver_stack, symtable):
-    case_exprs = [(expr_transformer(cond, resolver_stack, symtable),
-                   expr_transformer(cond, resolver_stack, symtable)) for cond,body in ifexpr.cases]
+def transform_ifexpr(ifexpr, resolver_stack, symtable):
+    case_exprs = [(transform_expr(cond, resolver_stack, symtable),
+                   transform_expr(cond, resolver_stack, symtable)) for cond,body in ifexpr.cases]
     default_expr = None
     if ifexpr.default_expr:
-        default_expr, _ = expr_transformer(ifexpr.default_expr, resolver_stack, symtable)
+        default_expr, _ = transform_expr(ifexpr.default_expr, resolver_stack, symtable)
     return IfExpr(case_exprs, default_expr)
 
-def variable_transformer(target_var, resolver_stack, symtable):
+def transform_variable(target_var, resolver_stack, symtable):
     # We would never directly generate a getter/setter for functions
     # (though core allows it we dont have the need to pass functions,,, yet)
     value = target_var.resolve(resolver_stack)
@@ -153,15 +162,13 @@ def variable_transformer(target_var, resolver_stack, symtable):
             curr_expr = if_expr
     return output, curr_register
 
-
-def setter_transformer(source_register, target_var, resolver_stack, symtable):
+def transform_setter(source_register, target_var, resolver_stack, symtable):
     if not target_var:
-        ipdb.set_trace()
+        set_trace()
         return None, None
 
     value = target_var.resolve(resolver_stack)
-    if type(value) is not tlcore.TypeArg:
-        ipdb.set_trace()
+    if type(value) is not tlcore.TypeArg: set_trace()
 
     curr_register = None
     curr_expr = output = ExprList()
@@ -183,7 +190,6 @@ def setter_transformer(source_register, target_var, resolver_stack, symtable):
             output.add(Assignment(curr_register, GetterExpr(last_register, curr_field_name)))
 
     if not last_register:
-        # Do a copy
         output.extend(Assignment(curr_register, source_register))
     else:
         output.extend(SetterExpr(last_register, target_var.field_path.get(-1), source_register))

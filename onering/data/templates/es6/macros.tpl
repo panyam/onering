@@ -1,24 +1,4 @@
 
-{% macro render_instruction(instruction) -%}
-{% if instruction.__class__.__name__ == "IfStatement" -%}
-    {{ render_if_instruction(instruction) }}
-{%- elif instruction.__class__.__name__ == "SetFieldInstruction" -%}
-    {{ render_setfield_instruction(instruction) }}
-{%- elif instruction.__class__.__name__ == "GetFieldInstruction" -%}
-    {{ render_getfield_instruction(instruction) }}
-{%- elif instruction.__class__.__name__ == "CopyVarInstruction" -%}
-    {{ render_copyvar_instruction(instruction) }}
-{%- elif instruction.__class__.__name__ == "FunAppInstruction" -%}
-    {{ render_funccall_instruction(instruction) }}
-{%- elif instruction.__class__.__name__ == "ContainsInstruction" -%}
-    {{ render_contains_instruction(instruction) }}
-{%- elif instruction.__class__.__name__ == "NewInstruction" -%}
-    {{ render_new_instruction(instruction) }}
-{%- elif instruction.__class__.__name__ == "ValueOrVar" -%}
-    {{str(instruction)}}
-{%- endif %}
-{%- endmacro %}
-
 {% macro render_if_instruction(if_instruction) %}
     if ({%if if_instruction.negate -%}!{% endif -%}{{render_instruction(if_instruction.condition_expr)}})
     {
@@ -69,12 +49,15 @@ function({% for typearg in function.source_typeargs %}{% if loop.index0 > 0 %}, 
     var {{ function.dest_typearg.name }} = {{ gen_constructor(function.dest_typearg.type_expr, resolver_stack, importer) }};
     {% endif %}
 
+    {{render_expr(function.expr)}}
+    {# 
     {%if view.symtable.declarations %}
     var {% for varname, vartyperef in view.symtable.declarations %}{% if loop.index0 > 0 %}, {%endif%}{{ varname }}{% endfor %};
     {%endif%}
     {% for instruction in view.instructions %}
     {{ render_instruction(instruction) }}
     {% endfor %}
+    #} 
 
     {# Return output var if required #}
     {% if not function.returns_void %}
