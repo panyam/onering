@@ -5,7 +5,7 @@ from typelib.core import Expr, Var, Fun, FunApp
 from typelib.ext import ListExpr, DictExpr, TupleExpr, IfExpr, ExprList, Assignment, Literal, NewExpr
 from onering.codegen.symtable import SymbolTable
 from onering.codegen import ir
-from onering.codegen.ir import NotExpr, ContainsExpr, GetterExpr, SetterExpr
+from onering.codegen.ir import NotExpr, GetterExpr, SetterExpr
 
 """
 This module is responsible for generating code for a statement and all parts of an expr tree. 
@@ -137,48 +137,37 @@ def transform_ifexpr(ifexpr, resolver_stack, symtable):
     return IfExpr(case_exprs, default_expr)
 
 def transform_variable_for_read(target_var, resolver_stack, symtable):
-    # We would never directly generate a getter/setter for functions
-    # (though core allows it we dont have the need to pass functions,,, yet)
-    if str(target_var.field_path) == "dest/status":
-        set_trace()
     value = target_var.resolve(resolver_stack)
     assert type(value) is tlcore.TypeArg
 
-    curr_register = None
-    curr_expr = output = ExprList()
-    for curr_field_name, curr_path, curr_typearg in value.unwrap_with_field_path(target_var.field_path, resolver_stack):
-        last_register = curr_register
-        if curr_register is None:
-            curr_register = symtable.get_register_for_path(curr_field_name)
-        else:
-            curr_type = curr_typearg.type_expr.resolve(resolver_stack)
-            curr_register = symtable.get_register_for_path(curr_path, curr_type)
-
-            # Get the next var and store into the var
-            # We need the equiv of:
-            #   if (last_register.has<curr_field_name>) {
-            #       curr_register = last_register.get<curr_field_name>
-            #   }
-            if_cond = ContainsExpr(last_register, curr_field_name)
-            if_body = ExprList([Assignment(curr_register, GetterExpr(last_register, curr_field_name))])
-            if_expr = IfExpr([(if_cond, if_body)], None)
-            curr_expr.add(if_expr)
-            curr_expr = if_expr
-    return output, curr_register
+    # Instead of generating a bunch of intermediate variables, this just calls
+    # a UDF that traverses the field path and to get its value or a default value
+    # suitable for that type
+    getter_func = Var("onering.platform.get_field_path_or_default") # .resolve(resolver_stack)
+    return FunApp(getter_func, target_var.field_path), None
 
 def transform_variable_for_write(source_register, target_var, resolver_stack, symtable):
     if not target_var:
         set_trace()
         return None, None
 
-    if str(target_var.field_path) == "dest/status":
-        set_trace()
-
     value = target_var.resolve(resolver_stack)
     if type(value) is not tlcore.TypeArg: set_trace()
 
+    if str(target_var.field_path) == "dest/status":
+        set_trace()
+
+
+    if target_var.field_path.length == 1:
+        curr_register = symtable.get_register_for_path(target_var.field_path.get(0))
+        return Assignment(curr_register, source_register)
+
     curr_register = None
     curr_expr = output = ExprList()
+    # Ensure nothing in the field path is missing
+    setter_func = Var("onering.platform.ensure_field_path_or_default") # .resolve(resolver_stack)
+    output.add(FunApp(setter_func, target_var.field_path))
+
     for curr_field_name, curr_path, curr_typearg in value.unwrap_with_field_path(target_var.field_path, resolver_stack):
         last_register = curr_register
         if curr_register is None:
@@ -186,18 +175,7 @@ def transform_variable_for_write(source_register, target_var, resolver_stack, sy
         else:
             curr_type = curr_typearg.type_expr.resolve(resolver_stack)
             curr_register = symtable.get_register_for_path(curr_path, curr_type)
-
-            # What we want is the equiv of:
-            # if (! last_reg.has<curr_field_name> ) {
-            #    last_reg.set<curr_field_name>(new TypeOf(curr_field_name))
-            # }
-            if_cond = NotExpr(ContainsExpr(last_register, curr_field_name))
-            if_body = SetterExpr(last_register, curr_field_name, NewExpr(curr_typearg))
-            output.add(IfExpr([(if_cond, if_body)], None))
             output.add(Assignment(curr_register, GetterExpr(last_register, curr_field_name)))
 
-    if not last_register:
-        output.extend(Assignment(curr_register, source_register))
-    else:
-        output.extend(SetterExpr(last_register, target_var.field_path.get(-1), source_register))
+    output.add(SetterExpr(last_register, target_var.field_path.get(-1), source_register))
     return output, None

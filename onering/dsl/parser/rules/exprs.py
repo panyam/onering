@@ -40,40 +40,22 @@ def parse_statement(parser, function):
     annotations = parse_annotations(parser)
 
     is_temporary = parser.next_token_is(TokenType.IDENTIFIER, "let")
-    exprs = parse_expr_chain(parser)
-
-    # An expr must have more than 1 expr
-    if len(exprs) <= 1:
-        ipdb.set_trace()
-        raise errors.OneringException("A rule statement must have at least one expr")
+    expr = parse_expr(parser)
+    parser.ensure_token(TokenType.STREAM)
+    target_var = parse_expr(parser)
 
     parser.consume_tokens(TokenType.SEMI_COLON)
 
     # ensure last var IS a variable expr
-    if not isinstance(exprs[-1], tlcore.Var):
+    if not isinstance(target_var, tlcore.Var):
         raise errors.OneringException("Final target of an expr MUST be a variable")
-    target_var = exprs[-1]
-    exprlist = tlext.ExprList(exprs[:-1])
+
     if target_var.field_path.get(0) == '_':
-        return exprlist
+        return expr
     else:
         if is_temporary:
             function.register_temp_var(target_var.field_path.get(0))
-        return tlext.Assignment(target_var, exprlist)
-
-def parse_expr_chain(parser):
-    """
-    Parse an expr chain of the form 
-
-        expr => expr => expr => expr
-    """
-    out = [ parse_expr(parser) ]
-
-    # if the next is a "=>" then start streaming!
-    while parser.peeked_token_is(TokenType.STREAM):
-        parser.ensure_token(TokenType.STREAM)
-        out.append(parse_expr(parser))
-    return out
+        return tlext.Assignment(target_var, expr)
 
 def parse_expr(parser):
     """

@@ -6,9 +6,11 @@ from typelib import core as tlcore
 from typelib import ext as tlext
 from onering.utils.misc import FQN
 from onering.utils.dirutils import open_file_for_writing
-from onering.codegen import desugar, symtable
+from onering.codegen import desugar2 as desugar
+from onering.codegen import symtable, ir
 from onering.packaging.utils import is_type_entity, is_type_fun_entity, is_fun_entity
 from onering.targets import base
+from onering.targets import common as orgencommon
 import imputils
 
 """
@@ -232,6 +234,7 @@ class FunViewModel(object):
         self.resolver_stack = resolver_stack.push(function)
         self.generator = generator
         self.function, self.symtable = desugar.transform_function(function, self.resolver_stack)
+        # self.function, self.symtable = function, None
 
     def render(self, importer, with_variable = True):
         print "Generating Fun: %s" % self.function.fqn
@@ -244,6 +247,9 @@ class ExpressionRenderer(object):
         self.generator = generator
         self.renderers = {
             tlcore.Var: self.render_var,
+            tlcore.Fun: self.render_fun,
+            tlcore.FunApp: self.render_funapp,
+            tlcore.TypeApp: self.render_typeapp,
             tlext.Literal: self.render_literal,
             tlext.ExprList: self.render_exprlist,
             tlext.IfExpr: self.render_ifexpr,
@@ -251,40 +257,95 @@ class ExpressionRenderer(object):
             tlext.ListExpr: self.render_listexpr,
             tlext.DictExpr: self.render_dictexpr,
             tlext.TupleExpr: self.render_tupleexpr,
-            symtable.SymbolTable: self.render_symtable,
             tlext.Assignment: self.render_assignment,
+            symtable.SymbolTable: self.render_symtable,
+            symtable.Register: self.render_register,
+            ir.ContainsExpr: self.render_contains,
+            ir.NotExpr: self.render_not,
+            ir.GetterExpr: self.render_getter,
+            ir.SetterExpr: self.render_setter,
         }
 
     def render(self, expr):
         return self.renderers[type(expr)](expr)
 
-    def render_literal(self, expr):
-        pass
-
-    def render_var(self, expr):
-        pass
-
     def render_exprlist(self, expr):
-        pass
+        return ";\n".join(self.render(e) for e in expr.children)
 
     def render_ifexpr(self, expr):
-        pass
+        out = ""
+        for index,(cond,body) in enumerate(expr.cases):
+            if index > 0:
+                out += "else "
+            out += "if ("
+            out += self.render(cond)
+            out += ") { "
+            out += self.render(body)
+            out += "}"
+        if expr.default_expr:
+            out += "else {"
+            out += self.render(expr.default_expr)
+            out += "}"
+        return out
 
     def render_newexpr(self, expr):
         pass
 
     def render_listexpr(self, expr):
-        pass
-
-    def render_dictexpr(self, expr):
-        pass
+        return "[%s]" % ", ".join(map(self.render_expr, expr.values))
 
     def render_tupleexpr(self, expr):
-        pass
+        return "[%s]" % ", ".join(map(self.render_expr, expr.values))
 
-    def render_symtable(self, expr):
-        pass
+    def render_dictexpr(self, expr):
+        keyvalues = ["%s: %s" % (self.render(key), self.render(value)) for (key,value) in izip(expr.keys, expr.values)]
+        return "{%s}" % ", ".join(keyvalues)
+
+    def render_symtable(self, symtable):
+        out = ""
+        if symtable.declarations:
+            out = "var " + ", ".join(varname for varname,_ in symtable.declarations)
+        return out
+
+    def render_register(self, register):
+        assert register.label
+        return register.label
 
     def render_assignment(self, expr):
+        return self.render(expr.target_variable) + " = " + self.render(expr.expr)
+
+    def render_fun(self, expr):
+        set_trace()
         pass
 
+    def render_funapp(self, funapp):
+        out = ""
+        if funapp.func_expr.fqn:
+            out = funapp.func_expr.fqn
+        else:
+            out = self.render(funapp.func_expr)
+        return out + "(%s)" % ", ".join(map(self.render, funapp.func_args))
+
+    def render_typeapp(self, expr):
+        set_trace()
+        pass
+
+    def render_literal(self, expr):
+        set_trace()
+        pass
+
+    def render_var(self, expr):
+        set_trace()
+        pass
+
+    def render_contains(self, expr):
+        return self.render(expr.source_expr) + ".has%s" + orgencommon.camel_case(expr.field_name)
+
+    def render_not(self, expr):
+        return "!" + self.render(expr.source_expr)
+
+    def render_getter(self, expr):
+        return self.render(expr.source_expr) + "." + expr.field_name
+
+    def render_setter(self, expr):
+        return self.render(expr.target_expr) + "." + expr.field_name + " = " + self.render(expr.target_expr)

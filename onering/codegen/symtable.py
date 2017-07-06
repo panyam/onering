@@ -40,7 +40,7 @@ class Register(tlcore.Expr):
         return self._label
 
     def __repr__(self):
-        return "<ID: 0x%x, Name: %s, Label: %s>" % (id(self), self.name, self._label)
+        return "<Reg: 0x%x, Name: %s, Label: %s>" % (id(self), self.name, self._label)
 
     def __str__(self):
         return self.label
