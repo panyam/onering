@@ -1,3 +1,4 @@
+{% import "es6/macros.tpl" as macros %}
 
 {{record.fqn.fqn}} = class {
     constructor(argmap) {
@@ -22,10 +23,13 @@
         return typeof(this._{{arg.name}}) !== "undefined";
     }
     {% endfor %}
+
+    static __typeinfo__ = null;
+    static typeinfo() {
+        if (__typeinfo__ == null) {
+            __typeinfo__ = {{macros.render_type(record.thetype, importer)}};
+        }
+        return __typeinfo__;
+    }
 }
 exports.{{record.fqn.fqn}} = {{record.fqn.fqn}};
-{{record.fqn.fqn}}.__properties__ = [{% for arg in record.thetype.args %}
-        {% if loop.index0 > 0 %}, {% endif %}
-        "{{arg.name}}"
-        {% endfor %}
-];

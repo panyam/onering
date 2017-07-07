@@ -1,5 +1,6 @@
 
 import os
+import json
 from ipdb import set_trace
 from typelib import annotations as tlannotations
 from typelib import core as tlcore
@@ -30,6 +31,7 @@ class Generator(base.Generator):
         templ = base.Generator.load_template(self, template_name, **extra_globals)
         templ.globals["gen_constructor"] = make_constructor
         templ.globals["render_expr"] = self.render_expr
+        # templ.globals["render_type"] = self.render_type
         return templ
 
     def generate(self):
@@ -45,7 +47,7 @@ class Generator(base.Generator):
             # Ensure that particular module is declared for use in this file
             outfile.ensure_module(fqn)
 
-            if is_type_entity(entity) and entity.constructor == "typeref":
+            if is_type_entity(entity) and entity.category == "typeref":
                 # Comeback to aliases at the end
                 aliases.append((fqn,entity))
             else:
@@ -98,17 +100,17 @@ class Generator(base.Generator):
 
         # For each record, enum and union that is in the context, generate the ES6 file for it.
         # All type refs that can only be generate at the end
-        assert entity.constructor != "typeref"
+        assert entity.category != "typeref"
         print "Generating %s model" % fqn
-        if entity.constructor == "record":
+        if entity.category == "record":
             # How to find the template for this typeref?
             templ = self.load_template("es6/class.tpl")
             outfile.write(templ.render(record = TypeViewModel(fqn, entity, self)))
-        elif entity.constructor == "enum":
+        elif entity.category == "enum":
             # How to find the template for this typeref?
             templ = self.load_template("es6/enum.tpl")
             outfile.write(templ.render(enum = TypeViewModel(fqn, entity, self)))
-        elif entity.constructor == "union":
+        elif entity.category == "union":
             # How to find the template for this typeref?
             templ = self.load_template("es6/union.tpl")
             outfile.write(templ.render(union = TypeViewModel(fqn, entity, self)))
@@ -116,16 +118,18 @@ class Generator(base.Generator):
     def _write_function_to_file(self, fqn, entity, outfile):
         """ Generates all required functions. """
         funview = FunViewModel(entity, self)
+        return
         outfile.write(funview.render(outfile.importer))
 
     def _write_typefun_to_file(self, fqn, entity, outfile):
         """ Generates a type function. """
         typefunview = TypeFunViewModel(entity, self)
+        return
         outfile.write(typefunview.render(outfile.importer))
 
-    def render_expr(self, expr):
+    def render_expr(self, expr, resolver_stack):
         """ Renders an expression onto the current template. """
-        self.renderer.render(expr)
+        self.renderer.render(expr, resolver_stack)
 
 class File(base.File):
     """ A file to which a collection of entries are written to. """
@@ -177,7 +181,7 @@ def make_constructor(typeexpr, resolver_stack, importer):
         return "[]"
     else:
         if type(resolved_type) is tlcore.Type:
-            if resolved_type.constructor == "literal":
+            if resolved_type.category == "literal":
                 if resolved_type.name == "any":
                     return "null";
                 elif resolved_type.name == "boolean":
@@ -189,7 +193,7 @@ def make_constructor(typeexpr, resolver_stack, importer):
                 elif resolved_type.name == "string":
                     return '""';
                 set_trace()
-            elif resolved_type.constructor == "record":
+            elif resolved_type.category == "record":
                 return "new %s()" % importer.ensure(resolved_type.fqn)
         else:
             set_trace()
@@ -233,8 +237,8 @@ class FunViewModel(object):
             resolver_stack = tlcore.ResolverStack(function.parent, None)
         self.resolver_stack = resolver_stack.push(function)
         self.generator = generator
-        self.function, self.symtable = desugar.transform_function(function, self.resolver_stack)
-        # self.function, self.symtable = function, None
+        # self.function, self.symtable = desugar.transform_function(function, self.resolver_stack)
+        self.function, self.symtable = function, None
 
     def render(self, importer, with_variable = True):
         print "Generating Fun: %s" % self.function.fqn
@@ -266,86 +270,97 @@ class ExpressionRenderer(object):
             ir.SetterExpr: self.render_setter,
         }
 
-    def render(self, expr):
-        return self.renderers[type(expr)](expr)
+    def render(self, expr, resolver_stack):
+        return self.renderers[type(expr)](expr, resolver_stack)
 
-    def render_exprlist(self, expr):
-        return ";\n".join(self.render(e) for e in expr.children)
+    def render_exprlist(self, expr, resolver_stack):
+        return ";\n".join(self.render(e, resolver_stack) for e in expr.children)
 
-    def render_ifexpr(self, expr):
+    def render_ifexpr(self, expr, resolver_stack):
         out = ""
         for index,(cond,body) in enumerate(expr.cases):
             if index > 0:
                 out += "else "
             out += "if ("
-            out += self.render(cond)
+            out += self.render(cond, resolver_stack)
             out += ") { "
-            out += self.render(body)
+            out += self.render(body, resolver_stack)
             out += "}"
         if expr.default_expr:
             out += "else {"
-            out += self.render(expr.default_expr)
+            out += self.render(expr.default_expr, resolver_stack)
             out += "}"
         return out
 
-    def render_newexpr(self, expr):
+    def render_newexpr(self, expr, resolver_stack):
         pass
 
-    def render_listexpr(self, expr):
+    def render_listexpr(self, expr, resolver_stack):
         return "[%s]" % ", ".join(map(self.render_expr, expr.values))
 
-    def render_tupleexpr(self, expr):
+    def render_tupleexpr(self, expr, resolver_stack):
         return "[%s]" % ", ".join(map(self.render_expr, expr.values))
 
-    def render_dictexpr(self, expr):
-        keyvalues = ["%s: %s" % (self.render(key), self.render(value)) for (key,value) in izip(expr.keys, expr.values)]
+    def render_dictexpr(self, expr, resolver_stack):
+        keyvalues = ["%s: %s" % (self.render(key, resolver_stack), self.render(value, resolver_stack)) for (key,value) in izip(expr.keys, expr.values)]
         return "{%s}" % ", ".join(keyvalues)
 
-    def render_symtable(self, symtable):
+    def render_symtable(self, symtable, resolver_stack):
         out = ""
         if symtable.declarations:
             out = "var " + ", ".join(varname for varname,_ in symtable.declarations)
         return out
 
-    def render_register(self, register):
+    def render_register(self, register, resolver_stack):
         assert register.label
         return register.label
 
-    def render_assignment(self, expr):
-        return self.render(expr.target_variable) + " = " + self.render(expr.expr)
+    def render_assignment(self, expr, resolver_stack):
+        rhs = self.render(expr.expr, resolver_stack)
+        lhs = ""
+        ipdb.set_trace()
+        first = expr.target_variable.field_path.get(0)
+        if expr.target_variable.field_path.length == 1:
+            lhs = first
+        else:
+            lhs = """ensure_field_path(%s.__class__, "%s").%s""" % (
+                        expr.target_variable.field_path.poptail(),
+                        expr.target_variable.field_path.get(-1))
+        return "%s = %s" % (lhs, rhs)
 
-    def render_fun(self, expr):
+    def render_fun(self, expr, resolver_stack):
         set_trace()
         pass
 
-    def render_funapp(self, funapp):
+    def render_funapp(self, funapp, resolver_stack):
         out = ""
         if funapp.func_expr.fqn:
             out = funapp.func_expr.fqn
         else:
-            out = self.render(funapp.func_expr)
+            out = self.render(funapp.func_expr, resolver_stack)
         return out + "(%s)" % ", ".join(map(self.render, funapp.func_args))
 
-    def render_typeapp(self, expr):
+    def render_typeapp(self, expr, resolver_stack):
         set_trace()
         pass
 
-    def render_literal(self, expr):
+    def render_literal(self, expr, resolver_stack):
         set_trace()
         pass
 
-    def render_var(self, expr):
+    def render_var(self, var, resolver_stack):
+        first, rest = var.field_path.pop()
         set_trace()
-        pass
+        return """get_field_path(%s, %s.__class__, "%s").%s""" % (first, "something", rest)
 
-    def render_contains(self, expr):
-        return self.render(expr.source_expr) + ".has%s" + orgencommon.camel_case(expr.field_name)
+    def render_contains(self, expr, resolver_stack):
+        return self.render(expr.source_expr, resolver_stack) + ".has%s" + orgencommon.camel_case(expr.field_name)
 
-    def render_not(self, expr):
-        return "!" + self.render(expr.source_expr)
+    def render_not(self, expr, resolver_stack):
+        return "!" + self.render(expr.source_expr, resolver_stack)
 
-    def render_getter(self, expr):
-        return self.render(expr.source_expr) + "." + expr.field_name
+    def render_getter(self, expr, resolver_stack):
+        return self.render(expr.source_expr, resolver_stack) + "." + expr.field_name
 
-    def render_setter(self, expr):
-        return self.render(expr.target_expr) + "." + expr.field_name + " = " + self.render(expr.target_expr)
+    def render_setter(self, expr, resolver_stack):
+        return self.render(expr.target_expr, resolver_stack) + "." + expr.field_name + " = " + self.render(expr.target_expr, resolver_stack)

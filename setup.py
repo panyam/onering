@@ -48,8 +48,9 @@ setup(name="onering",
       url="https://github.com/panyam/onering",
       package_data = {
           'onering': [
-              "data/templates/backends/java/*",
-              "data/templates/transformers/java/*"
+              "data/templates/java/*",
+              "data/templates/es6/*",
+              "schemas/*"
           ]
       },
       packages=find_packages(exclude=EXCLUDE_FROM_PACKAGES),

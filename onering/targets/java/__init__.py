@@ -121,7 +121,7 @@ class JavaTargetBackend(object):
             return thetyperef.fqn
 
         thetype = thetyperef.final_type
-        if thetype.constructor in ("record", "union"):
+        if thetype.category in ("record", "union"):
             ipdb.set_trace()
             return thetype.fqn
 

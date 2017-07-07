@@ -1,0 +1,117 @@
+
+/**
+ * Onering representation of core typelib schemas.
+ */
+module onering.core {
+    enum TypeCategory {
+        /**
+         * A literal type like int, real, boolean etc.
+         */
+        LITERAL_TYPE
+
+        /**
+         * Product types like records and tuples
+         */
+        PRODUCT_TYPE
+
+        /**
+         * Like Unions and Enums.
+         */
+        SUM_TYPE
+
+        /**
+         * A Function type
+         */
+        FUNCTION_TYPE
+
+        /**
+         * Type functions are how we do generics.
+         */
+        TYPE_FUNCTION
+
+        /**
+         * Application of a type generic.
+         */
+        TYPE_APPLICATION
+    }
+
+
+    /**
+     * Types are one of the core objects in typelib (and hence onering).   
+     * A type record holds information about all kinds of types that a value 
+     * may possess.
+     */
+    record Type {
+        /**
+         * Type category:
+         *
+         * "literal"    ->  A literal type like int, real, boolean etc.
+         * "record"     ->  Record types
+         * "tuple"      ->  Tuple types
+         * "union"      ->  Union types
+         * "enum"       ->  Enum types
+         * "function"   ->  Function types
+         * "typefun"    ->  Generic types
+         * "typeapp"    ->  Type applications
+         * "extern"     ->  Constructed types (like lists, maps etc)
+         */
+        category : string
+
+        /**
+         * FQN of the type.
+         */
+        fqn : string
+
+        /**
+         * Arguments from which the type is constructed.
+         */
+        args : list<TypeArg>
+
+        /**
+         * Documentation for the type.
+         */
+        docs : string
+    }
+
+    /**
+     * Type arguments a children of a type and constitutes elements like function parameters, 
+     * record fields, tuple element types and even arguments in a type generic.
+     */
+    record TypeArg {
+        name : string?
+        argtype : Type
+        optional : boolean
+        default : any
+        docs : string
+    }
+
+    record TypeRef {
+        /**
+         * The FQN of the type being referred.
+         */
+        fqn : string
+
+        /**
+         * The target type that is resolved
+         */
+        target : Type
+    }
+
+    /**
+     * Modules are the top level holders of either other modules or types.
+     */
+    record Module {
+        fqn : string
+        docs : string
+        entries : list<ModuleEntry>
+    }
+
+    /**
+     * A Module entry is either a type or another module.
+     */
+    union ModuleEntry {
+        module : Module
+        type : Type
+    }
+}
+
