@@ -6,7 +6,7 @@ from onering.core import modules as ormods
 def is_type_entity(entity):
     # What about type functions?
     if type(entity) is tlcore.Type:
-        if entity.category in ("record", "union", "typeref", "enum"):
+        if entity.category in (tlcore.TypeCategory.PRODUCT_TYPE, tlcore.TypeCategory.SUM_TYPE, tlcore.TypeCategory.ALIAS_TYPE):
             return True
         ipdb.set_trace()
         return False

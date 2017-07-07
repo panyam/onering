@@ -43,8 +43,8 @@ class Parser(TokenStream):
         self.use_default_parsers()
 
     def use_default_parsers(self):
-        from onering.dsl.parser.rules.types import parse_typeref_decl
-        self.register_entity_parser("typeref", parse_typeref_decl)
+        from onering.dsl.parser.rules.types import parse_alias_decl
+        self.register_entity_parser("alias", parse_alias_decl)
 
         from onering.dsl.parser.rules.types import parse_record_or_union
         self.register_entity_parser("record", parse_record_or_union)

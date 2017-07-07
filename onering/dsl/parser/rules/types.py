@@ -17,7 +17,7 @@ def parse_entity(parser):
     """
     Parses top level type declarations:
 
-        type_declaration := annotation * ( typeref_decl | custom_type_decl )
+        type_declaration := annotation * ( alias_decl | custom_type_decl )
     """
     annotations = parse_annotations(parser)
     is_extern = False
@@ -30,23 +30,24 @@ def parse_entity(parser):
     else:
         return parse_type_initializer_or_name(parser, annotations = annotations)
 
-def parse_typeref_decl(parser, annotations, **kwargs):
+def parse_alias_decl(parser, annotations, **kwargs):
     """
-    Parses typeref declaration of the form:
+    Parses alias declaration of the form:
 
-        "typeref" <name> ( "<" type_params ">" ) ? "=" entity
+        "alias" <name> ( "<" type_params ">" ) ? "=" entity
     """
-    parser.ensure_token(TokenType.IDENTIFIER, "typeref")
+    parser.ensure_token(TokenType.IDENTIFIER, "alias")
     name, type_params, docs = parse_typefunc_preamble(parser, name_required = True, allow_generics = True)
+    fqn = ".".join([parser.current_module.fqn, name])
     parser.ensure_token(TokenType.EQUALS)
 
-    # create the typeref
-    typeref = tlcore.make_typeref(name, ensure_typeexpr(parser), parent = parser.current_module, annotations = annotations, docs = docs)
+    # create the alias
+    alias = tlcore.make_alias(fqn, ensure_typeexpr(parser), parent = parser.current_module, annotations = annotations, docs = docs)
     if type_params:
-        typeref = tlcore.TypeFun(name, type_params, typeref, None, parent = parser.current_module, annotations = annotations, docs = docs)
-    print "Registering new typeref: '%s'" % name
-    parser.add_entity(name, typeref)
-    return typeref
+        alias = tlcore.make_type_fun(fqn, type_params, alias, None, parent = parser.current_module, annotations = annotations, docs = docs)
+    print "Registering new alias: '%s'" % name
+    parser.add_entity(name, alias)
+    return alias
 
 def ensure_typeexpr(parser, annotations = None):
     out = parse_entity(parser)
@@ -72,7 +73,7 @@ def parse_type_initializer_or_name(parser, annotations):
             parser.ensure_token(TokenType.COMMA)
             child_typeexprs.append(ensure_typeexpr(parser))
         parser.ensure_token(parser.GENERIC_CLOSE_TOKEN)
-        return tlcore.TypeApp(tlcore.Var(fqn), child_typeexprs)
+        return tlcore.make_type_app(fqn, child_typeexprs)
 
     # Otherwise we just have a Var
     return tlcore.Var(fqn)
@@ -166,14 +167,19 @@ def parse_enum_body(parser):
 ########################################################################
 
 def parse_record_or_union(parser, is_external, annotations = None):
-    constructor = parser.ensure_token(TokenType.IDENTIFIER)
-    assert constructor in ("record", "union")
+    category = parser.ensure_token(TokenType.IDENTIFIER)
+    assert category in ("record", "union")
+    if category == "record":
+        category = tlcore.TypeCategory.PRODUCT_TYPE
+    elif category == "union":
+        category = tlcore.TypeCategory.SUM_TYPE
 
     name, type_params, docs = parse_typefunc_preamble(parser)
     fields = parse_record_body(parser)
-    outtype = tlcore.make_type(constructor, name, fields, None, parent = parser.current_module, annotations = annotations, docs = docs)
+    fqn = ".".join([parser.current_module.fqn, name])
+    outtype = tlcore.make_type(category, fqn, fields, parent = parser.current_module, annotations = annotations, docs = docs)
     if type_params:
-        outtype = tlcore.TypeFun(name, type_params, outtype, parent = parser.current_module, annotations = annotations, docs = docs)
+        outtype = tlcore.make_type_fun(fqn, type_params, outtype, parent = parser.current_module, annotations = annotations, docs = docs)
     parser.add_entity(name, outtype)
     return outtype
 

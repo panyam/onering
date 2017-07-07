@@ -36,7 +36,7 @@ class OneringContext(dirutils.DirPointer):
                   tlext.StringType,
                   tlext.ListType,
                   tlext.MapType]:
-            self.global_module.add(t.name, t)
+            self.global_module.add(t.fqn, t)
 
     def load_template(self, template_name):
         return self.template_loader.load_template(template_name)
