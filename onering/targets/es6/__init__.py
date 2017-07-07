@@ -207,20 +207,17 @@ class TypeViewModel(object):
         self.fqn = fqn = FQN(fqn, None)
 
 class TypeFunViewModel(object):
-    def __init__(self, function, generator, resolver_stack = None):
+    def __init__(self, typefun, generator, resolver_stack = None):
         if resolver_stack == None:
-            resolver_stack = tlcore.ResolverStack(function.parent, None)
-        self.resolver_stack = resolver_stack.push(function)
+            resolver_stack = tlcore.ResolverStack(typefun.parent, None)
+        self.resolver_stack = resolver_stack.push(typefun)
         self.generator = generator
-        self.function = function
-        if type(function.expr) is tlcore.Fun:
-            self.child_view = FunViewModel(self.function.expr, generator, self.resolver_stack)
-        elif type(function.expr) is tlcore.Type:
-            self.child_view = TypeViewModel("", self.function.expr, generator)
-        else:
+        self.typefun = typefun
+        # if type(typefun.expr) is tlcore.Fun: self.child_view = FunViewModel(self.typefun.expr, generator, self.resolver_stack)
+        if not issubclass(typefun.result_typearg.type_expr.__class__, tlcore.Type):
             set_trace()
-            assert False, "Child expressions can only be types or functions"
-        self.returns_function = type(function.expr) is tlcore.Fun
+            assert False, "Type function expressions can only be types."
+        self.child_view = TypeViewModel("", self.typefun.result_typearg.type_expr, generator)
 
     def render(self, importer, with_variable = True):
         print "Generating Fun: %s" % self.function.fqn
@@ -232,7 +229,6 @@ class TypeFunViewModel(object):
 class FunViewModel(object):
     def __init__(self, function, generator, resolver_stack = None):
         print "Fun Value: ", function
-        assert not function.is_type_fun
         if resolver_stack == None:
             resolver_stack = tlcore.ResolverStack(function.parent, None)
         self.resolver_stack = resolver_stack.push(function)
