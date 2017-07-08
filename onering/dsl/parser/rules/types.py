@@ -4,7 +4,6 @@ from __future__ import absolute_import
 import ipdb
 from typelib.utils import FQN
 from typelib import core as tlcore
-from typelib import enums as tlenums
 from onering.dsl.lexer import Token, TokenType
 from onering.dsl.parser.rules.annotations import parse_annotations
 from onering.dsl.errors import UnexpectedTokenException
@@ -130,17 +129,13 @@ def parse_enum(parser, is_external, annotations = None):
     """
     parser.ensure_token(TokenType.IDENTIFIER, "enum")
     name, type_params, docs = parse_typefunc_preamble(parser, True, allow_generics = False)
-    type_args = None
-    if parser.next_token_is(parser.GENERIC_OPEN_TOKEN):
-        type_args = [ensure_typeexpr(parser)]
-        parser.ensure_token(parser.GENERIC_CLOSE_TOKEN)
-
-    symbols = parse_enum_body(parser)
-    entity = tlenums.EnumType(name, None, symbols, type_args, annotations = annotations, docs = docs)
+    fqn = ".".join([parser.current_module.fqn, name])
+    entity = tlcore.make_enum_type(fqn, None, annotations = annotations, docs = docs)
+    parse_enum_body(parser, entity)
     parser.add_entity(name, entity)
     return entity
 
-def parse_enum_body(parser):
+def parse_enum_body(parser, enum):
     """
     Parse the body of an enum declaration:
 
@@ -148,7 +143,7 @@ def parse_enum_body(parser):
 
         enum_symbol := identifier ( "=" literal )
     """
-    symbols = []
+    symbols_and_values = []
     parser.ensure_token(TokenType.OPEN_BRACE)
     while not parser.peeked_token_is(TokenType.CLOSE_BRACE):
         annotations = parse_annotations(parser)
@@ -156,28 +151,29 @@ def parse_enum_body(parser):
         value = None
         if parser.next_token_is(TokenType.EQUALS):
             value = parser.ensure_literal_value()
-        symbols.append(tlenums.EnumSymbol(name, None, value, annotations, parser.last_docstring()))
+        sym_fqn = ".".join([enum.fqn, name])
+        sym_type_expr = tlcore.make_literal_type(sym_fqn, parent = enum)
+        enum.args.add(tlcore.TypeArg(None, sym_type_expr, False, value, annotations, parser.last_docstring()))
         # consume comma silently
         parser.next_token_if(TokenType.COMMA, consume = True)
     parser.ensure_token(TokenType.CLOSE_BRACE)
-    return symbols
 
 ########################################################################
 ##          Union/Record and Field parsing
 ########################################################################
 
 def parse_record_or_union(parser, is_external, annotations = None):
-    category = parser.ensure_token(TokenType.IDENTIFIER)
-    assert category in ("record", "union")
-    if category == "record":
+    category_name = parser.ensure_token(TokenType.IDENTIFIER)
+    assert category_name in ("record", "union")
+    if category_name == "record":
         category = tlcore.TypeCategory.PRODUCT_TYPE
-    elif category == "union":
+    elif category_name == "union":
         category = tlcore.TypeCategory.SUM_TYPE
 
     name, type_params, docs = parse_typefunc_preamble(parser)
     fields = parse_record_body(parser)
     fqn = ".".join([parser.current_module.fqn, name])
-    outtype = tlcore.make_type(category, fqn, fields, parent = parser.current_module, annotations = annotations, docs = docs)
+    outtype = tlcore.make_tagged_type(category_name, category, fqn, fields, parent = parser.current_module, annotations = annotations, docs = docs)
     if type_params:
         outtype = tlcore.make_type_fun(fqn, type_params, outtype, parent = parser.current_module, annotations = annotations, docs = docs)
     parser.add_entity(name, outtype)

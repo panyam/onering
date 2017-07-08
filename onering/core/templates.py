@@ -7,6 +7,7 @@ import ipdb
 from jinja2 import BaseLoader, TemplateNotFound, StrictUndefined
 from jinja2 import Environment, PackageLoader
 
+
 class TemplateLoader(BaseLoader):
     """
     Responsible for loading templates given a name.
@@ -41,7 +42,7 @@ class TemplateLoader(BaseLoader):
             source = f.read().decode('utf-8')
         return source, final_path, lambda: mtime == getmtime(final_path)
 
-    def load_template(self, name, extensions = None):
+    def get_env(self, extensions = None):
         default_extensions = [ "jinja2.ext.do", "jinja2.ext.with_" ]
         if extensions:
             extensions.extend(default_extensions)
@@ -54,4 +55,29 @@ class TemplateLoader(BaseLoader):
         #if not template_path.startswith("/"): kwargs["loader"] = PackageLoader("onering", "data/templates")
         env = Environment(**kwargs)
         env.loader = self
-        return env.get_template(name)
+        return env
+
+    def load_from_file(self, name, extensions = None):
+        env = self.get_env(extensions)
+        return initialise_template(env.get_template(name))
+
+    def load_from_string(self, template_string, extensions = None):
+        env = self.get_env(extensions)
+        return initialise_template(env.from_string(template_string))
+
+def debug_print(*text):
+    print "".join(map(str, list(text)))
+    return ''
+
+def camel_case(value):
+    if value is None: ipdb.set_trace()
+    return value[0].upper() + value[1:]
+
+def initialise_template(templ):
+    templ.globals["camel_case"] = camel_case
+    templ.globals["debug"] = debug_print
+    templ.globals["map"] = map
+    templ.globals["str"] = str
+    templ.globals["type"] = type
+    templ.globals["filter"] = filter
+    return templ

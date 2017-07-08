@@ -103,9 +103,6 @@ class Package(object):
         self.package_dir = os.path.abspath(os.path.dirname(package_spec_path))
         self.load(**pkgdata)
         self.template_loader = tplloader.TemplateLoader(self.template_dirs, parent_loader = context.template_loader)
-    
-    def load_template(self, template_name):
-        return self.template_loader.load_template(template_name)
 
     @classmethod
     def load_spec(cls, package_spec_path, context):

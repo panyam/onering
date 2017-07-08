@@ -22,16 +22,15 @@ self contained nodejs package from a package spec.
 class Generator(base.Generator):
     def __init__(self, context, package, output_dir):
         base.Generator.__init__(self, context, package, output_dir)
-        self.renderer = ExpressionRenderer(self)
 
     def open_file(self, filename):
         return File(self, filename)
 
-    def load_template(self, template_name, **extra_globals):
-        templ = base.Generator.load_template(self, template_name, **extra_globals)
+    def template_loaded(self, templ):
+        """ Called after a template has been loaded. """
+        base.Generator.template_loaded(self, templ)
         templ.globals["gen_constructor"] = make_constructor
         templ.globals["render_expr"] = self.render_expr
-        # templ.globals["render_type"] = self.render_type
         return templ
 
     def generate(self):
@@ -47,7 +46,7 @@ class Generator(base.Generator):
             # Ensure that particular module is declared for use in this file
             outfile.ensure_module(fqn)
 
-            if is_type_entity(entity) and entity.category == "typeref":
+            if is_type_entity(entity) and entity.category == tlcore.TypeCategory.ALIAS_TYPE:
                 # Comeback to aliases at the end
                 aliases.append((fqn,entity))
             else:
@@ -102,15 +101,15 @@ class Generator(base.Generator):
         # All type refs that can only be generate at the end
         assert entity.category != "typeref"
         print "Generating %s model" % fqn
-        if entity.category == "record":
+        if entity.tag == "record":
             # How to find the template for this typeref?
             templ = self.load_template("es6/class.tpl")
             outfile.write(templ.render(record = TypeViewModel(fqn, entity, self)))
-        elif entity.category == "enum":
+        elif entity.tag == "enum":
             # How to find the template for this typeref?
             templ = self.load_template("es6/enum.tpl")
             outfile.write(templ.render(enum = TypeViewModel(fqn, entity, self)))
-        elif entity.category == "union":
+        elif entity.tag == "union":
             # How to find the template for this typeref?
             templ = self.load_template("es6/union.tpl")
             outfile.write(templ.render(union = TypeViewModel(fqn, entity, self)))
@@ -118,18 +117,43 @@ class Generator(base.Generator):
     def _write_function_to_file(self, fqn, entity, outfile):
         """ Generates all required functions. """
         funview = FunViewModel(entity, self)
-        return
         outfile.write(funview.render(outfile.importer))
 
     def _write_typefun_to_file(self, fqn, entity, outfile):
         """ Generates a type function. """
         typefunview = TypeFunViewModel(entity, self)
-        return
         outfile.write(typefunview.render(outfile.importer))
 
     def render_expr(self, expr, resolver_stack):
         """ Renders an expression onto the current template. """
-        self.renderer.render(expr, resolver_stack)
+        self.renderers = {
+            tlcore.FunApp: "render_funapp",
+            tlcore.Type: "render_type",
+            tlcore.Var: "render_var",
+
+            tlext.ExprList: "render_exprlist",
+            tlext.Literal: "render_literal",
+            tlext.Assignment: "render_assignment",
+            tlext.ListExpr: "render_listexpr",
+            tlext.DictExpr: "render_dictexpr",
+            tlext.TupleExpr: "render_listexpr",
+        }
+        rend_func = self.renderers[type(expr)]
+        template = """
+            {%% import "es6/macros.tpl" as macros %%}
+            {{macros.%s (expr, resolver_stack)}}
+        """ % rend_func
+        return self.load_template_from_string(template).render(expr = expr, resolver_stack = resolver_stack)
+
+    def render_symtable(self, symtable, resolver_stack):
+        out = ""
+        if symtable.declarations:
+            out = "var " + ", ".join(varname for varname,_ in symtable.declarations)
+        return out
+
+    def render_typeapp(self, expr, resolver_stack):
+        set_trace()
+        pass
 
 class File(base.File):
     """ A file to which a collection of entries are written to. """
@@ -175,25 +199,25 @@ def make_constructor(typeexpr, resolver_stack, importer):
     if type(resolved_type) is not tlcore.Type:
         set_trace()
     assert type(resolved_type) is tlcore.Type
-    if resolved_type.name == "map":
+    if resolved_type.fqn == "map":
         return "{}"
-    elif resolved_type.name == "list":
+    elif resolved_type.fqn == "list":
         return "[]"
     else:
         if type(resolved_type) is tlcore.Type:
             if resolved_type.category == "literal":
-                if resolved_type.name == "any":
+                if resolved_type.fqn == "any":
                     return "null";
-                elif resolved_type.name == "boolean":
+                elif resolved_type.fqn == "boolean":
                     return "false";
-                elif resolved_type.name in ("int", "long"):
+                elif resolved_type.fqn in ("int", "long"):
                     return "0";
-                elif resolved_type.name in ("float", "double"):
+                elif resolved_type.fqn in ("float", "double"):
                     return "0.0";
-                elif resolved_type.name == "string":
+                elif resolved_type.fqn == "string":
                     return '""';
                 set_trace()
-            elif resolved_type.category == "record":
+            elif resolved_type.tag == "record":
                 return "new %s()" % importer.ensure(resolved_type.fqn)
         else:
             set_trace()
@@ -241,122 +265,3 @@ class FunViewModel(object):
         templ = self.generator.load_template("es6/function.tpl", importer = importer, resolver_stack = self.resolver_stack)
         return templ.render(view = self, function = self.function, resolver_stack = self.resolver_stack, with_variable = with_variable)
 
-
-class ExpressionRenderer(object):
-    def __init__(self, generator):
-        self.generator = generator
-        self.renderers = {
-            tlcore.Var: self.render_var,
-            tlcore.Fun: self.render_fun,
-            tlcore.FunApp: self.render_funapp,
-            tlcore.TypeApp: self.render_typeapp,
-            tlext.Literal: self.render_literal,
-            tlext.ExprList: self.render_exprlist,
-            tlext.IfExpr: self.render_ifexpr,
-            tlext.NewExpr: self.render_newexpr,
-            tlext.ListExpr: self.render_listexpr,
-            tlext.DictExpr: self.render_dictexpr,
-            tlext.TupleExpr: self.render_tupleexpr,
-            tlext.Assignment: self.render_assignment,
-            symtable.SymbolTable: self.render_symtable,
-            symtable.Register: self.render_register,
-            ir.ContainsExpr: self.render_contains,
-            ir.NotExpr: self.render_not,
-            ir.GetterExpr: self.render_getter,
-            ir.SetterExpr: self.render_setter,
-        }
-
-    def render(self, expr, resolver_stack):
-        return self.renderers[type(expr)](expr, resolver_stack)
-
-    def render_exprlist(self, expr, resolver_stack):
-        return ";\n".join(self.render(e, resolver_stack) for e in expr.children)
-
-    def render_ifexpr(self, expr, resolver_stack):
-        out = ""
-        for index,(cond,body) in enumerate(expr.cases):
-            if index > 0:
-                out += "else "
-            out += "if ("
-            out += self.render(cond, resolver_stack)
-            out += ") { "
-            out += self.render(body, resolver_stack)
-            out += "}"
-        if expr.default_expr:
-            out += "else {"
-            out += self.render(expr.default_expr, resolver_stack)
-            out += "}"
-        return out
-
-    def render_newexpr(self, expr, resolver_stack):
-        pass
-
-    def render_listexpr(self, expr, resolver_stack):
-        return "[%s]" % ", ".join(map(self.render_expr, expr.values))
-
-    def render_tupleexpr(self, expr, resolver_stack):
-        return "[%s]" % ", ".join(map(self.render_expr, expr.values))
-
-    def render_dictexpr(self, expr, resolver_stack):
-        keyvalues = ["%s: %s" % (self.render(key, resolver_stack), self.render(value, resolver_stack)) for (key,value) in izip(expr.keys, expr.values)]
-        return "{%s}" % ", ".join(keyvalues)
-
-    def render_symtable(self, symtable, resolver_stack):
-        out = ""
-        if symtable.declarations:
-            out = "var " + ", ".join(varname for varname,_ in symtable.declarations)
-        return out
-
-    def render_register(self, register, resolver_stack):
-        assert register.label
-        return register.label
-
-    def render_assignment(self, expr, resolver_stack):
-        rhs = self.render(expr.expr, resolver_stack)
-        lhs = ""
-        ipdb.set_trace()
-        first = expr.target_variable.field_path.get(0)
-        if expr.target_variable.field_path.length == 1:
-            lhs = first
-        else:
-            lhs = """ensure_field_path(%s.__class__, "%s").%s""" % (
-                        expr.target_variable.field_path.poptail(),
-                        expr.target_variable.field_path.get(-1))
-        return "%s = %s" % (lhs, rhs)
-
-    def render_fun(self, expr, resolver_stack):
-        set_trace()
-        pass
-
-    def render_funapp(self, funapp, resolver_stack):
-        out = ""
-        if funapp.func_expr.fqn:
-            out = funapp.func_expr.fqn
-        else:
-            out = self.render(funapp.func_expr, resolver_stack)
-        return out + "(%s)" % ", ".join(map(self.render, funapp.func_args))
-
-    def render_typeapp(self, expr, resolver_stack):
-        set_trace()
-        pass
-
-    def render_literal(self, expr, resolver_stack):
-        set_trace()
-        pass
-
-    def render_var(self, var, resolver_stack):
-        first, rest = var.field_path.pop()
-        set_trace()
-        return """get_field_path(%s, %s.__class__, "%s").%s""" % (first, "something", rest)
-
-    def render_contains(self, expr, resolver_stack):
-        return self.render(expr.source_expr, resolver_stack) + ".has%s" + orgencommon.camel_case(expr.field_name)
-
-    def render_not(self, expr, resolver_stack):
-        return "!" + self.render(expr.source_expr, resolver_stack)
-
-    def render_getter(self, expr, resolver_stack):
-        return self.render(expr.source_expr, resolver_stack) + "." + expr.field_name
-
-    def render_setter(self, expr, resolver_stack):
-        return self.render(expr.target_expr, resolver_stack) + "." + expr.field_name + " = " + self.render(expr.target_expr, resolver_stack)

@@ -1,26 +1,8 @@
 
 import os
-import ipdb
+from ipdb import set_trace
 from onering.utils.misc import FQN
 from onering.utils.dirutils import open_file_for_writing
-from onering.targets import common as ortcommon 
-
-
-def render_template_string(template_string, data):
-    ipdb.set_trace()
-    from jinja2 import Template, StrictUndefined
-    template = initialise_template(Template(template_string, undefined=StrictUndefined))
-    return template.render(**data)
-
-def initialise_template(templ):
-    templ.globals["camel_case"] = ortcommon.camel_case
-    templ.globals["debug"] = ortcommon.debug_print
-    templ.globals["map"] = map
-    templ.globals["str"] = str
-    templ.globals["type"] = type
-    templ.globals["filter"] = filter
-    templ.globals["render_template_str"] = render_template_string
-    return templ
 
 class Generator(object):
     def __init__(self, context, package, output_dir):
@@ -53,11 +35,21 @@ class Generator(object):
         self._allfiles = {}
 
     def load_template(self, template_name, **extra_globals):
-        templ = self.package.load_template(template_name)
-        templ = initialise_template(templ)
+        templ = self.package.template_loader.load_from_file(template_name)
+        templ.globals.update(extra_globals)
+        self.template_loaded(templ)
+        return templ
+
+    def load_template_from_string(self, template_string, **extra_globals):
+        templ = self.package.template_loader.load_from_string(template_string)
+        templ.globals.update(extra_globals)
+        self.template_loaded(templ)
+        return templ
+
+    def template_loaded(self, templ):
+        """ Called after a template has been loaded. """
         templ.globals["context"] = self.context
         templ.globals["package"] = self.package
-        templ.globals.update(extra_globals)
         return templ
 
 class File(object):
