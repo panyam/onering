@@ -1,15 +1,15 @@
 
-{% macro render_type(thetype, importer) -%}
+{% macro render_type(thetype, resolver_stack) -%}
 onering.core.Type({"fqn": "{{thetype.fqn}}", "clazz": "{{thetype.fqn}}", "category": "{{thetype.category}}", "args": [
     {% for arg in thetype.args %}
     {
         {% if arg.name %}'name': "{{arg.name}}",{% endif %}
         'optional': {{arg.is_optional}},
-        {% with typeval = arg.type_expr.resolve(thetype.default_resolver_stack) %}
+        {% with typeval = arg.type_expr.resolve(resolver_stack) %}
         {% if typeval.fqn %}
             'type': onering.core.TypeRef("{{typeval.fqn}}"),
         {% else %}
-            'type': render_type(gonering.core.TypeRef("{{typeval.fqn}}"), importer),
+            'type': render_type(gonering.core.TypeRef("{{typeval.fqn}}"), resolver_stack),
         {% endif %}
         {% endwith %}
     },
@@ -18,20 +18,20 @@ onering.core.Type({"fqn": "{{thetype.fqn}}", "clazz": "{{thetype.fqn}}", "catego
 {%- endmacro %}
 
 {% macro render_new_instruction(instruction) -%}
-{{instruction.target_register.label}} = {{gen_constructor(instruction.value_typearg.type_expr, resolver_stack, importer)}};
+{{instruction.target_register.label}} = {{make_constructor(instruction.value_typearg.type_expr, resolver_stack)}};
 {%- endmacro %}
 
 {% macro render_function(function, view) -%}
 function({% for typearg in function.fun_type.source_typeargs %}{% if loop.index0 > 0 %}, {%endif%}{{typearg.name}}{%endfor%}) {
     {# The constructor for output #}
     {% if not function.fun_type.returns_void %}
-    var {{ function.fun_type.return_typearg.name }} = {{ gen_constructor(function.fun_type.return_typearg.type_expr, resolver_stack, importer) }};
+    var {{ function.fun_type.return_typearg.name }} = {{ make_constructor(function.fun_type.return_typearg.type_expr, resolver_stack) }};
     {% endif %}
 
     {{render_expr(function.expr, resolver_stack)}}
 
     {# Return output var if required #}
-    {% if not function.returns_void %}
+    {% if not function.fun_type.returns_void %}
     return {{ function.fun_type.return_typearg.name }};
     {% endif %}
 }
@@ -47,7 +47,7 @@ function({% for typearg in function.fun_type.source_typeargs %}{% if loop.index0
     {% with func_expr = funapp.resolve_function(resolver_stack) %}
         {% if func_expr.fqn %}
             {{func_expr.fqn}}({% for expr in funapp.func_args %}
-                {% if loop.index0 > 0 %}, {% endif %} {{render_expr(expr)}}
+                {% if loop.index0 > 0 %}, {% endif %} {{render_expr(expr, resolver_stack)}}
             {% endfor %})
         {% else %}
             {{render_function(func_expr)}}({% for expr in funapp.func_args %}

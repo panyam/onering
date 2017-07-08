@@ -29,7 +29,7 @@ class Generator(base.Generator):
     def template_loaded(self, templ):
         """ Called after a template has been loaded. """
         base.Generator.template_loaded(self, templ)
-        templ.globals["gen_constructor"] = make_constructor
+        templ.globals["make_constructor"] = make_constructor
         templ.globals["render_expr"] = self.render_expr
         return templ
 
@@ -100,19 +100,8 @@ class Generator(base.Generator):
         # For each record, enum and union that is in the context, generate the ES6 file for it.
         # All type refs that can only be generate at the end
         assert entity.category != "typeref"
-        print "Generating %s model" % fqn
-        if entity.tag == "record":
-            # How to find the template for this typeref?
-            templ = self.load_template("es6/class.tpl")
-            outfile.write(templ.render(record = TypeViewModel(fqn, entity, self)))
-        elif entity.tag == "enum":
-            # How to find the template for this typeref?
-            templ = self.load_template("es6/enum.tpl")
-            outfile.write(templ.render(enum = TypeViewModel(fqn, entity, self)))
-        elif entity.tag == "union":
-            # How to find the template for this typeref?
-            templ = self.load_template("es6/union.tpl")
-            outfile.write(templ.render(union = TypeViewModel(fqn, entity, self)))
+        typeview = TypeViewModel(fqn, entity, self)
+        outfile.write(typeview.render(outfile.importer))
 
     def _write_function_to_file(self, fqn, entity, outfile):
         """ Generates all required functions. """
@@ -230,6 +219,12 @@ class TypeViewModel(object):
         self.thetype = thetype
         self.fqn = fqn = FQN(fqn, None)
 
+    def render(self, importer):
+        print "Generating %s model" % self.fqn.fqn
+        templ = self.generator.load_template("es6/%s.tpl" % self.thetype.tag)
+        templ.globals["importer"] = importer
+        return templ.render(**{self.thetype.tag: self})
+
 class TypeFunViewModel(object):
     def __init__(self, typefun, generator, resolver_stack = None):
         if resolver_stack == None:
@@ -237,17 +232,16 @@ class TypeFunViewModel(object):
         self.resolver_stack = resolver_stack.push(typefun)
         self.generator = generator
         self.typefun = typefun
-        # if type(typefun.expr) is tlcore.Fun: self.child_view = FunViewModel(self.typefun.expr, generator, self.resolver_stack)
-        if not issubclass(typefun.result_typearg.type_expr.__class__, tlcore.Type):
+        if not issubclass(typefun.return_typearg.type_expr.__class__, tlcore.Type):
             set_trace()
             assert False, "Type function expressions can only be types."
-        self.child_view = TypeViewModel("", self.typefun.result_typearg.type_expr, generator)
+        self.child_view = TypeViewModel("", self.typefun.return_typearg.type_expr, generator)
 
     def render(self, importer, with_variable = True):
-        print "Generating Fun: %s" % self.function.fqn
+        print "Generating Fun: %s" % self.typefun.fqn
         templ = self.generator.load_template("es6/typefun.tpl", importer = importer)
         templ.globals["resolver_stack"] = self.resolver_stack
-        return templ.render(view = self, function = self.function, resolver_stack = self.resolver_stack, with_variable = with_variable)
+        return templ.render(view = self, typefun = self.typefun, resolver_stack = self.resolver_stack, with_variable = with_variable)
 
 
 class FunViewModel(object):

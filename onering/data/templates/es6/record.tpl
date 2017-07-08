@@ -27,7 +27,7 @@
     static __typeinfo__ = null;
     static typeinfo() {
         if (__typeinfo__ == null) {
-            __typeinfo__ = {{macros.render_type(record.thetype, importer)}};
+            __typeinfo__ = {{macros.render_type(record.thetype, record.thetype.default_resolver_stack)}};
         }
         return __typeinfo__;
     }
