@@ -31,13 +31,14 @@ def parse_function(parser, is_external, annotations, **kwargs):
     input_typeargs, output_typearg = parse_function_signature(parser)
 
     parent = parser.current_module if func_name else None
-    functype = tlcore.make_fun_type(func_fqn, input_typeargs, output_typearg)
+    functype = tlcore.make_fun_type(None, input_typeargs, output_typearg)
     if type_params:
         functype = tlcore.make_type_fun(func_fqn, type_params, functype, parent = parser.current_module, annotations = annotations, docs = docs)
     else:
+        functype.fqn = func_fqn
         functype.parent = parser.current_module
 
-    function = tlcore.Fun(func_name, functype, None, parser.current_module, annotations = annotations, docs = docs)
+    function = tlcore.Fun(func_fqn, functype, None, parser.current_module, annotations = annotations, docs = docs)
     if not is_external:
         parse_function_body(parser, function)
 

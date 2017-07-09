@@ -1,7 +1,7 @@
 
 import os
 import fnmatch
-import ipdb
+from ipdb import set_trace
 from onering.packaging.utils import is_type_entity, is_typefun_entity, is_fun_entity, is_function_mapping_entity
 
 def base_filename_for_fqn(package, fqn):
@@ -38,6 +38,8 @@ class Importer(object):
             # being generated in which case we shouldnt be looking at 
             # imports
             for fqn_wildcard, resolver in self.platform_config.imports:
+                if not fqn:
+                    set_trace()
                 if fnmatch.fnmatch(fqn, fqn_wildcard):
                     source_package = resolver["package"]
                     obj_root = resolver.get("root", None)

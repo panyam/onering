@@ -145,13 +145,7 @@
         }
         {% endfor %}
 
-        static __typeinfo__ = null;
-        static typeinfo() {
-            if (__typeinfo__ == null) {
-                __typeinfo__ = {{render_typeinfo(record_type)}};
-            }
-            return __typeinfo__;
-        }
+        static typeinfo() { return {{render_typeinfo(record_type)}}; }
     }
 {%- endmacro %}
 
@@ -179,18 +173,11 @@
         }
         {% endfor %}
 
-        static __typeinfo__ = null;
-        static typeinfo() {
-            if (__typeinfo__ == null) {
-                __typeinfo__ = {{render_typeinfo(union_type)}};
-            }
-            return __typeinfo__;
-        }
+        static typeinfo() { return {{render_typeinfo(union_type)}}; }
     }
 {%- endmacro %}
 
 {% macro render_typeinfo(thetype) -%}
-null{# 
 onering.core.Type({"fqn": "{{thetype.fqn}}", "clazz": "{{thetype.fqn}}", "args": [
     {% for arg in thetype.args %}
     {
@@ -206,5 +193,4 @@ onering.core.Type({"fqn": "{{thetype.fqn}}", "clazz": "{{thetype.fqn}}", "args":
     },
     {% endfor %}
 ]});
-#} 
 {%- endmacro %}

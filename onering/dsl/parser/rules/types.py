@@ -41,10 +41,11 @@ def parse_alias_decl(parser, annotations, **kwargs):
     parser.ensure_token(TokenType.EQUALS)
 
     # create the alias
-    alias = tlcore.make_alias(fqn, ensure_typeexpr(parser), parent = None, annotations = annotations, docs = docs)
+    alias = tlcore.make_alias(None, ensure_typeexpr(parser), parent = None, annotations = annotations, docs = docs)
     if type_params:
         alias = tlcore.make_type_fun(fqn, type_params, alias, None, parent = parser.current_module, annotations = annotations, docs = docs)
     else:
+        alias.fqn = fqn
         alias.parent = parser.current_module
     print "Registering new alias: '%s'" % name
     parser.add_entity(name, alias)
@@ -171,15 +172,16 @@ def parse_record_or_union(parser, is_external, annotations = None):
     fields = parse_record_body(parser)
     fqn = ".".join([parser.current_module.fqn, name])
     if category == "record":
-        outtype = tlcore.make_product_type(category, fqn, fields, parent = None, annotations = annotations, docs = docs)
+        outtype = tlcore.make_product_type(category, None, fields, parent = None, annotations = annotations, docs = docs)
     elif category == "union":
-        outtype = tlcore.make_sum_type(category, fqn, fields, parent = None, annotations = annotations, docs = docs)
+        outtype = tlcore.make_sum_type(category, None, fields, parent = None, annotations = annotations, docs = docs)
     else:
         assert False
 
     if type_params:
         outtype = tlcore.make_type_fun(fqn, type_params, outtype, parent = parser.current_module, annotations = annotations, docs = docs)
     else:
+        outtype.fqn = fqn
         outtype.parent = parser.current_module
     parser.add_entity(name, outtype)
     return outtype

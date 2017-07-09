@@ -47,7 +47,7 @@ class Generator(base.Generator):
             # Ensure that particular module is declared for use in this file
             outfile.ensure_module(fqn)
 
-            if is_type_entity(entity) and entity.is_alias:
+            if is_type_entity(entity) and entity.is_alias_type:
                 # Comeback to aliases at the end
                 aliases.append((fqn,entity))
             else:
@@ -99,7 +99,7 @@ class Generator(base.Generator):
 
         # For each record, enum and union that is in the context, generate the ES6 file for it.
         # All type refs that can only be generate at the end
-        assert not entity.is_alias
+        assert not entity.is_alias_type
         typeview = TypeViewModel(fqn, entity, self)
         outfile.write(typeview.render(outfile.importer))
 
@@ -259,7 +259,7 @@ def make_constructor(typeexpr, importer):
     elif issubclass(resolved_type.__class__, tlcore.ContainerType) and resolved_type.tag == "record":
         return "new %s()" % importer.ensure(resolved_type.fqn)
     elif type(resolved_type) is tlcore.TypeApp:
-        typefun = resolved_type.typefun_expr.resolve().type_expr
+        typefun = resolved_type.typefun_expr.resolve()
         typeargs = [arg.resolve() for arg in resolved_type.typeapp_args]
         return "new (%s(%s))()" % (importer.ensure(typefun.fqn), ", ".join(arg.name for arg in typeargs))
     set_trace()

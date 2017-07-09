@@ -6,7 +6,7 @@ from onering.core import modules as ormods
 def is_type_entity(entity):
     # What about type functions?
     if tlcore.istype(entity):
-        if entity.is_product_type or entity.is_sum_type:
+        if entity.is_product_type or entity.is_sum_type or entity.is_alias_type:
             return True
     return False
 
