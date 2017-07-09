@@ -7,27 +7,28 @@
  ################################################################################################}
 
 {% macro render_function(function, view) -%}
-function({% for typearg in function.fun_type.source_typeargs %}{% if loop.index0 > 0 %}, {%endif%}{{typearg.name}}{%endfor%}) {
+    {%- if function.fun_type.is_type_function -%}
+    function({% for param in function.fun_type.type_params %} {% if loop.index0 > 0 %}, {%endif%}{{param}} {%endfor%}) { 
+        return 
+    {%- endif %}
+        function({% for typearg in view.real_fun_type.source_typeargs %}{% if loop.index0 > 0 %}, {%endif%}{{typearg.name}}{%endfor%}) {
+
+            {# we are at the lowest level! So go ahead and render the function's expression #}
+            {# The constructor for output #}
+            {% if view.return_typearg %}
+            var {{ view.return_typearg.name }} = {{ make_constructor(view.return_typearg.type_expr, importer) }};
+            {% endif %}
+
+            {{render_expr(function.expr)}}
+
+            {# Return output var if required #}
+            {% if view.return_typearg %}
+            return {{ view.return_typearg.name }};
+            {% endif %}
+        }
     {% if function.fun_type.is_type_function %}
-        {# then render the "result" type of the type function #}
-        return function({% for typearg in view.real_fun_type.source_typeargs %}{% if loop.index0 > 0 %}, {%endif%}{{typearg.name}}{%endfor%}) {
+    }
     {% endif %}
-
-        {# we are at the lowest level! So go ahead and render the function's expression #}
-        {# The constructor for output #}
-        {% if view.return_typearg %}
-        var {{ view.return_typearg.name }} = {{ make_constructor(view.return_typearg.type_expr, importer) }};
-        {% endif %}
-
-        {{render_expr(function.expr)}}
-
-        {# Return output var if required #}
-        {% if view.return_typearg %}
-        return {{ view.return_typearg.name }};
-        {% endif %}
-
-    {% if function.fun_type.is_type_function %} } {% endif %}
-}
 {%- endmacro %}
 
 {% macro render_exprlist(exprlist) %}
@@ -189,7 +190,8 @@ function({% for typearg in function.fun_type.source_typeargs %}{% if loop.index0
 {%- endmacro %}
 
 {% macro render_typeinfo(thetype) -%}
-onering.core.Type({"fqn": "{{thetype.fqn}}", "clazz": "{{thetype.fqn}}", "category": "{{thetype.category}}", "args": [
+null{# 
+onering.core.Type({"fqn": "{{thetype.fqn}}", "clazz": "{{thetype.fqn}}", "args": [
     {% for arg in thetype.args %}
     {
         {% if arg.name %}'name': "{{arg.name}}",{% endif %}
@@ -204,4 +206,5 @@ onering.core.Type({"fqn": "{{thetype.fqn}}", "clazz": "{{thetype.fqn}}", "catego
     },
     {% endfor %}
 ]});
+#} 
 {%- endmacro %}

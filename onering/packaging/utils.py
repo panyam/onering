@@ -5,19 +5,12 @@ from onering.core import modules as ormods
 
 def is_type_entity(entity):
     # What about type functions?
-    if type(entity) is tlcore.Type:
-        if entity.category in (tlcore.TypeCategory.PRODUCT_TYPE, tlcore.TypeCategory.SUM_TYPE, tlcore.TypeCategory.ALIAS_TYPE):
+    if tlcore.istype(entity):
+        if entity.is_product_type or entity.is_sum_type:
             return True
-        ipdb.set_trace()
-        return False
-
-    if type(entity) is tlcore.FunApp and entity.is_type_app:
-        resval = entity.resolved_value
-        ipdb.set_trace()
-        return is_type_entity(resval)
     return False
 
-def is_type_fun_entity(entity):
+def is_typefun_entity(entity):
     if not isinstance(entity, tlcore.TypeFun): return False
     return not entity.is_external
 

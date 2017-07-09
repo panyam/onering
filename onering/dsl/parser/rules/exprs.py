@@ -41,6 +41,7 @@ def parse_statement(parser, function):
 
     is_temporary = parser.next_token_is(TokenType.IDENTIFIER, "let")
     expr = parse_expr(parser)
+    expr.parent = function
     parser.ensure_token(TokenType.STREAM)
     target_var = parse_expr(parser)
 

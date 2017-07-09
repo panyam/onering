@@ -9,7 +9,7 @@ from onering.utils.misc import FQN
 from onering.utils.dirutils import open_file_for_writing
 from onering.codegen import desugar2 as desugar
 from onering.codegen import symtable, ir
-from onering.packaging.utils import is_type_entity, is_type_fun_entity, is_fun_entity
+from onering.packaging.utils import is_type_entity, is_typefun_entity, is_fun_entity
 from onering.targets import base
 from onering.targets import common as orgencommon
 import imputils
@@ -47,7 +47,7 @@ class Generator(base.Generator):
             # Ensure that particular module is declared for use in this file
             outfile.ensure_module(fqn)
 
-            if is_type_entity(entity) and entity.category == tlcore.TypeCategory.ALIAS_TYPE:
+            if is_type_entity(entity) and entity.is_alias:
                 # Comeback to aliases at the end
                 aliases.append((fqn,entity))
             else:
@@ -89,7 +89,7 @@ class Generator(base.Generator):
             self._write_model_to_file(fqn, entity, outfile)
         elif is_fun_entity(entity):
             self._write_function_to_file(fqn, entity, outfile)
-        elif is_type_fun_entity(entity):
+        elif is_typefun_entity(entity):
             self._write_typefun_to_file(fqn, entity, outfile)
         else:
             print "No writer found for entity: ", fqn, entity
@@ -99,7 +99,7 @@ class Generator(base.Generator):
 
         # For each record, enum and union that is in the context, generate the ES6 file for it.
         # All type refs that can only be generate at the end
-        assert entity.category != "typeref"
+        assert not entity.is_alias
         typeview = TypeViewModel(fqn, entity, self)
         outfile.write(typeview.render(outfile.importer))
 
@@ -137,13 +137,13 @@ class Generator(base.Generator):
         """ Renders an expression onto the current template. """
         self.renderers = {
             tlcore.Type: "render_basic_type",
+            tlcore.ProductType: "render_record",
+            tlcore.SumType: "render_union",
         }
         rend_func = self.renderers[type(thetype)]
         template = """
-            {%% import "es6/macros.tpl" as macros %%}
-            {{macros.%s (thetype)}}
+            {%%- import "es6/macros.tpl" as macros -%%} {{macros.%s (thetype)}}
         """ % rend_func
-        set_trace()
         return self.load_template_from_string(template).render(thetype = thetype)
 
     def render_symtable(self, symtable):
@@ -208,10 +208,7 @@ class TypeFunViewModel(object):
     def __init__(self, typefun, generator = None):
         self.generator = generator
         self.typefun = typefun
-        if not issubclass(typefun.return_typearg.type_expr.__class__, tlcore.Type):
-            set_trace()
-            assert False, "Type function expressions can only be types."
-        self.child_view = TypeViewModel("", self.typefun.return_typearg.type_expr, generator)
+        self.child_view = TypeViewModel("", self.typefun.type_expr, generator)
 
     def render(self, importer, with_variable = True):
         print "Generating Fun: %s" % self.typefun.fqn
@@ -227,9 +224,9 @@ class FunViewModel(object):
         self._symtable = None
         self.real_fun_type = self.function.fun_type
         if self.function.fun_type.is_type_function:
-            self.real_fun_type = self.function.fun_type.return_typearg.type_expr
+            self.real_fun_type = self.real_fun_type.type_expr
         self.return_typearg = self.real_fun_type.return_typearg
-        if self.return_typearg.type_expr == tlcore.VoidType:
+        if self.return_typearg and self.return_typearg.type_expr == tlcore.VoidType:
             self.return_typearg = None
 
     def render(self, importer, with_variable = True):
@@ -248,24 +245,22 @@ def make_constructor(typeexpr, importer):
         return "{}"
     elif resolved_type.fqn == "list":
         return "[]"
-    elif type(resolved_type) is tlcore.Type:
-        if resolved_type.category == "literal":
-            if resolved_type.fqn == "any":
-                return "null";
-            elif resolved_type.fqn == "boolean":
-                return "false";
-            elif resolved_type.fqn in ("int", "long"):
-                return "0";
-            elif resolved_type.fqn in ("float", "double"):
-                return "0.0";
-            elif resolved_type.fqn == "string":
-                return '""';
-            set_trace()
-        elif resolved_type.tag == "record":
-            return "new %s()" % importer.ensure(resolved_type.fqn)
+    elif resolved_type.is_literal_type:
+        if resolved_type.fqn == "any":
+            return "null"
+        elif resolved_type.fqn == "boolean":
+            return "false"
+        elif resolved_type.fqn in ("int", "long"):
+            return "0"
+        elif resolved_type.fqn in ("float", "double"):
+            return "0.0"
+        elif resolved_type.fqn == "string":
+            return '""'
+    elif issubclass(resolved_type.__class__, tlcore.ContainerType) and resolved_type.tag == "record":
+        return "new %s()" % importer.ensure(resolved_type.fqn)
     elif type(resolved_type) is tlcore.TypeApp:
-        type_fun = resolved_type.args[0].resolve().type_expr
-        type_args = [arg.type_expr.resolve() for arg in resolved_type.args[1:]]
-        return "new (%s(%s))()" % (importer.ensure(type_fun.fqn), ", ".join(arg.name for arg in type_args))
+        typefun = resolved_type.typefun_expr.resolve().type_expr
+        typeargs = [arg.resolve() for arg in resolved_type.typeapp_args]
+        return "new (%s(%s))()" % (importer.ensure(typefun.fqn), ", ".join(arg.name for arg in typeargs))
     set_trace()
     assert False, "Cannot create constructor for invalid type: %s" % repr(resolved_type)

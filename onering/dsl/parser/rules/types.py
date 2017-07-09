@@ -41,9 +41,11 @@ def parse_alias_decl(parser, annotations, **kwargs):
     parser.ensure_token(TokenType.EQUALS)
 
     # create the alias
-    alias = tlcore.make_alias(fqn, ensure_typeexpr(parser), parent = parser.current_module, annotations = annotations, docs = docs)
+    alias = tlcore.make_alias(fqn, ensure_typeexpr(parser), parent = None, annotations = annotations, docs = docs)
     if type_params:
         alias = tlcore.make_type_fun(fqn, type_params, alias, None, parent = parser.current_module, annotations = annotations, docs = docs)
+    else:
+        alias.parent = parser.current_module
     print "Registering new alias: '%s'" % name
     parser.add_entity(name, alias)
     return alias
@@ -130,12 +132,12 @@ def parse_enum(parser, is_external, annotations = None):
     parser.ensure_token(TokenType.IDENTIFIER, "enum")
     name, type_params, docs = parse_typefunc_preamble(parser, True, allow_generics = False)
     fqn = ".".join([parser.current_module.fqn, name])
-    entity = tlcore.make_enum_type(fqn, None, annotations = annotations, docs = docs)
-    parse_enum_body(parser, entity)
+    symbols = parse_enum_body(parser)
+    entity = tlcore.make_enum_type(fqn, symbols, annotations = annotations, docs = docs)
     parser.add_entity(name, entity)
     return entity
 
-def parse_enum_body(parser, enum):
+def parse_enum_body(parser):
     """
     Parse the body of an enum declaration:
 
@@ -143,7 +145,7 @@ def parse_enum_body(parser, enum):
 
         enum_symbol := identifier ( "=" literal )
     """
-    symbols_and_values = []
+    symbols = []
     parser.ensure_token(TokenType.OPEN_BRACE)
     while not parser.peeked_token_is(TokenType.CLOSE_BRACE):
         annotations = parse_annotations(parser)
@@ -151,31 +153,34 @@ def parse_enum_body(parser, enum):
         value = None
         if parser.next_token_is(TokenType.EQUALS):
             value = parser.ensure_literal_value()
-        sym_fqn = ".".join([enum.fqn, name])
-        sym_type_expr = tlcore.make_literal_type(sym_fqn, parent = enum)
-        enum.args.add(tlcore.TypeArg(None, sym_type_expr, False, value, annotations, parser.last_docstring()))
+        symbols.append((name, value, annotations, parser.last_docstring()))
         # consume comma silently
         parser.next_token_if(TokenType.COMMA, consume = True)
     parser.ensure_token(TokenType.CLOSE_BRACE)
+    return symbols
 
 ########################################################################
 ##          Union/Record and Field parsing
 ########################################################################
 
 def parse_record_or_union(parser, is_external, annotations = None):
-    category_name = parser.ensure_token(TokenType.IDENTIFIER)
-    assert category_name in ("record", "union")
-    if category_name == "record":
-        category = tlcore.TypeCategory.PRODUCT_TYPE
-    elif category_name == "union":
-        category = tlcore.TypeCategory.SUM_TYPE
+    category = parser.ensure_token(TokenType.IDENTIFIER)
+    assert category in ("record", "union")
 
     name, type_params, docs = parse_typefunc_preamble(parser)
     fields = parse_record_body(parser)
     fqn = ".".join([parser.current_module.fqn, name])
-    outtype = tlcore.make_tagged_type(category_name, category, fqn, fields, parent = parser.current_module, annotations = annotations, docs = docs)
+    if category == "record":
+        outtype = tlcore.make_product_type(category, fqn, fields, parent = None, annotations = annotations, docs = docs)
+    elif category == "union":
+        outtype = tlcore.make_sum_type(category, fqn, fields, parent = None, annotations = annotations, docs = docs)
+    else:
+        assert False
+
     if type_params:
         outtype = tlcore.make_type_fun(fqn, type_params, outtype, parent = parser.current_module, annotations = annotations, docs = docs)
+    else:
+        outtype.parent = parser.current_module
     parser.add_entity(name, outtype)
     return outtype
 
