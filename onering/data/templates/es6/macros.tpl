@@ -1,39 +1,32 @@
 
-{% macro render_type(thetype, resolver_stack) -%}
-onering.core.Type({"fqn": "{{thetype.fqn}}", "clazz": "{{thetype.fqn}}", "category": "{{thetype.category}}", "args": [
-    {% for arg in thetype.args %}
-    {
-        {% if arg.name %}'name': "{{arg.name}}",{% endif %}
-        'optional': {{arg.is_optional}},
-        {% with typeval = arg.type_expr.resolve(resolver_stack) %}
-        {% if typeval.fqn %}
-            'type': onering.core.TypeRef("{{typeval.fqn}}"),
-        {% else %}
-            'type': render_type(gonering.core.TypeRef("{{typeval.fqn}}"), resolver_stack),
-        {% endif %}
-        {% endwith %}
-    },
-    {% endfor %}
-]});
-{%- endmacro %}
 
-{% macro render_new_instruction(instruction) -%}
-{{instruction.target_register.label}} = {{make_constructor(instruction.value_typearg.type_expr, resolver_stack)}};
-{%- endmacro %}
+{################################################################################################
+ #
+ #                                  Macros for rendering expressions
+ #
+ ################################################################################################}
 
 {% macro render_function(function, view) -%}
 function({% for typearg in function.fun_type.source_typeargs %}{% if loop.index0 > 0 %}, {%endif%}{{typearg.name}}{%endfor%}) {
-    {# The constructor for output #}
-    {% if not function.fun_type.returns_void %}
-    var {{ function.fun_type.return_typearg.name }} = {{ make_constructor(function.fun_type.return_typearg.type_expr, resolver_stack) }};
+    {% if function.fun_type.is_type_function %}
+        {# then render the "result" type of the type function #}
+        return function({% for typearg in view.real_fun_type.source_typeargs %}{% if loop.index0 > 0 %}, {%endif%}{{typearg.name}}{%endfor%}) {
     {% endif %}
 
-    {{render_expr(function.expr, resolver_stack)}}
+        {# we are at the lowest level! So go ahead and render the function's expression #}
+        {# The constructor for output #}
+        {% if view.return_typearg %}
+        var {{ view.return_typearg.name }} = {{ make_constructor(view.return_typearg.type_expr, view.resolver_stack, importer) }};
+        {% endif %}
 
-    {# Return output var if required #}
-    {% if not function.fun_type.returns_void %}
-    return {{ function.fun_type.return_typearg.name }};
-    {% endif %}
+        {{render_expr(function.expr, resolver_stack)}}
+
+        {# Return output var if required #}
+        {% if view.return_typearg %}
+        return {{ view.return_typearg.name }};
+        {% endif %}
+
+    {% if function.fun_type.is_type_function %} } {% endif %}
 }
 {%- endmacro %}
 
@@ -105,4 +98,110 @@ function({% for typearg in function.fun_type.source_typeargs %}{% if loop.index0
             {{render_expr(ifexpr.default_expr, resolver_stack) }}
         }
     {% endif %}
+{%- endmacro %}
+
+
+{################################################################################################
+ #
+ #                                  Macros for rendering types
+ #
+ ################################################################################################}
+
+{% macro render_basic_type(thetype) -%}
+    {% if thetype.tag == "record" %}
+        {{render_record(thetype)}}
+    {% endif %}
+    {% if thetype.tag == "union" %}
+        {{render_union(thetype)}}
+    {% endif %}
+    {% if thetype.tag == "enum" %}
+        {{render_enum(thetype)}}
+    {% endif %}
+{%- endmacro %}
+
+{% macro render_record(record_type) -%}
+    class {
+        constructor(argmap) {
+            argmap = argmap || {};
+            {% for arg in record_type.args %}
+            this.{{arg.name}} = argmap.{{arg.name}} || null;
+            {% endfor %}
+        }
+        {% for arg in record_type.args %}
+
+        get {{arg.name}}() {
+            return this._{{arg.name}};
+        }
+
+        set {{arg.name}}(value) {
+            // TODO: Apply validators
+            this._{{arg.name}} = value;
+            return this;
+        }
+
+        get has{{camel_case(arg.name)}}() {
+            return typeof(this._{{arg.name}}) !== "undefined";
+        }
+        {% endfor %}
+
+        static __typeinfo__ = null;
+        static typeinfo() {
+            if (__typeinfo__ == null) {
+                __typeinfo__ = {{render_typeinfo(record_type, record_type.default_resolver_stack)}};
+            }
+            return __typeinfo__;
+        }
+    }
+{%- endmacro %}
+
+{% macro render_union(union_type) -%}
+    class {
+        constructor(valuetype, value) {
+            this.valuetype = valuetype;
+            this.value = value;
+        }
+
+        {% for arg in union_type.args %}
+        get is{{camel_case(arg.name)}}() {
+            return "{{arg.name}}" == this.valuetype;
+        }
+
+        get {{arg.name}}() {
+            return "{{arg.name}}" == this.valuetype ? this.value : null;
+        }
+
+        set {{arg.name}}(value) {
+            // TODO: Apply validators
+            this.valuetype = "{{arg.name}}";
+            this.value = value;
+            return this;
+        }
+        {% endfor %}
+
+        static __typeinfo__ = null;
+        static typeinfo() {
+            if (__typeinfo__ == null) {
+                __typeinfo__ = {{render_typeinfo(union_type, union_type.default_resolver_stack)}};
+            }
+            return __typeinfo__;
+        }
+    }
+{%- endmacro %}
+
+{% macro render_typeinfo(thetype, resolver_stack) -%}
+onering.core.Type({"fqn": "{{thetype.fqn}}", "clazz": "{{thetype.fqn}}", "category": "{{thetype.category}}", "args": [
+    {% for arg in thetype.args %}
+    {
+        {% if arg.name %}'name': "{{arg.name}}",{% endif %}
+        'optional': {{arg.is_optional}},
+        {% with typeval = arg.type_expr.resolve(resolver_stack) %}
+        {% if typeval.fqn %}
+            'type': onering.core.TypeRef("{{typeval.fqn}}"),
+        {% else %}
+            'type': render_typeinfo(gonering.core.TypeRef("{{typeval.fqn}}"), resolver_stack),
+        {% endif %}
+        {% endwith %}
+    },
+    {% endfor %}
+]});
 {%- endmacro %}

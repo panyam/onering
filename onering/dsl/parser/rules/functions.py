@@ -104,6 +104,7 @@ def parse_param_declaration(parser, require_name = True):
     param_typeexpr  = ensure_typeexpr(parser)
     # if we declared an inline Type then dont refer to it directly but via a Var
     if type(param_typeexpr) is tlcore.Fun and param_typeexpr.name:
+        set_trace()
         param_typeexpr = tlcore.Var(param_typeexpr.name)
     is_optional     = parser.next_token_is(TokenType.QMARK)
     default_value   = None

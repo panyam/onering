@@ -31,6 +31,7 @@ class Generator(base.Generator):
         base.Generator.template_loaded(self, templ)
         templ.globals["make_constructor"] = make_constructor
         templ.globals["render_expr"] = self.render_expr
+        templ.globals["render_type"] = self.render_type
         return templ
 
     def generate(self):
@@ -105,7 +106,7 @@ class Generator(base.Generator):
 
     def _write_function_to_file(self, fqn, entity, outfile):
         """ Generates all required functions. """
-        funview = FunViewModel(entity, self)
+        funview = FunViewModel(entity, self, entity.fun_type, entity.default_resolver_stack)
         outfile.write(funview.render(outfile.importer))
 
     def _write_typefun_to_file(self, fqn, entity, outfile):
@@ -117,7 +118,6 @@ class Generator(base.Generator):
         """ Renders an expression onto the current template. """
         self.renderers = {
             tlcore.FunApp: "render_funapp",
-            tlcore.Type: "render_type",
             tlcore.Var: "render_var",
 
             tlext.ExprList: "render_exprlist",
@@ -133,6 +133,19 @@ class Generator(base.Generator):
             {{macros.%s (expr, resolver_stack)}}
         """ % rend_func
         return self.load_template_from_string(template).render(expr = expr, resolver_stack = resolver_stack)
+
+    def render_type(self, thetype, resolver_stack):
+        """ Renders an expression onto the current template. """
+        self.renderers = {
+            tlcore.Type: "render_basic_type",
+        }
+        rend_func = self.renderers[type(thetype)]
+        template = """
+            {%% import "es6/macros.tpl" as macros %%}
+            {{macros.%s (thetype)}}
+        """ % rend_func
+        set_trace()
+        return self.load_template_from_string(template).render(thetype = thetype)
 
     def render_symtable(self, symtable, resolver_stack):
         out = ""
@@ -180,39 +193,6 @@ class File(base.File):
         self.write(self.importer.render_imports())
         base.File.close(self)
 
-def make_constructor(typeexpr, resolver_stack, importer):
-    """Generates the constructor call for a given type."""
-    resolved_type = typeexpr
-    while type(resolved_type) is tlcore.Var or type(resolved_type) is tlcore.TypeApp:
-        resolved_type = resolved_type.resolve(resolver_stack)
-    if type(resolved_type) is not tlcore.Type:
-        set_trace()
-    assert type(resolved_type) is tlcore.Type
-    if resolved_type.fqn == "map":
-        return "{}"
-    elif resolved_type.fqn == "list":
-        return "[]"
-    else:
-        if type(resolved_type) is tlcore.Type:
-            if resolved_type.category == "literal":
-                if resolved_type.fqn == "any":
-                    return "null";
-                elif resolved_type.fqn == "boolean":
-                    return "false";
-                elif resolved_type.fqn in ("int", "long"):
-                    return "0";
-                elif resolved_type.fqn in ("float", "double"):
-                    return "0.0";
-                elif resolved_type.fqn == "string":
-                    return '""';
-                set_trace()
-            elif resolved_type.tag == "record":
-                return "new %s()" % importer.ensure(resolved_type.fqn)
-        else:
-            set_trace()
-            assert type(resolved_type) is tlcore.TypeParam
-    assert False, "Cannot create constructor for invalid type: %s" % repr(resolved_type)
-
 class TypeViewModel(object):
     def __init__(self, fqn, thetype, generator):
         self.generator = generator
@@ -245,17 +225,53 @@ class TypeFunViewModel(object):
 
 
 class FunViewModel(object):
-    def __init__(self, function, generator, resolver_stack = None):
+    def __init__(self, function, generator, fun_type, resolver_stack):
         print "Fun Value: ", function
-        if resolver_stack == None:
-            resolver_stack = tlcore.ResolverStack(function.parent, None)
-        self.resolver_stack = resolver_stack.push(function)
+        self.resolver_stack = resolver_stack
+        self.function = function
         self.generator = generator
-        # self.function, self.symtable = desugar.transform_function(function, self.resolver_stack)
-        self.function, self.symtable = function, None
+        self._symtable = None
+        self.real_fun_type = self.function.fun_type
+        if self.function.fun_type.is_type_function:
+            self.real_fun_type = self.function.fun_type.return_typearg.type_expr
+        self.return_typearg = self.real_fun_type.return_typearg
+        if self.return_typearg.type_expr == tlcore.VoidType:
+            self.return_typearg = None
 
     def render(self, importer, with_variable = True):
         print "Generating Fun: %s" % self.function.fqn
         templ = self.generator.load_template("es6/function.tpl", importer = importer, resolver_stack = self.resolver_stack)
         return templ.render(view = self, function = self.function, resolver_stack = self.resolver_stack, with_variable = with_variable)
 
+
+def make_constructor(typeexpr, resolver_stack, importer):
+    """Generates the constructor call for a given type."""
+    resolved_type = typeexpr
+    while type(resolved_type) is tlcore.TypeRef:
+        resolved_type = resolved_type.resolve(resolver_stack)
+    assert issubclass(resolved_type.__class__, tlcore.Type)
+    if resolved_type.fqn == "map":
+        return "{}"
+    elif resolved_type.fqn == "list":
+        return "[]"
+    elif type(resolved_type) is tlcore.Type:
+        if resolved_type.category == "literal":
+            if resolved_type.fqn == "any":
+                return "null";
+            elif resolved_type.fqn == "boolean":
+                return "false";
+            elif resolved_type.fqn in ("int", "long"):
+                return "0";
+            elif resolved_type.fqn in ("float", "double"):
+                return "0.0";
+            elif resolved_type.fqn == "string":
+                return '""';
+            set_trace()
+        elif resolved_type.tag == "record":
+            return "new %s()" % importer.ensure(resolved_type.fqn)
+    elif type(resolved_type) is tlcore.TypeApp:
+        type_fun = resolved_type.args[0].resolve(resolver_stack).type_expr
+        type_args = [arg.type_expr.resolve(resolver_stack) for arg in resolved_type.args[1:]]
+        return "new (%s(%s))()" % (importer.ensure(type_fun.fqn), ", ".join(arg.name for arg in type_args))
+    set_trace()
+    assert False, "Cannot create constructor for invalid type: %s" % repr(resolved_type)

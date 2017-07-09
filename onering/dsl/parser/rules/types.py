@@ -1,7 +1,7 @@
 
 from __future__ import absolute_import 
 
-import ipdb
+from ipdb import set_trace
 from typelib.utils import FQN
 from typelib import core as tlcore
 from onering.dsl.lexer import Token, TokenType
@@ -51,7 +51,7 @@ def parse_alias_decl(parser, annotations, **kwargs):
 def ensure_typeexpr(parser, annotations = None):
     out = parse_entity(parser)
     if not issubclass(out.__class__, tlcore.Expr):
-        ipdb.set_trace()
+        set_trace()
         assert False
     return out
 
@@ -62,7 +62,7 @@ def parse_type_initializer_or_name(parser, annotations):
         type_name ( "<" args ">" ) ?
     """
     if not parser.peeked_token_is(TokenType.IDENTIFIER):
-        ipdb.set_trace()
+        set_trace()
         return None
     fqn = parser.ensure_fqn()
 
@@ -74,8 +74,8 @@ def parse_type_initializer_or_name(parser, annotations):
         parser.ensure_token(parser.GENERIC_CLOSE_TOKEN)
         return tlcore.make_type_app(fqn, child_typeexprs)
 
-    # Otherwise we just have a Var
-    return tlcore.Var(fqn)
+    # Otherwise we just have a type reference
+    return tlcore.make_ref(fqn)
 
 def parse_typefunc_preamble(parser, name_required = False, allow_generics = True):
     name = None
@@ -208,6 +208,7 @@ def parse_field_declaration(parser):
     field_typeexpr = ensure_typeexpr(parser)
     # if we declared an inline Type then dont refer to it directly but via a Var
     if type(field_typeexpr) is tlcore.Fun and field_typeexpr.name:
+        set_trace()
         field_typeexpr = tlcore.Var(field_typeexpr.name)
     is_optional = False
     default_value = None
