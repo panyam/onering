@@ -16,10 +16,10 @@ function({% for typearg in function.fun_type.source_typeargs %}{% if loop.index0
         {# we are at the lowest level! So go ahead and render the function's expression #}
         {# The constructor for output #}
         {% if view.return_typearg %}
-        var {{ view.return_typearg.name }} = {{ make_constructor(view.return_typearg.type_expr, view.resolver_stack, importer) }};
+        var {{ view.return_typearg.name }} = {{ make_constructor(view.return_typearg.type_expr, importer) }};
         {% endif %}
 
-        {{render_expr(function.expr, resolver_stack)}}
+        {{render_expr(function.expr)}}
 
         {# Return output var if required #}
         {% if view.return_typearg %}
@@ -30,17 +30,17 @@ function({% for typearg in function.fun_type.source_typeargs %}{% if loop.index0
 }
 {%- endmacro %}
 
-{% macro render_exprlist(exprlist, resolver_stack) %}
+{% macro render_exprlist(exprlist) %}
     {% for expr in exprlist.children %}
-        {{render_expr(expr, resolver_stack)}} ;
+        {{render_expr(expr)}} ;
     {% endfor %}
 {%- endmacro %}
 
-{% macro render_funapp(funapp, resolver_stack) %}
-    {% with func_expr = funapp.resolve_function(resolver_stack) %}
+{% macro render_funapp(funapp) %}
+    {% with func_expr = funapp.resolve_function() %}
         {% if func_expr.fqn %}
             {{func_expr.fqn}}({% for expr in funapp.func_args %}
-                {% if loop.index0 > 0 %}, {% endif %} {{render_expr(expr, resolver_stack)}}
+                {% if loop.index0 > 0 %}, {% endif %} {{render_expr(expr)}}
             {% endfor %})
         {% else %}
             {{render_function(func_expr)}}({% for expr in funapp.func_args %}
@@ -50,9 +50,9 @@ function({% for typearg in function.fun_type.source_typeargs %}{% if loop.index0
     {% endwith %}
 {%- endmacro %}
 
-{% macro render_literal(literal, resolver_stack) %} {{literal.value}} {%- endmacro %}
+{% macro render_literal(literal) %} {{literal.value}} {%- endmacro %}
 
-{% macro render_assignment(assignment, resolver_stack) %}
+{% macro render_assignment(assignment) %}
     {% if assignment.target_variable.field_path.length == 1 %}
         {{assignment.target_variable.field_path.get(0)}} = 
     {% else %}
@@ -60,42 +60,42 @@ function({% for typearg in function.fun_type.source_typeargs %}{% if loop.index0
             ensure_field_path({{beginning.get(0)}}.__class__, "{{beginning}}").{{last}} = 
         {% endwith %}
     {% endif %}
-    {{render_expr(assignment.expr, resolver_stack)}}
+    {{render_expr(assignment.expr)}}
 {%- endmacro %}
 
-{% macro render_var(var, resolver_stack) -%}
+{% macro render_var(var) -%}
     {% with first, rest = var.field_path.pop() %}
         get_field_path({{first}}, {{first}}.__class__, "{{rest}}")
     {% endwith %}
 {%- endmacro %}
 
-{% macro render_listexpr(listexpr, resolver_stack) -%}
+{% macro render_listexpr(listexpr) -%}
     [
     {% for expr in listexpr.values %}
-        {% if loop.index0 > 0 %}, {% endif %} {{render_expr(expr, resolver_stack) }}
+        {% if loop.index0 > 0 %}, {% endif %} {{render_expr(expr) }}
     {% endfor %}
     ]
 {%- endmacro %}
 
-{% macro render_dictexpr(dictexpr, resolver_stack) -%}
+{% macro render_dictexpr(dictexpr) -%}
     {
     {% for key,value in zip(dictexpr.keys, dictexpr.values) %}
         {% if loop.index0 > 0 %}, {% endif %}
-        {{render_expr(key, resolver_stack) }}: {{render_expr(value, resolver_stack)}}
+        {{render_expr(key) }}: {{render_expr(value)}}
     {% endfor %}
     }
 {%- endmacro %}
 
-{% macro render_ifexpr(ifexpr, resolver_stack) -%}
+{% macro render_ifexpr(ifexpr) -%}
     {% for index,(cond,body) in enumerate(ifexpr.cases) %}
         {% if loop.index0 > 0 %} else {% endif %}
-        if ({{render_expr(cond, resolver_stack)}}) {
-            {{render_expr(body, resolver_stack)}}
+        if ({{render_expr(cond)}}) {
+            {{render_expr(body)}}
         }
     {% endfor %}
     {% if ifexpr.default_expr %}
         else {
-            {{render_expr(ifexpr.default_expr, resolver_stack) }}
+            {{render_expr(ifexpr.default_expr) }}
         }
     {% endif %}
 {%- endmacro %}
@@ -147,7 +147,7 @@ function({% for typearg in function.fun_type.source_typeargs %}{% if loop.index0
         static __typeinfo__ = null;
         static typeinfo() {
             if (__typeinfo__ == null) {
-                __typeinfo__ = {{render_typeinfo(record_type, record_type.default_resolver_stack)}};
+                __typeinfo__ = {{render_typeinfo(record_type)}};
             }
             return __typeinfo__;
         }
@@ -181,24 +181,24 @@ function({% for typearg in function.fun_type.source_typeargs %}{% if loop.index0
         static __typeinfo__ = null;
         static typeinfo() {
             if (__typeinfo__ == null) {
-                __typeinfo__ = {{render_typeinfo(union_type, union_type.default_resolver_stack)}};
+                __typeinfo__ = {{render_typeinfo(union_type)}};
             }
             return __typeinfo__;
         }
     }
 {%- endmacro %}
 
-{% macro render_typeinfo(thetype, resolver_stack) -%}
+{% macro render_typeinfo(thetype) -%}
 onering.core.Type({"fqn": "{{thetype.fqn}}", "clazz": "{{thetype.fqn}}", "category": "{{thetype.category}}", "args": [
     {% for arg in thetype.args %}
     {
         {% if arg.name %}'name': "{{arg.name}}",{% endif %}
         'optional': {{arg.is_optional}},
-        {% with typeval = arg.type_expr.resolve(resolver_stack) %}
+        {% with typeval = arg.type_expr.resolve() %}
         {% if typeval.fqn %}
             'type': onering.core.TypeRef("{{typeval.fqn}}"),
         {% else %}
-            'type': render_typeinfo(gonering.core.TypeRef("{{typeval.fqn}}"), resolver_stack),
+            'type': render_typeinfo(gonering.core.TypeRef("{{typeval.fqn}}")),
         {% endif %}
         {% endwith %}
     },

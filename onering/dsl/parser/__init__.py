@@ -149,7 +149,6 @@ class Parser(TokenStream):
             raise errors.SourceException(self.line, self.column, exc.message)
         except:
             raise
-        # Take care of injections!
         return self.root_module
 
     def push_module(self, fqn, annotations, docs):

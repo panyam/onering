@@ -79,9 +79,8 @@ class Generator(base.Generator):
 
     def _write_alias_to_file(self, fqn, entity, outfile):
         print "Alias FQN: ", fqn
-        resolver_stack = tlcore.ResolverStack(entity.parent, None)
         fqn = FQN(fqn, None)
-        value = entity.args[0].type_expr.resolve(resolver_stack)
+        value = entity.args[0].type_expr.resolve()
         outfile.write("exports.%s = %s;\n" % (fqn.fqn, value.fqn))
         outfile.write("%s = exports.%s;\n\n" % (fqn.fqn, fqn.fqn))
 
@@ -106,7 +105,7 @@ class Generator(base.Generator):
 
     def _write_function_to_file(self, fqn, entity, outfile):
         """ Generates all required functions. """
-        funview = FunViewModel(entity, self, entity.fun_type, entity.default_resolver_stack)
+        funview = FunViewModel(entity, self, entity.fun_type)
         outfile.write(funview.render(outfile.importer))
 
     def _write_typefun_to_file(self, fqn, entity, outfile):
@@ -114,7 +113,7 @@ class Generator(base.Generator):
         typefunview = TypeFunViewModel(entity, self)
         outfile.write(typefunview.render(outfile.importer))
 
-    def render_expr(self, expr, resolver_stack):
+    def render_expr(self, expr):
         """ Renders an expression onto the current template. """
         self.renderers = {
             tlcore.FunApp: "render_funapp",
@@ -130,11 +129,11 @@ class Generator(base.Generator):
         rend_func = self.renderers[type(expr)]
         template = """
             {%% import "es6/macros.tpl" as macros %%}
-            {{macros.%s (expr, resolver_stack)}}
+            {{macros.%s (expr)}}
         """ % rend_func
-        return self.load_template_from_string(template).render(expr = expr, resolver_stack = resolver_stack)
+        return self.load_template_from_string(template).render(expr = expr)
 
-    def render_type(self, thetype, resolver_stack):
+    def render_type(self, thetype):
         """ Renders an expression onto the current template. """
         self.renderers = {
             tlcore.Type: "render_basic_type",
@@ -147,13 +146,13 @@ class Generator(base.Generator):
         set_trace()
         return self.load_template_from_string(template).render(thetype = thetype)
 
-    def render_symtable(self, symtable, resolver_stack):
+    def render_symtable(self, symtable):
         out = ""
         if symtable.declarations:
             out = "var " + ", ".join(varname for varname,_ in symtable.declarations)
         return out
 
-    def render_typeapp(self, expr, resolver_stack):
+    def render_typeapp(self, expr):
         set_trace()
         pass
 
@@ -206,10 +205,7 @@ class TypeViewModel(object):
         return templ.render(**{self.thetype.tag: self})
 
 class TypeFunViewModel(object):
-    def __init__(self, typefun, generator, resolver_stack = None):
-        if resolver_stack == None:
-            resolver_stack = tlcore.ResolverStack(typefun.parent, None)
-        self.resolver_stack = resolver_stack.push(typefun)
+    def __init__(self, typefun, generator = None):
         self.generator = generator
         self.typefun = typefun
         if not issubclass(typefun.return_typearg.type_expr.__class__, tlcore.Type):
@@ -220,14 +216,12 @@ class TypeFunViewModel(object):
     def render(self, importer, with_variable = True):
         print "Generating Fun: %s" % self.typefun.fqn
         templ = self.generator.load_template("es6/typefun.tpl", importer = importer)
-        templ.globals["resolver_stack"] = self.resolver_stack
-        return templ.render(view = self, typefun = self.typefun, resolver_stack = self.resolver_stack, with_variable = with_variable)
+        return templ.render(view = self, typefun = self.typefun, with_variable = with_variable)
 
 
 class FunViewModel(object):
-    def __init__(self, function, generator, fun_type, resolver_stack):
+    def __init__(self, function, generator, fun_type):
         print "Fun Value: ", function
-        self.resolver_stack = resolver_stack
         self.function = function
         self.generator = generator
         self._symtable = None
@@ -240,15 +234,15 @@ class FunViewModel(object):
 
     def render(self, importer, with_variable = True):
         print "Generating Fun: %s" % self.function.fqn
-        templ = self.generator.load_template("es6/function.tpl", importer = importer, resolver_stack = self.resolver_stack)
-        return templ.render(view = self, function = self.function, resolver_stack = self.resolver_stack, with_variable = with_variable)
+        templ = self.generator.load_template("es6/function.tpl", importer = importer)
+        return templ.render(view = self, function = self.function, with_variable = with_variable)
 
 
-def make_constructor(typeexpr, resolver_stack, importer):
+def make_constructor(typeexpr, importer):
     """Generates the constructor call for a given type."""
     resolved_type = typeexpr
     while type(resolved_type) is tlcore.TypeRef:
-        resolved_type = resolved_type.resolve(resolver_stack)
+        resolved_type = resolved_type.resolve()
     assert issubclass(resolved_type.__class__, tlcore.Type)
     if resolved_type.fqn == "map":
         return "{}"
@@ -270,8 +264,8 @@ def make_constructor(typeexpr, resolver_stack, importer):
         elif resolved_type.tag == "record":
             return "new %s()" % importer.ensure(resolved_type.fqn)
     elif type(resolved_type) is tlcore.TypeApp:
-        type_fun = resolved_type.args[0].resolve(resolver_stack).type_expr
-        type_args = [arg.type_expr.resolve(resolver_stack) for arg in resolved_type.args[1:]]
+        type_fun = resolved_type.args[0].resolve().type_expr
+        type_args = [arg.type_expr.resolve() for arg in resolved_type.args[1:]]
         return "new (%s(%s))()" % (importer.ensure(type_fun.fqn), ", ".join(arg.name for arg in type_args))
     set_trace()
     assert False, "Cannot create constructor for invalid type: %s" % repr(resolved_type)

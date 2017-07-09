@@ -22,10 +22,10 @@ class Register(tlcore.Expr):
         if self.is_named:
             self._label = self.name
 
-    def _evaltype(self, resolver_stack):
+    def _evaltype(self):
         return self.type_expr
 
-    def _resolve(self, resolver_stack):
+    def _resolve(self):
         return self
 
     @property
@@ -53,10 +53,10 @@ class SymbolTable(tlcore.Expr):
         self._registers = []
         self._register_for_path = {}
 
-    def _evaltype(self, resolver_stack):
+    def _evaltype(self):
         return None
 
-    def _resolve(self, resolver_stack):
+    def _resolve(self):
         return self
 
     @property

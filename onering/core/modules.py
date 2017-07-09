@@ -5,7 +5,7 @@ from typelib import errors as tlerrors
 from typelib import core as tlcore
 from typelib.annotations import Annotatable
 
-class Module(Annotatable):
+class Module(Annotatable, tlcore.NameResolver):
     def __init__(self, name, parent = None, annotations = None, docs = ""):
         Annotatable.__init__(self, annotations, docs)
         self._name = name
@@ -40,7 +40,8 @@ class Module(Annotatable):
                 curr = curr.parent
         return out
 
-    def resolve_name(self, name):
+    def _resolve_name(self, name, condition = None):
+        # TODO - handle conditions here
         entry = self.find_fqn(name)
         while entry and type(entry) in (str, unicode):
             entry = self.find_fqn(entry)
@@ -76,6 +77,14 @@ class Module(Annotatable):
             # return self.name
             out["fqn"] = self.fqn
         return out
+
+    def ensure_parents(self):
+        for entity in self.entity_map.itervalues():
+            if type(entity) is Module:
+                entity._parent = self
+            else:
+                entity.parent = self
+            entity.ensure_parents()
 
     def debug_show(self, level = 0):
         print ("  " * (level)) + "Module:"
