@@ -67,7 +67,7 @@ class Package(object):
 
     These are only for resolution of dependencies and will not candidates for code generation.
     """
-    dependencies = []
+    dependencies = {}
 
     """ Root folder of the output.  
     
@@ -83,6 +83,10 @@ class Package(object):
             self.load_from_path(package_spec_path)
 
     def load_from_path(self, package_spec_path):
+        package_spec_path = os.path.abspath(package_spec_path)
+        if os.path.isdir(package_spec_path):
+            package_spec_path = os.path.join(package_spec_path, "package.spec")
+        assert os.path.isfile(package_spec_path)
         pkgcode = compile(open(package_spec_path).read(), package_spec_path, "exec")
         pkgdata = {}
         exec pkgcode in pkgdata
@@ -95,7 +99,7 @@ class Package(object):
         self.version = kwargs["version"]
         self.description = kwargs["description"]
         self.inputs = kwargs["inputs"]
-        self.dependencies = kwargs.get("dependencies", [])
+        self.dependencies = kwargs.get("dependencies", {})
         self.found_entities = {}
         self.platform_configs = {}
         self.current_platform = None
@@ -113,7 +117,7 @@ class Package(object):
         # pkgdata is all we need!
         context.pushdir()
 
-        context.curdir = os.path.dirname(self.package_dir)
+        context.curdir = self.package_dir
 
         # Load the necessary things common to all platforms
         # Each entry in the inputs list can be:
@@ -122,7 +126,9 @@ class Package(object):
         self.found_entities = LoaderActions(context).load_onering_paths(self.inputs)
 
         # Now load dependencies so resolutions will succeed
-        remaining_entities = LoaderActions(context).load_onering_paths(self.dependencies)
+        for dep_pkg_name,dep_pkg_path in self.dependencies.iteritems():
+            abs_dep_pkg_path = os.path.abspath(os.path.join(self.package_dir, dep_pkg_path))
+            context.ensure_package(dep_pkg_name, abs_dep_pkg_path)
 
         context.popdir()
         return self

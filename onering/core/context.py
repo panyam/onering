@@ -50,11 +50,14 @@ class OneringContext(dirutils.DirPointer):
         parser.parse()
         set_trace()
 
+    def ensure_package(self, package_name, package_spec_path = None):
+        if package_name not in self.packages:
+            return self.load_package(package_spec_path)
+        return self.packages[package_name]
+
     def load_package(self, package_spec_path):
         from onering.packaging import packages
-        package_spec_path = os.path.abspath(package_spec_path)
-        package = packages.Package()
-        package.load_from_path(package_spec_path)
+        package = packages.Package(package_spec_path)
 
         # Now check if it exists already
         if package.name not in self.packages:
