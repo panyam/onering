@@ -1,150 +1,228 @@
 
-
-import ipdb
 import os
-import sys
-import re
-
+import json
+from ipdb import set_trace
 from typelib import annotations as tlannotations
 from typelib import core as tlcore
-from typelib import records as tlrecords
-from onering import utils
-from onering.generator import models as orgenmodels
-from onering.generator.backends import common as orgencommon
+from typelib import ext as tlext
+from onering.utils.misc import FQN
+from onering.utils.dirutils import open_file_for_writing
+from onering.codegen import symtable, ir
+from onering.packaging.utils import is_type_entity, is_typefun_entity, is_fun_entity
+from onering.targets import base
+from onering.targets import common as orgencommon
+import imputils
 
-from jinja2 import nodes
-from jinja2.ext import Extension, contextfunction
+"""
+This module is responsible for all logic and handling around the generation of a 
+self contained java package from a package spec.
+"""
 
-class JavaTargetBackend(object):
-    """
-    For generating java pojos.
-    """
-    def __init__(self, onering_context, backend_annotation):
-        self.onering_context = onering_context
-        self.backend_annotation = backend_annotation 
-        self.platform_name = backend_annotation.first_value_of("platform")
-        self.current_platform = self.onering_context.get_platform(self.platform_name, register = True)
+class Generator(base.Generator):
+    def open_file(self, filename):
+        return File(self, filename)
 
-    def generate_schema(self, type_name, thetype):
-        """
-        Generates the files for a particular type.
-        """
-        context, backend_annotation = self.onering_context, self.backend_annotation
-        fqn = utils.FQN(type_name, "").fqn
-        type_registry = context.type_registry
-        record = orgenmodels.TypeViewModel(self, type_name, thetype, context, backend_annotation)
-        templ = self.load_template(backend_annotation.first_value_of("template") or "backends/java/mutable_pojo")
+    def filename_for_entity(self, fqn, entity):
+        return os.path.join(*(["src"] + fqn.split("."))) + ".java"
 
-        with self.normalized_output_stream(context.output_dir, fqn) as output:
-            print "Writing '%s'     ====>    '%s'" % (type_name, output.output_path)
-            # print templ.render(record = record, backend = self)
-            output.outstream.write(templ.render(record = record, backend = self))
+    def generate(self):
+        aliases = []
+        for fqn,entity in self.package.found_entities.iteritems():
+            # send this to a particular file based on its fqn
+            filename = self.filename_for_entity(fqn, entity)
+            outfile, just_opened = self.ensure_file(filename)
 
-    def generate_transformer_group(self, tgroup):
-        """
-        Generates the files for a particular transformer utility class.
-        """
-        context, backend_annotation = self.onering_context, self.backend_annotation
-        type_registry = context.type_registry
-        normalized_tgroup = orgenmodels.TransformerGroupViewModel(self, tgroup, context, backend_annotation)
+            if is_type_entity(entity) and entity.is_alias_type:
+                # Comeback to aliases at the end
+                aliases.append((fqn,entity))
+            else:
+                self.write_entity(fqn, entity, outfile)
+                outfile.write("\n")
 
-        templ = self.load_template(backend_annotation.first_value_of("template") or "transformers/java/default_transformer_group")
-        with self.normalized_output_stream(context.output_dir, tgroup.fqn) as output:
-            print "Writing '%s'     ====>    '%s'" % (tgroup.fqn, output.output_path)
-            # print templ.render(tgroup = normalized_tgroup, backend = self)
-            output.outstream.write(templ.render(tgroup = normalized_tgroup, backend = self))
+        for fqn,alias in aliases:
+            set_trace()
+            # Now write out aliases in which ever file they were found
+            filename = imputils.base_filename_for_fqn(self.package, fqn)
+            filename = "lib/" + filename;
+            outfile, just_opened = self.ensure_file(filename)
+            # TODO: figure out how to write out to aliases and see if they are supported
+            # self._write_alias_to_file(fqn, alias, outfile)
 
-    def normalized_output_stream(self, output_dir, fqn):
-        class JavaPathStream(object):
-            def __init__(self, output_dir, fqn):
-                self.output_dir = output_dir
-                self.fqn = fqn
-                self.output_path = None
-                self.outstream = sys.stdout
-                if self.output_dir:
-                    self.output_path = os.path.join(output_dir, *fqn.split("."))
-                    if not os.path.isdir(os.path.dirname(self.output_path)):
-                        os.makedirs(os.path.dirname(self.output_path))
-                    self.outstream = open(self.output_path + ".java", "w")
-
-            def __enter__(self):
-                return self
-
-            def __exit__(self, type, value, traceback):
-                if self.output_path:
-                    self.outstream.close()
-        return JavaPathStream(output_dir, fqn)
+        # Close all the files we have open
+        self.close_files()
 
 
-    def load_template(self, template_name):
-        templ = self.onering_context.template_loader.load_template(template_name)
-        templ.globals["camel_case"] = orgencommon.camel_case
-        templ.globals["debug"] = orgencommon.debug_print
-        templ.globals["map"] = map
-        templ.globals["str"] = str
-        templ.globals["type"] = type
-        templ.globals["filter"] = filter
-        templ.globals["signature"] = self.get_type_signature
+    def file_opened(self, filename, file):
+        """ Called when a file has just been opened for writing. This can be used to 
+        write any preambles required onto the file."""
+        if not filename.endswith(".java"): return
+
+        filename = filename[:-len(".java")]
+        filename = filename[len("src/"):]
+        namespace = ".".join(filename.split(os.path.sep))
+        file.write("package %s;\n" % namespace)
+        file.write("\n")
+        file.write("#INSERT_IMPORTS\n")
+        file.write("\n")
+
+    def _write_alias_to_file(self, fqn, entity, outfile):
+        print "Alias FQN: ", fqn
+        fqn = FQN(fqn, None)
+        value = entity.args[0].type_expr.resolve()
+        outfile.write("exports.%s = %s;\n" % (fqn.fqn, value.fqn))
+        outfile.write("%s = exports.%s;\n\n" % (fqn.fqn, fqn.fqn))
+
+    def write_entity(self, fqn, entity, outfile):
+        if is_type_entity(entity):
+            self._write_model_to_file(fqn, entity, outfile)
+        elif is_fun_entity(entity):
+            self._write_function_to_file(fqn, entity, outfile)
+        elif is_typefun_entity(entity):
+            self._write_typefun_to_file(fqn, entity, outfile)
+        else:
+            print "No writer found for entity: ", fqn, entity
+
+    def _write_model_to_file(self, fqn, entity, outfile):
+        """ Generates the POJO corresponding to the particular module/type entity. """
+        assert not entity.is_alias_type
+        outfile.write(TypeViewModel(fqn, entity, outfile).render())
+
+    def _write_function_to_file(self, fqn, entity, outfile):
+        """ Generates all required functions. """
+        outfile.write(FunViewModel(entity, entity.fun_type, outfile).render())
+
+    def _write_typefun_to_file(self, fqn, entity, outfile):
+        """ Generates a type function. """
+        outfile.write(TypeFunViewModel(entity, outfile).render())
+
+class File(base.File):
+    """ A file to which a collection of entries are written to. """
+    def __init__(self, generator, fname):
+        base.File.__init__(self, generator, fname)
+        self.importer = imputils.Importer(generator.package.current_platform)
+
+    def template_loaded(self, templ):
+        """ Called after a template has been loaded. """
+        base.File.template_loaded(self, templ)
+        templ.globals["make_constructor"] = make_constructor
+        templ.globals["render_expr"] = self.render_expr
+        templ.globals["render_type"] = self.render_type
         return templ
 
+    def close(self):
+        """ Close the output file. """
+        self.write(self.importer.render_imports())
+        base.File.close(self)
 
-    def get_type_signature(self, target):
-        """
-        Given a target object returns a type signature that can be used for this object.  The target
-        object itself can be a typeref or a field or something else that is platform specific.
+    def render_expr(self, expr):
+        """ Renders an expression onto the current template. """
+        self.renderers = {
+            tlcore.FunApp: "render_funapp",
+            tlcore.Var: "render_var",
 
-        Typically the template will call this method when it needs to render the type signature of 
-        a type reference at a given instance (eg field declaration, variable declaration etc).
+            tlext.ExprList: "render_exprlist",
+            tlext.Literal: "render_literal",
+            tlext.Assignment: "render_assignment",
+            tlext.ListExpr: "render_listexpr",
+            tlext.DictExpr: "render_dictexpr",
+            tlext.TupleExpr: "render_listexpr",
+        }
+        rend_func = self.renderers[type(expr)]
+        template = """
+            {%% import "java/macros.tpl" as macros %%}
+            {{macros.%s (expr)}}
+        """ % rend_func
+        return self.load_template_from_string(template).render(expr = expr)
 
-        This method should return a String that indicates the signature of the type in the particular platform.
-        """
-        if isinstance(target, tlcore.TypeRef):
-            thetyperef = target
-        elif isinstance(target, orgenmodels.TypeArgViewModel):
-            # Inspect the annotation that coerces a "raw" type string
-            rawtype_annotation = target.annotations.get_first("onering.rawtype")
-            if rawtype_annotation and \
-                    self.current_platform.name == rawtype_annotation.first_value_of("platform"):
-                if rawtype_annotation.first_value_of("type"):
-                    return rawtype_annotation.first_value_of("type")
+    def render_type(self, thetype, importer):
+        """ Renders an expression onto the current template. """
+        self.renderers = {
+            tlcore.Type: "render_basic_type",
+            tlcore.ProductType: "render_record",
+            tlcore.SumType: "render_union",
+        }
+        rend_func = self.renderers[type(thetype)]
+        template = """
+            {%%- import "java/macros.tpl" as macros -%%} {{macros.%s (thetype)}}
+        """ % rend_func
+        templ = self.load_template_from_string(template)
+        templ.globals["importer"] = importer
+        return templ.render(thetype = thetype)
 
-            # Otherwise infer field type normally
-            thetyperef = target.field_type
-        else:
-            assert False, "Unknown target type requiring signature."
-
-        type_binding, template_string, bound_params = self.current_platform.match_typeref_binding(thetyperef)
-        if template_string:
-            return self.render_binding_template(type_binding, template_string, bound_params)
-
-        if thetyperef.fqn:
-            return thetyperef.fqn
-
-        thetype = thetyperef.final_type
-        if thetype.category in ("record", "union"):
-            ipdb.set_trace()
-            return thetype.fqn
-
-        ipdb.set_trace()
-        assert False
-
-    def render_binding_template(self, type_binding, template_string, bound_params):
+    def render_symtable(self, symtable):
         out = ""
-        while template_string:
-            match = re.search("\$[\w\d]+", template_string)
-            if not match:
-                out += template_string
-                template_string = None
-            else:
-                argname = match.group()[1:]
-                out += template_string[:match.start()]
-                # now render the arg too
-                if argname not in bound_params:
-                    raise errors.OneringException("Binding for param '%s' not found" % match.group())
-                child_sig = self.get_type_signature(bound_params[argname])
-                if not child_sig:
-                    ipdb.set_trace()
-                out += child_sig
-                template_string = template_string[match.end():]
-
+        if symtable.declarations:
+            out = "var " + ", ".join(varname for varname,_ in symtable.declarations)
         return out
+
+class TypeViewModel(object):
+    def __init__(self, fqn, thetype, outfile):
+        self.outfile = outfile
+        self.thetype = thetype
+        self.fqn = fqn = FQN(fqn, None)
+
+    def render(self):
+        print "Generating %s model" % self.fqn.fqn
+        templ = self.outfile.load_template("java/%s.tpl" % self.thetype.tag)
+        return templ.render(**{self.thetype.tag: self})
+
+class TypeFunViewModel(object):
+    def __init__(self, typefun, outfile):
+        self.typefun = typefun
+        self.outfile = outfile
+        self.child_view = TypeViewModel("", self.typefun.type_expr, outfile)
+
+    def render(self):
+        print "Generating Fun: %s" % self.typefun.fqn
+        templ = self.outfile.load_template("java/typefun.tpl")
+        return templ.render(view = self, typefun = self.typefun)
+
+
+class FunViewModel(object):
+    def __init__(self, function, fun_type, outfile):
+        print "Fun Value: ", function
+        self.function = function
+        self.outfile = outfile
+        self._symtable = None
+        self.real_fun_type = self.function.fun_type
+        if self.function.fun_type.is_type_fun:
+            self.real_fun_type = self.real_fun_type.type_expr
+        self.return_typearg = self.real_fun_type.return_typearg
+        if self.return_typearg and self.return_typearg.type_expr == tlcore.VoidType:
+            self.return_typearg = None
+
+    def render(self):
+        print "Generating Fun: %s" % self.function.fqn
+        templ = self.outfile.load_template("java/function.tpl")
+        return templ.render(view = self, function = self.function)
+
+
+def make_constructor(typeexpr, importer):
+    """Generates the constructor call for a given type."""
+    resolved_type = typeexpr
+    while type(resolved_type) is tlcore.TypeRef:
+        resolved_type = resolved_type.resolve()
+    assert issubclass(resolved_type.__class__, tlcore.Type)
+    if resolved_type.fqn == "map":
+        return "{}"
+    elif resolved_type.fqn == "list":
+        return "[]"
+    elif resolved_type.is_literal_type:
+        if resolved_type.fqn == "any":
+            return "null"
+        elif resolved_type.fqn == "boolean":
+            return "false"
+        elif resolved_type.fqn in ("int", "long"):
+            return "0"
+        elif resolved_type.fqn in ("float", "double"):
+            return "0.0"
+        elif resolved_type.fqn == "string":
+            return '""'
+    elif issubclass(resolved_type.__class__, tlcore.ContainerType) and resolved_type.tag == "record":
+        return "new %s()" % importer.ensure(resolved_type.fqn)
+    elif type(resolved_type) is tlcore.TypeApp:
+        typefun = resolved_type.typefun_expr.resolve()
+        typeargs = [arg.resolve() for arg in resolved_type.typeapp_args]
+        return "new (%s(%s))()" % (importer.ensure(typefun.fqn), ", ".join(arg.name for arg in typeargs))
+    set_trace()
+    assert False, "Cannot create constructor for invalid type: %s" % repr(resolved_type)

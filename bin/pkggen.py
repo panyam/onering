@@ -42,10 +42,11 @@ else:
 
 context = orcontext.OneringContext()
 package = context.load_package(options.package_path)
+# package.select_platform(options.target_platform)
+package.select_platform("java")
 
 pkgdir = os.path.abspath(os.path.join(options.output_dir, package.name))
-dirutils.ensure_dir(pkgdir)
-package.copy_resources(context, options.target_platform, pkgdir)
+package.copy_resources(context, pkgdir)
 
 generator = package.get_generator(context, pkgdir)
 generator.generate()

@@ -20,11 +20,13 @@ self contained nodejs package from a package spec.
 """
 
 class Generator(base.Generator):
-    def __init__(self, context, package, output_dir):
-        base.Generator.__init__(self, context, package, output_dir)
-
     def open_file(self, filename):
         return File(self, filename)
+
+    def filename_for_entity(self, fqn, entity):
+        filename = imputils.base_filename_for_fqn(self.package, fqn)
+        filename = "lib/" + filename;
+        return filename
 
     def generate(self):
         self._generate_preamble()
@@ -32,9 +34,8 @@ class Generator(base.Generator):
         aliases = []
         for fqn,entity in self.package.found_entities.iteritems():
             # send this to a particular file based on its fqn
-            filename = imputils.base_filename_for_fqn(self.package, fqn)
-            filename = "lib/" + filename;
-            outfile = self.ensure_file(filename)
+            filename = self.filename_for_entity(fqn, entity)
+            outfile, just_opened = self.ensure_file(filename)
 
             # Ensure that particular module is declared for use in this file
             outfile.ensure_module(fqn)
@@ -50,7 +51,7 @@ class Generator(base.Generator):
             # Now write out aliases in which ever file they were found
             filename = imputils.base_filename_for_fqn(self.package, fqn)
             filename = "lib/" + filename;
-            outfile = self.ensure_file(filename)
+            outfile, just_opened = self.ensure_file(filename)
             # TODO: figure out how to write out to aliases and see if they are supported
             # self._write_alias_to_file(fqn, alias, outfile)
 
@@ -59,13 +60,13 @@ class Generator(base.Generator):
 
     def _generate_preamble(self):
         """ Generates the package.json for a given package in the output dir."""
-        mainfile = self.ensure_file("lib/main.js")
+        mainfile, just_opened = self.ensure_file("lib/main.js")
         mainfile.write(mainfile.load_template("es6/main.js.tpl").render()).close()
 
-        indexfile = self.ensure_file("index.js")
+        indexfile, just_opened = self.ensure_file("index.js")
         indexfile.write(indexfile.load_template("es6/index.js.tpl").render()).close()
 
-        pkgfile = self.ensure_file("package.json")
+        pkgfile, just_opened = self.ensure_file("package.json")
         pkgfile.write(pkgfile.load_template("es6/package.json.tpl").render()).close()
 
 
@@ -88,19 +89,16 @@ class Generator(base.Generator):
 
     def _write_model_to_file(self, fqn, entity, outfile):
         """ Generates the POJO corresponding to the particular module/type entity. """
-
-        # For each record, enum and union that is in the context, generate the ES6 file for it.
-        # All type refs that can only be generate at the end
         assert not entity.is_alias_type
-        TypeViewModel(fqn, entity, outfile).render()
+        outfile.write(TypeViewModel(fqn, entity, outfile).render())
 
     def _write_function_to_file(self, fqn, entity, outfile):
         """ Generates all required functions. """
-        FunViewModel(entity, entity.fun_type, outfile).render()
+        outfile.write(FunViewModel(entity, entity.fun_type, outfile).render())
 
     def _write_typefun_to_file(self, fqn, entity, outfile):
         """ Generates a type function. """
-        TypeFunViewModel(entity, outfile).render()
+        outfile.write(TypeFunViewModel(entity, outfile).render())
 
 class File(base.File):
     """ A file to which a collection of entries are written to. """

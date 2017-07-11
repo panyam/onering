@@ -12,7 +12,7 @@ inputs = [ "./*.schema" ]
 
 # This could technically go into a platform specific file but put it here for now"
 platform_es6 = {
-    # Specifies an alternative generator class to use.  Defaults to "onering.generators.<platform>.Generator"
+    # Specifies an alternative generator class to use.  Defaults to "onering.targets.<platform>.Generator"
     # "generator": { "class": "apigen.generators.es6.Generator", },
 
     "dependencies": [
@@ -30,6 +30,20 @@ platform_es6 = {
     # A list of resources to be copied to output folder
     "resources": [
         ( "resources/lib/*.js", "lib/" )
+    ]
+}
+
+platform_java = {
+    # Specifies an alternative generator class to use.  Defaults to "onering.targets.<platform>.Generator"
+    # "generator": { "class": "apigen.generators.es6.Generator", },
+
+    "dependencies": [
+    ],
+
+    "imports": [ ],
+
+    # A list of resources to be copied to output folder
+    "resources": [
     ]
 }
 

@@ -133,11 +133,15 @@ class Package(object):
         context.popdir()
         return self
 
-    def copy_resources(self, context, target_platform, output_root):
+    def select_platform(self, platname):
+        self.current_platform = self.platform_configs[platname]
+
+    def copy_resources(self, context, output_root):
         """Copy resources for a given platform to the output folder for thoe resources."""
         import shutil
+        dirutils.ensure_dir(output_root)
         output_root = context.abspath(output_root)
-        for source,dest_dir in self.platform_configs[target_platform].resources:
+        for source,dest_dir in self.current_platform.resources:
             source = os.path.join(self.package_dir, source)
             dest_dir = os.path.join(output_root, dest_dir)
             dirutils.ensure_dir(dest_dir)
@@ -145,6 +149,7 @@ class Package(object):
                 shutil.copy(f, dest_dir)
 
     def get_generator(self, context, output_dir, platform_name = None):
+        dirutils.ensure_dir(output_dir)
         self.template_loader = tplloader.TemplateLoader(self.template_dirs, parent_loader = context.template_loader)
         if platform_name is None:
             platform_name = self.current_platform.name

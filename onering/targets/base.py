@@ -23,9 +23,20 @@ class Generator(object):
         pass
 
     def ensure_file(self, filename):
+        if type(filename) not in (str, unicode):
+            set_trace()
+            assert False
+        just_opened = False
         if filename not in self._allfiles or self._allfiles[filename].closed:
+            just_opened = True
             self._allfiles[filename] = self.open_file(filename)
-        return self._allfiles[filename]
+            self.file_opened(filename, self._allfiles[filename])
+        return self._allfiles[filename], just_opened
+
+    def file_opened(self, filename, file):
+        """ Called when a file has just been opened for writing. This can be used to 
+        write any preambles required onto the file."""
+        pass
 
     def open_file(self, filename):
         """ Open and return a File object with the given filename relative to the output_dir of the target. """
