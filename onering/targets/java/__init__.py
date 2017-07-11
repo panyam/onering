@@ -104,7 +104,7 @@ class File(base.File):
     def template_loaded(self, templ):
         """ Called after a template has been loaded. """
         base.File.template_loaded(self, templ)
-        templ.globals["make_constructor"] = make_constructor
+        templ.globals["signature"] = signature
         templ.globals["render_expr"] = self.render_expr
         templ.globals["render_type"] = self.render_type
         return templ
@@ -197,32 +197,26 @@ class FunViewModel(object):
         return templ.render(view = self, function = self.function)
 
 
-def make_constructor(typeexpr, importer):
+def signature(typeexpr, importer):
     """Generates the constructor call for a given type."""
     resolved_type = typeexpr
     while type(resolved_type) is tlcore.TypeRef:
         resolved_type = resolved_type.resolve()
     assert issubclass(resolved_type.__class__, tlcore.Type)
     if resolved_type.fqn == "map":
-        return "{}"
+        return importer.ensure("java.awt.Map")
     elif resolved_type.fqn == "list":
-        return "[]"
+        return importer.ensure("java.awt.List")
     elif resolved_type.is_literal_type:
         if resolved_type.fqn == "any":
-            return "null"
-        elif resolved_type.fqn == "boolean":
-            return "false"
-        elif resolved_type.fqn in ("int", "long"):
-            return "0"
-        elif resolved_type.fqn in ("float", "double"):
-            return "0.0"
-        elif resolved_type.fqn == "string":
-            return '""'
-    elif issubclass(resolved_type.__class__, tlcore.ContainerType) and resolved_type.tag == "record":
-        return "new %s()" % importer.ensure(resolved_type.fqn)
+            return "Object"
+        elif resolved_type.fqn in ("boolean", "int", "long", "float", "double", "string"):
+            return resolved_type.fqn
+    elif issubclass(resolved_type.__class__, tlcore.ContainerType):
+        return importer.ensure(resolved_type.fqn)
     elif type(resolved_type) is tlcore.TypeApp:
         typefun = resolved_type.typefun_expr.resolve()
         typeargs = [arg.resolve() for arg in resolved_type.typeapp_args]
-        return "new (%s(%s))()" % (importer.ensure(typefun.fqn), ", ".join(arg.name for arg in typeargs))
+        return "%s<%s>" % (signature(typefun, importer), ", ".join(arg.name for arg in typeargs))
     set_trace()
     assert False, "Cannot create constructor for invalid type: %s" % repr(resolved_type)

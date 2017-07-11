@@ -1,8 +1,3 @@
-package {{record.fqn.namespace}};
-
-#INSERT_IMPORTS
-
-
 
 {################################################################################################
  #
@@ -125,27 +120,19 @@ package {{record.fqn.namespace}};
 {%- endmacro %}
 
 {% macro render_record(record_type) -%}
-    class {
-        constructor(argmap) {
-            argmap = argmap || {};
-            {% for arg in record_type.args %}
-            this.{{arg.name}} = argmap.{{arg.name}} || null;
-            {% endfor %}
+    public class {{record_type.name}} {
+        public {{record_type.name}}() {
         }
+
         {% for arg in record_type.args %}
+        private {{signature(arg.type_expr, importer)}} _{{arg.name}};
 
-        get {{arg.name}}() {
-            return this._{{arg.name}};
+        public {{signature(arg.type_expr, importer)}} get{{camel_case(arg.name)}}() {
+          return _{{arg.name}};
         }
 
-        set {{arg.name}}(value) {
-            // TODO: Apply validators
-            this._{{arg.name}} = value;
-            return this;
-        }
-
-        get has{{camel_case(arg.name)}}() {
-            return typeof(this._{{arg.name}}) !== "undefined";
+        public void set{{camel_case(arg.name)}}({{signature(arg.type_expr, importer)}} {{arg.name}}) {
+          _{{arg.name}} = {{arg.name}};
         }
         {% endfor %}
 
@@ -155,25 +142,6 @@ package {{record.fqn.namespace}};
             }
             return this.__proto__.__typeinfo__;
         }
-    }
-
-    public class {{record.name}} {
-        public {{record.name}}() {
-        }
-
-        {% for field in record.fields %}
-        private {{signature(field)}} _{{field.field_name}};
-        {% endfor %}
-
-        {% for field in record.fields %}
-        public {{signature(field)}} get{{camel_case(field.field_name)}}() {
-          return _{{field.field_name}};
-        }
-
-        public void set{{camel_case(field.field_name)}}({{signature(field)}} {{field.field_name}}) {
-          _{{field.field_name}} = {{field.field_name}};
-        }
-        {% endfor %}
     }
 
 {%- endmacro %}
