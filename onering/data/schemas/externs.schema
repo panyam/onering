@@ -14,6 +14,19 @@ module onering.core.externs {
 
     @map("concat")
     extern fun concat(items : list<any>) -> string
+
+    /**
+     * Given a starting variable of type T and a field path a/b/c/d, ensures that the values of starting_var.a,
+     * starting_var.a.b, starting_var.a.b.c, and starting_var.a.b.c.d all exist by creating default instances
+     * for them if necessary and finally returns a valid value for starting_var.a.b.c.d
+     *
+     * How can we do this in a way that does not require dependant types?   For instance, 
+     * the best we can do here is make these all untyped and just hope dynamic typing kicks in.   The other
+     * way we can do this, is make this function parametrized on the return types of the ".d" in the field
+     * path.  But since this is an extern function, we would have to do this type check at run time too.
+     */
+    @map("ensure_field_path")
+    extern fun ensure_field_path(starting_var : any, typeinfo : onering.core.Type, field_path : list<string>) -> any
 }
 
 

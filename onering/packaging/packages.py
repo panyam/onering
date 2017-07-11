@@ -77,6 +77,19 @@ class Package(object):
     """
     output_root = None
 
+    def __init__(self, package_spec_path = None):
+        self.package_dir = None
+        if package_spec_path:
+            self.load_from_path(package_spec_path)
+
+    def load_from_path(self, package_spec_path):
+        pkgcode = compile(open(package_spec_path).read(), package_spec_path, "exec")
+        pkgdata = {}
+        exec pkgcode in pkgdata
+
+        self.package_dir = os.path.abspath(os.path.dirname(package_spec_path))
+        self.load(**pkgdata)
+
     def load(self, **kwargs):
         self.name = kwargs["name"]
         self.version = kwargs["version"]
@@ -95,39 +108,24 @@ class Package(object):
             if not self.current_platform:
                 self.current_platform = self.platform_configs[platform]
 
-    def load_from_path(self, package_spec_path, context):
-        pkgcode = compile(open(package_spec_path).read(), package_spec_path, "exec")
-        pkgdata = {}
-        exec pkgcode in pkgdata
-
-        self.package_dir = os.path.abspath(os.path.dirname(package_spec_path))
-        self.load(**pkgdata)
-        self.template_loader = tplloader.TemplateLoader(self.template_dirs, parent_loader = context.template_loader)
-
-    @classmethod
-    def load_spec(cls, package_spec_path, context):
+    def load_entities(self, context):
         """ Loads the package spec from a package.spec file. """
-
         # pkgdata is all we need!
-        package = Package()
-        package.load_from_path(package_spec_path, context)
-
         context.pushdir()
 
-        context.curdir = os.path.dirname(os.path.abspath(package_spec_path))
+        context.curdir = os.path.dirname(self.package_dir)
 
         # Load the necessary things common to all platforms
         # Each entry in the inputs list can be:
         # A file or a wildcard that is either an absolute path or
         # a path relative to the folder where the package_spec exists
-        package.found_entities = LoaderActions(context).load_onering_paths(package.inputs)
+        self.found_entities = LoaderActions(context).load_onering_paths(self.inputs)
 
         # Now load dependencies so resolutions will succeed
-        remaining_entities = LoaderActions(context).load_onering_paths(package.dependencies)
+        remaining_entities = LoaderActions(context).load_onering_paths(self.dependencies)
 
         context.popdir()
-
-        return package
+        return self
 
     def copy_resources(self, context, target_platform, output_root):
         """Copy resources for a given platform to the output folder for thoe resources."""
@@ -141,6 +139,7 @@ class Package(object):
                 shutil.copy(f, dest_dir)
 
     def get_generator(self, context, output_dir, platform_name = None):
+        self.template_loader = tplloader.TemplateLoader(self.template_dirs, parent_loader = context.template_loader)
         if platform_name is None:
             platform_name = self.current_platform.name
         platform = self.platform_configs[platform_name]

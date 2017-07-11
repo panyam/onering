@@ -1,7 +1,8 @@
 
 from __future__ import absolute_import
-import ipdb
+from ipdb import set_trace
 import pkgutil
+import os
 from typelib import core as tlcore
 from typelib import ext as tlext
 from onering.utils import dirutils
@@ -16,6 +17,7 @@ class OneringContext(dirutils.DirPointer):
         self.fgraph = fgraph.FunGraph()
         self.register_default_types()
         self.template_dirs = []
+        self.packages = {}
 
         from onering.core import templates as tplloader
         self.template_loader = tplloader.TemplateLoader(self.template_dirs)
@@ -46,4 +48,16 @@ class OneringContext(dirutils.DirPointer):
         source = pkgutil.get_data("onering", "data/schemas/core.schema").decode('utf-8')
         parser = dsl.parser.Parser(source, self)
         parser.parse()
-        ipdb.set_trace()
+        set_trace()
+
+    def load_package(self, package_spec_path):
+        from onering.packaging import packages
+        package_spec_path = os.path.abspath(package_spec_path)
+        package = packages.Package()
+        package.load_from_path(package_spec_path)
+
+        # Now check if it exists already
+        if package.name not in self.packages:
+            package.load_entities(self)
+            self.packages[package.name] = package
+        return self.packages[package.name]

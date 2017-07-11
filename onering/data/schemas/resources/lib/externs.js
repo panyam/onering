@@ -24,3 +24,6 @@ onering.core.externs.decode_json = function(buffer) {
 onering.core.externs.concat = function(items) {
     return items.join("");
 };
+
+onering.core.externs.ensure_field_path = function (starting_var, typeinfo, field_path) {
+};

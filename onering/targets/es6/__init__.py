@@ -26,14 +26,6 @@ class Generator(base.Generator):
     def open_file(self, filename):
         return File(self, filename)
 
-    def template_loaded(self, templ):
-        """ Called after a template has been loaded. """
-        base.Generator.template_loaded(self, templ)
-        templ.globals["make_constructor"] = make_constructor
-        templ.globals["render_expr"] = self.render_expr
-        templ.globals["render_type"] = self.render_type
-        return templ
-
     def generate(self):
         self._generate_preamble()
 
@@ -68,13 +60,13 @@ class Generator(base.Generator):
     def _generate_preamble(self):
         """ Generates the package.json for a given package in the output dir."""
         mainfile = self.ensure_file("lib/main.js")
-        mainfile.write(self.load_template("es6/main.js.tpl").render()).close()
+        mainfile.write(mainfile.load_template("es6/main.js.tpl").render()).close()
 
         indexfile = self.ensure_file("index.js")
-        indexfile.write(self.load_template("es6/index.js.tpl").render()).close()
+        indexfile.write(indexfile.load_template("es6/index.js.tpl").render()).close()
 
         pkgfile = self.ensure_file("package.json")
-        pkgfile.write(self.load_template("es6/package.json.tpl").render()).close()
+        pkgfile.write(pkgfile.load_template("es6/package.json.tpl").render()).close()
 
 
     def _write_alias_to_file(self, fqn, entity, outfile):
@@ -100,61 +92,15 @@ class Generator(base.Generator):
         # For each record, enum and union that is in the context, generate the ES6 file for it.
         # All type refs that can only be generate at the end
         assert not entity.is_alias_type
-        typeview = TypeViewModel(fqn, entity, self)
-        outfile.write(typeview.render(outfile.importer))
+        TypeViewModel(fqn, entity, outfile).render()
 
     def _write_function_to_file(self, fqn, entity, outfile):
         """ Generates all required functions. """
-        funview = FunViewModel(entity, self, entity.fun_type)
-        outfile.write(funview.render(outfile.importer))
+        FunViewModel(entity, entity.fun_type, outfile).render()
 
     def _write_typefun_to_file(self, fqn, entity, outfile):
         """ Generates a type function. """
-        typefunview = TypeFunViewModel(entity, self)
-        outfile.write(typefunview.render(outfile.importer))
-
-    def render_expr(self, expr):
-        """ Renders an expression onto the current template. """
-        self.renderers = {
-            tlcore.FunApp: "render_funapp",
-            tlcore.Var: "render_var",
-
-            tlext.ExprList: "render_exprlist",
-            tlext.Literal: "render_literal",
-            tlext.Assignment: "render_assignment",
-            tlext.ListExpr: "render_listexpr",
-            tlext.DictExpr: "render_dictexpr",
-            tlext.TupleExpr: "render_listexpr",
-        }
-        rend_func = self.renderers[type(expr)]
-        template = """
-            {%% import "es6/macros.tpl" as macros %%}
-            {{macros.%s (expr)}}
-        """ % rend_func
-        return self.load_template_from_string(template).render(expr = expr)
-
-    def render_type(self, thetype):
-        """ Renders an expression onto the current template. """
-        self.renderers = {
-            tlcore.Type: "render_basic_type",
-            tlcore.ProductType: "render_record",
-            tlcore.SumType: "render_union",
-        }
-        rend_func = self.renderers[type(thetype)]
-        template = """
-            {%%- import "es6/macros.tpl" as macros -%%} {{macros.%s (thetype)}}
-        """ % rend_func
-        return self.load_template_from_string(template).render(thetype = thetype)
-
-    def render_symtable(self, symtable):
-        out = ""
-        if symtable.declarations:
-            out = "var " + ", ".join(varname for varname,_ in symtable.declarations)
-        return out
-
-    def render_typeapp(self, expr):
-        set_trace()
-        pass
+        TypeFunViewModel(entity, outfile).render()
 
 class File(base.File):
     """ A file to which a collection of entries are written to. """
@@ -163,6 +109,14 @@ class File(base.File):
         self.ensured_modules = set()
         self.ensured_imports = set()
         self.importer = imputils.Importer(generator.package.current_platform)
+
+    def template_loaded(self, templ):
+        """ Called after a template has been loaded. """
+        base.File.template_loaded(self, templ)
+        templ.globals["make_constructor"] = make_constructor
+        templ.globals["render_expr"] = self.render_expr
+        templ.globals["render_type"] = self.render_type
+        return templ
 
     def ensure_import(self, alias, path, submodule = None):
         key = alias + ":" + path + ":" + str(submodule)
@@ -192,47 +146,87 @@ class File(base.File):
         self.write(self.importer.render_imports())
         base.File.close(self)
 
+    def render_expr(self, expr):
+        """ Renders an expression onto the current template. """
+        self.renderers = {
+            tlcore.FunApp: "render_funapp",
+            tlcore.Var: "render_var",
+
+            tlext.ExprList: "render_exprlist",
+            tlext.Literal: "render_literal",
+            tlext.Assignment: "render_assignment",
+            tlext.ListExpr: "render_listexpr",
+            tlext.DictExpr: "render_dictexpr",
+            tlext.TupleExpr: "render_listexpr",
+        }
+        rend_func = self.renderers[type(expr)]
+        template = """
+            {%% import "es6/macros.tpl" as macros %%}
+            {{macros.%s (expr)}}
+        """ % rend_func
+        return self.load_template_from_string(template).render(expr = expr)
+
+    def render_type(self, thetype, importer):
+        """ Renders an expression onto the current template. """
+        self.renderers = {
+            tlcore.Type: "render_basic_type",
+            tlcore.ProductType: "render_record",
+            tlcore.SumType: "render_union",
+        }
+        rend_func = self.renderers[type(thetype)]
+        template = """
+            {%%- import "es6/macros.tpl" as macros -%%} {{macros.%s (thetype)}}
+        """ % rend_func
+        templ = self.load_template_from_string(template)
+        templ.globals["importer"] = importer
+        return templ.render(thetype = thetype)
+
+    def render_symtable(self, symtable):
+        out = ""
+        if symtable.declarations:
+            out = "var " + ", ".join(varname for varname,_ in symtable.declarations)
+        return out
+
 class TypeViewModel(object):
-    def __init__(self, fqn, thetype, generator):
-        self.generator = generator
+    def __init__(self, fqn, thetype, outfile):
+        self.outfile = outfile
         self.thetype = thetype
         self.fqn = fqn = FQN(fqn, None)
 
-    def render(self, importer):
+    def render(self):
         print "Generating %s model" % self.fqn.fqn
-        templ = self.generator.load_template("es6/%s.tpl" % self.thetype.tag)
-        templ.globals["importer"] = importer
+        templ = self.outfile.load_template("es6/%s.tpl" % self.thetype.tag)
         return templ.render(**{self.thetype.tag: self})
 
 class TypeFunViewModel(object):
-    def __init__(self, typefun, generator = None):
-        self.generator = generator
+    def __init__(self, typefun, outfile):
         self.typefun = typefun
-        self.child_view = TypeViewModel("", self.typefun.type_expr, generator)
+        self.outfile = outfile
+        self.child_view = TypeViewModel("", self.typefun.type_expr, outfile)
 
-    def render(self, importer, with_variable = True):
+    def render(self):
         print "Generating Fun: %s" % self.typefun.fqn
-        templ = self.generator.load_template("es6/typefun.tpl", importer = importer)
-        return templ.render(view = self, typefun = self.typefun, with_variable = with_variable)
+        templ = self.outfile.load_template("es6/typefun.tpl")
+        return templ.render(view = self, typefun = self.typefun)
 
 
 class FunViewModel(object):
-    def __init__(self, function, generator, fun_type):
+    def __init__(self, function, fun_type, outfile):
         print "Fun Value: ", function
         self.function = function
-        self.generator = generator
+        self.outfile = outfile
         self._symtable = None
         self.real_fun_type = self.function.fun_type
-        if self.function.fun_type.is_type_function:
+        if self.function.fun_type.is_type_fun:
             self.real_fun_type = self.real_fun_type.type_expr
         self.return_typearg = self.real_fun_type.return_typearg
         if self.return_typearg and self.return_typearg.type_expr == tlcore.VoidType:
             self.return_typearg = None
 
-    def render(self, importer, with_variable = True):
+    def render(self):
         print "Generating Fun: %s" % self.function.fqn
-        templ = self.generator.load_template("es6/function.tpl", importer = importer)
-        return templ.render(view = self, function = self.function, with_variable = with_variable)
+        templ = self.outfile.load_template("es6/function.tpl")
+        return templ.render(view = self, function = self.function)
 
 
 def make_constructor(typeexpr, importer):

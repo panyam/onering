@@ -41,9 +41,11 @@ else:
         exit_with_error(parser, "Invalid package spec path: %d" % options.package_spec)
 
 context = orcontext.OneringContext()
-package = packages.Package.load_spec(options.package_path, context)
+package = context.load_package(options.package_path)
+
 pkgdir = os.path.abspath(os.path.join(options.output_dir, package.name))
-generator = package.get_generator(context, pkgdir)
 dirutils.ensure_dir(pkgdir)
 package.copy_resources(context, options.target_platform, pkgdir)
+
+generator = package.get_generator(context, pkgdir)
 generator.generate()

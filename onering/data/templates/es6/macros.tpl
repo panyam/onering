@@ -7,7 +7,7 @@
  ################################################################################################}
 
 {% macro render_function(function, view) -%}
-    {%- if function.fun_type.is_type_function -%}
+    {%- if function.fun_type.is_type_fun -%}
     function({% for param in function.fun_type.type_params %} {% if loop.index0 > 0 %}, {%endif%}{{param}} {%endfor%}) { 
         return 
     {%- endif %}
@@ -26,7 +26,7 @@
             return {{ view.return_typearg.name }};
             {% endif %}
         }
-    {% if function.fun_type.is_type_function %}
+    {% if function.fun_type.is_type_fun %}
     }
     {% endif %}
 {%- endmacro %}
@@ -58,7 +58,7 @@
         {{assignment.target_variable.field_path.get(0)}} = 
     {% else %}
         {% with last, beginning = assignment.target_variable.field_path.poptail() %}
-            ensure_field_path({{beginning.get(0)}}.__class__, "{{beginning}}").{{last}} = 
+            {{importer.ensure("onering.core.externs.ensure_field_path")}}({{beginning.get(0)}}.typeinfo(), "{{beginning}}").{{last}} = 
         {% endwith %}
     {% endif %}
     {{render_expr(assignment.expr)}}
@@ -145,7 +145,12 @@
         }
         {% endfor %}
 
-        static typeinfo() { return {{render_typeinfo(record_type)}}; }
+        typeinfo() {
+            if (this.__proto__.__typeinfo__ == null) {
+                this.__proto__.__typeinfo__ = render_typeinfo(record_type);
+            }
+            return this.__proto__.__typeinfo__;
+        }
     }
 {%- endmacro %}
 
@@ -173,24 +178,64 @@
         }
         {% endfor %}
 
-        static typeinfo() { return {{render_typeinfo(union_type)}}; }
+        typeinfo() {
+            if (this.__proto__.__typeinfo__ == null) {
+                this.__proto__.__typeinfo__ = render_typeinfo(union_type);
+            }
+            return this.__proto__.__typeinfo__;
+        }
     }
 {%- endmacro %}
 
 {% macro render_typeinfo(thetype) -%}
-onering.core.Type({"fqn": "{{thetype.fqn}}", "clazz": "{{thetype.fqn}}", "args": [
-    {% for arg in thetype.args %}
-    {
-        {% if arg.name %}'name': "{{arg.name}}",{% endif %}
-        'optional': {{arg.is_optional}},
-        {% with typeval = arg.type_expr.resolve() %}
-        {% if typeval.fqn %}
-            'type': onering.core.TypeRef("{{typeval.fqn}}"),
-        {% else %}
-            'type': render_typeinfo(gonering.core.TypeRef("{{typeval.fqn}}")),
-        {% endif %}
-        {% endwith %}
-    },
-    {% endfor %}
-]});
+    new {{importer.ensure("onering.core.Type")}}({
+        {% if thetype.docs %}"docs": "{{thetype.docs}}", {% endif %}
+        {% if thetype.fqn %}"fqn": "{{thetype.fqn}}", {% endif %}
+        "value": new {{importer.ensure("onering.core.TypeValue")}}(
+            {% if thetype.is_literal_type %}
+                "literalType"
+            {% endif %}
+            {% if thetype.is_typeref %}
+                "typeRef"
+            {% endif %}
+            {% if thetype.is_product_type or thetype.is_sum_type %}
+                {% if thetype.is_product_type %}
+                    "productType", new {{importer.ensure("onering.core.ProductType")}}
+                {% else %}
+                    "sumType", new {{importer.ensure("onering.core.SumType")}}
+                {% endif %}
+                ({
+                    "tag": "{{thetype.tag}}",
+                    "args": [
+                        {% for arg in thetype.args %}
+                            {% if loop.index0 > 0 %}, {% endif %}
+                            new {{importer.ensure("onering.core.TypeArg")}}({
+                                'name': "{{arg.name}}",
+                                'argtype': {{render_typeinfo(arg.type_expr)}}
+                            })
+                        {% endfor %}
+                    ]
+                })
+            {% endif %}
+            {% if thetype.is_type_fun %}
+                "typeFun", new {{importer.ensure("onering.core.TypeFun")}}({
+                    "params": [{% for param in thetype.type_params %} {{param}}, {% endfor %}]
+                    {% if thetype.type_expr %}
+                    ,"result": {{render_typeinfo(thetype.type_expr)}}
+                    {% endif %}
+                })
+            {% endif %}
+            {% if thetype.is_type_app %}
+                "typeApp", new {{importer.ensure("onering.core.TypeApp")}}({
+                    "fun": {{render_typeinfo(thetype.typefun_expr)}},
+                    'args': [
+                        {% for arg in thetype.typeapp_args %}
+                            {% if loop.index0 > 0 %}, {% endif %}
+                            {{render_typeinfo(arg)}}
+                        {% endfor %}
+                    ],
+                })
+            {% endif %}
+        )
+    })
 {%- endmacro %}

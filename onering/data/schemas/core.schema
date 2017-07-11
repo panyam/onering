@@ -18,33 +18,35 @@ module onering.core {
     union ModuleEntry {
         module : Module
         type : Type
+        alias : TypeAlias
     }
 
-    union Type {
-        literal_type : LiteralType
-        alias_type : AliasType
-        product_type : ProductType
-        sum_type : SumType
-        fun_type : FunType
-        typeref : TypeRef
-        typefun : TypeFun
-        typeapp : TypeApp
+    record TypeAlias {
+        fqn : string
+        targetType : Type
+    }
+
+    record Type {
+        fqn : string
+        docs : string
+        value : TypeValue
+    }
+
+    union TypeValue {
+        literalType : LiteralType
+        productType : ProductType
+        sumType : SumType
+        funType : FunType
+        typeRef : TypeRef
+        typeFun : TypeFun
+        typeApp : TypeApp
     }
 
     record LiteralType {
-        base : Type
-        fqn : string
-    }
-
-    record AliasType {
-        fqn : string
-        target_type : Type
     }
 
     record ProductType {
         tag : string
-        fqn : string
-
         /**
          * Arguments from which the type is constructed.
          */
@@ -53,7 +55,6 @@ module onering.core {
 
     record SumType {
         tag : string
-        fqn : string
 
         /**
          * Arguments from which the type is constructed.
@@ -62,19 +63,15 @@ module onering.core {
     }
 
     record FunType {
-        fqn : string
-        source_typeargs : list<TypeArg>
-        return_typearg : TypeArg?
+        sourceTypeArgs : list<TypeArg>
+        returnTypeArg : TypeArg?
     }
 
-    record TypeRef {
-        fqn : string
-    }
+    record TypeRef { }
 
     record TypeFun {
-        fqn : string
-        type_params : list<string>
-        type_expr : Type
+        params : list<string>
+        result : Type
     }
 
     record TypeApp {
@@ -90,7 +87,7 @@ module onering.core {
         name : string?
         argtype : Type
         optional : boolean
-        default_value : any
+        defaultValue : any
         docs : string
     }
 }

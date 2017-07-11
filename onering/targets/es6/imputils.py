@@ -34,17 +34,25 @@ class Importer(object):
             
     def ensure(self, fqn):
         if fqn not in self._fqn_mappings:
-            # First check if this model is part of the current package
-            # being generated in which case we shouldnt be looking at 
-            # imports
-            for fqn_wildcard, resolver in self.platform_config.imports:
-                if not fqn:
-                    set_trace()
-                if fnmatch.fnmatch(fqn, fqn_wildcard):
-                    source_package = resolver["package"]
-                    obj_root = resolver.get("root", None)
-                    self._fqn_mappings[fqn] = self._ensure_imported(source_package, obj_root, fqn)
-                    break
+            package = self.platform_config.package
+            if fqn in package.found_entities:
+                # This FQN belongs to the package which we are currently processing
+                # so check the package's exports to see where the FQN is being written
+                # instead of else where.
+                for fqn_wildcard, filename in package.current_platform.exports:
+                    if fnmatch.fnmatch(fqn, fqn_wildcard):
+                        self._fqn_mappings[fqn] = self._ensure_imported("./" + os.path.splitext(filename)[0], None, fqn)
+                        break
+            else:
+                # This FQN belongs to a dependency so look at the imports
+                for fqn_wildcard, resolver in self.platform_config.imports:
+                    if not fqn:
+                        set_trace()
+                    if fnmatch.fnmatch(fqn, fqn_wildcard):
+                        source_package = resolver["package"]
+                        obj_root = resolver.get("root", None)
+                        self._fqn_mappings[fqn] = self._ensure_imported(source_package, obj_root, fqn)
+                        break
         return self._fqn_mappings[fqn]
 
     def _ensure_imported(self, source_package, obj_root, fqn):

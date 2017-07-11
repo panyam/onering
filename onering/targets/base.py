@@ -35,24 +35,6 @@ class Generator(object):
         [f.close() for f in self._allfiles.itervalues()]
         self._allfiles = {}
 
-    def load_template(self, template_name, **extra_globals):
-        templ = self.package.template_loader.load_from_file(template_name)
-        templ.globals.update(extra_globals)
-        self.template_loaded(templ)
-        return templ
-
-    def load_template_from_string(self, template_string, **extra_globals):
-        templ = self.package.template_loader.load_from_string(template_string)
-        templ.globals.update(extra_globals)
-        self.template_loaded(templ)
-        return templ
-
-    def template_loaded(self, templ):
-        """ Called after a template has been loaded. """
-        templ.globals["context"] = self.context
-        templ.globals["package"] = self.package
-        return templ
-
 class File(object):
     """ A file to which a collection of entries are written to. """
     def __init__(self, generator, fname):
@@ -71,6 +53,26 @@ class File(object):
     @property
     def closed(self):
         return self.output_file.closed
+
+    def load_template(self, template_name, **extra_globals):
+        templ = self.generator.package.template_loader.load_from_file(template_name)
+        templ.globals.update(extra_globals)
+        self.template_loaded(templ)
+        return templ
+
+    def load_template_from_string(self, template_string, **extra_globals):
+        templ = self.generator.package.template_loader.load_from_string(template_string)
+        templ.globals.update(extra_globals)
+        self.template_loaded(templ)
+        return templ
+
+    def template_loaded(self, templ):
+        """ Called after a template has been loaded. """
+        templ.globals["context"] = self.generator.context
+        templ.globals["package"] = self.generator.package
+        templ.globals["importer"] = self.importer
+        templ.globals["file"] = self
+        return templ
 
     def close(self):
         """ Close the output file. """
