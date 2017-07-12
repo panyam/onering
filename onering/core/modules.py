@@ -1,9 +1,9 @@
 
 from collections import defaultdict
 import ipdb
-from typelib import errors as tlerrors
-from typelib import core as tlcore
-from typelib.annotations import Annotatable
+from typecube import errors as tlerrors
+from typecube import core as tlcore
+from typecube.annotations import Annotatable
 
 class Module(Annotatable, tlcore.NameResolver):
     def __init__(self, name, parent = None, annotations = None, docs = ""):

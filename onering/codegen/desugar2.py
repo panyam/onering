@@ -1,8 +1,8 @@
 
 from ipdb import set_trace
-from typelib import core as tlcore
-from typelib.core import Expr, Var, Fun, FunApp
-from typelib.ext import ListExpr, DictExpr, TupleExpr, IfExpr, ExprList, Assignment, Literal, NewExpr
+from typecube import core as tlcore
+from typecube.core import Expr, Var, Fun, FunApp
+from typecube.ext import ListExpr, DictExpr, TupleExpr, IfExpr, ExprList, Assignment, Literal, NewExpr
 from onering.codegen.symtable import SymbolTable
 from onering.codegen import ir
 from onering.codegen.ir import NotExpr, GetterExpr, SetterExpr

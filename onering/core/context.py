@@ -3,8 +3,8 @@ from __future__ import absolute_import
 from ipdb import set_trace
 import pkgutil
 import os
-from typelib import core as tlcore
-from typelib import ext as tlext
+from typecube import core as tlcore
+from typecube import ext as tlext
 from onering.utils import dirutils
 from onering.core import errors
 from onering.core import fgraph

@@ -4,9 +4,9 @@ import os
 import ipdb
 import json
 
-from typelib import core as tlcore
-from typelib import utils
-from typelib import errors
+from typecube import core as tlcore
+from typecube import utils
+from typecube import errors
 from courier import parser
 
 class CourierSchemaLoader(object):

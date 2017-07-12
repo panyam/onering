@@ -4,8 +4,8 @@ from __future__ import absolute_import
 import ipdb
 from onering.dsl.parser.tokstream import TokenStream
 from onering.dsl import errors
-from typelib.utils import FQN
-from typelib import core as tlcore
+from typecube.utils import FQN
+from typecube import core as tlcore
 from onering.dsl.lexer import Token, TokenType
 from onering.core import modules as ormods
 

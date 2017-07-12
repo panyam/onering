@@ -2,11 +2,11 @@
 import os
 import ipdb
 import json
-from typelib import core as tlcore
-from typelib import records as tlrecords
-from typelib import enums as tlenums
-from typelib import utils
-from typelib import errors
+from typecube import core as tlcore
+from typecube import records as tlrecords
+from typecube import enums as tlenums
+from typecube import utils
+from typecube import errors
 
 class PegasusSchemaLoader(object):
     """

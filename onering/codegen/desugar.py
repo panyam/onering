@@ -1,8 +1,8 @@
 
 from ipdb import set_trace
-from typelib import core as tlcore
-from typelib.core import Expr, Var, Fun, FunApp
-from typelib.ext import ListExpr, DictExpr, TupleExpr, IfExpr, ExprList, Assignment, Literal, NewExpr
+from typecube import core as tccore
+from typecube.core import Expr, Var, Fun, FunApp
+from typecube.ext import ListExpr, DictExpr, TupleExpr, IfExpr, ExprList, Assignment, Literal, NewExpr
 from onering.codegen.symtable import SymbolTable
 from onering.codegen import ir
 from onering.codegen.ir import NotExpr, ContainsExpr, GetterExpr, SetterExpr
@@ -115,9 +115,9 @@ def transform_app(expr, symtable):
 
     if expr.is_type_app:
         set_trace()
-        fun_app_expr = tlcore.TypeApp(function, arg_vars)
+        fun_app_expr = tccore.TypeApp(function, arg_vars)
     else:
-        fun_app_expr = tlcore.FunApp(function, arg_vars)
+        fun_app_expr = tccore.FunApp(function, arg_vars)
 
     new_register = None
     if fun_type.output_arg:
@@ -142,7 +142,7 @@ def transform_variable_for_read(target_var, symtable):
     if str(target_var.field_path) == "dest/status":
         set_trace()
     value = target_var.resolve()
-    assert type(value) is tlcore.TypeArg
+    assert type(value) is tccore.TypeArg
 
     curr_register = None
     curr_expr = output = ExprList()
@@ -175,7 +175,7 @@ def transform_variable_for_write(source_register, target_var, symtable):
         set_trace()
 
     value = target_var.resolve()
-    if type(value) is not tlcore.TypeArg: set_trace()
+    if type(value) is not tccore.TypeArg: set_trace()
 
     curr_register = None
     curr_expr = output = ExprList()

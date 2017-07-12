@@ -1,6 +1,6 @@
 
 import ipdb
-from typelib import core as tlcore
+from typecube import core as tlcore
 import itertools
 
 class Register(tlcore.Expr):

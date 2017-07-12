@@ -2,7 +2,7 @@
 import ipdb
 from onering.core import errors
 from onering.dsl import lexer
-from typelib.core import Expr
+from typecube.core import Expr
 
 class ContainsExpr(Expr):
     def __init__(self, source_expr, field_name):

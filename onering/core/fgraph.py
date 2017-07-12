@@ -1,7 +1,7 @@
 
 import ipdb
 from collections import defaultdict, deque
-from typelib import unifier as tlunifier
+from typecube import unifier as tlunifier
 
 class FunGraph(object):
     def __init__(self):

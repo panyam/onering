@@ -2,8 +2,8 @@
 from __future__ import absolute_import 
 
 from ipdb import set_trace
-from typelib.utils import FQN
-from typelib import core as tlcore
+from typecube.utils import FQN
+from typecube import core as tlcore
 from onering.dsl.lexer import Token, TokenType
 from onering.dsl.parser.rules.annotations import parse_annotations
 from onering.dsl.errors import UnexpectedTokenException

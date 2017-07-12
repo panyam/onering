@@ -1,7 +1,7 @@
 
 from ipdb import set_trace
-from typelib import core as tlcore
-from typelib.ext import IntType, StringType, Literal
+from typecube import core as tlcore
+from typecube.ext import IntType, StringType, Literal
 from onering.dsl.parser import Parser
 from onering.core.context import OneringContext
 from onering.dsl.parser.rules.annotations import parse_annotation

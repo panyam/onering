@@ -4,9 +4,9 @@ import os
 import ipdb
 import json
 
-from typelib import datatypes
-from typelib import utils
-from typelib import errors
+from typecube import datatypes
+from typecube import utils
+from typecube import errors
 from onering import parser
 
 class OneringSchemaLoader(object):

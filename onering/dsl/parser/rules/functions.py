@@ -1,9 +1,9 @@
 
 from __future__ import absolute_import
 import ipdb
-from typelib import core as tlcore
-from typelib import ext as tlext
-from typelib.utils import FieldPath
+from typecube import core as tlcore
+from typecube import ext as tlext
+from typecube.utils import FieldPath
 from onering import utils
 from onering.dsl import errors
 from onering.dsl.parser.rules.types import ensure_typeexpr

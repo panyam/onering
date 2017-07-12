@@ -1,6 +1,6 @@
 
 import ipdb
-from typelib import core as tlcore
+from typecube import core as tlcore
 from onering.core import modules as ormods
 
 def is_type_entity(entity):
