@@ -3,6 +3,7 @@
 from collections import defaultdict
 import fnmatch
 import os, sys
+import importlib
 from ipdb import set_trace
 from onering import dsl
 from onering.loaders import resolver
@@ -59,18 +60,24 @@ class LoaderActions(ActionGroup):
             elif not issubclass(entry.__class__, dict):
                 raise OneringException("Entry can be a string or a dictionary")
             else:
-                loader_class = entry["loader"]
+                loader_class_parts = entry["loader"].split(".")
+                basemod, classname = ".".join(loader_class_parts[:-1]), loader_class_parts[-1]
+                loader_class = getattr(importlib.import_module(basemod), classname)
+                loader = loader_class(context, *entry.get("args",[]), **entry.get("kwargs", {}))
+                found = loader.load()
+                set_trace()
+                found_entries.update(found)
         return found_entities
 
     def load_file(self, path):
         print "Loading schema from %s: " % path
         basepath, ext = os.path.splitext(path)
         if ext.lower() == ".pdsc":
-            return readers.pegasus.PegasusSchemaLoader(self.context).load(fqn_or_path)
+            return readers.pegasus.Loader(self.context).load(fqn_or_path)
         elif ext.lower() == ".avsc":
-            return readers.avro.AvroSchemaLoader(self.context).load(fqn_or_path)
+            return readers.avro.Loader(self.context).load(fqn_or_path)
         elif ext.lower() == ".thrift":
-            return readers.thrift.ThriftSchemaLoader(self.context).load(fqn_or_path)
+            return readers.thrift.Loader(self.context).load(fqn_or_path)
         else:   # onering
             parser = dsl.parser.Parser(open(path), self.context)
             parser.parse()

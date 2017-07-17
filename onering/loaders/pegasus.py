@@ -3,19 +3,16 @@ import os
 import ipdb
 import json
 from typecube import core as tlcore
-from typecube import records as tlrecords
-from typecube import enums as tlenums
 from typecube import utils
 from typecube import errors
 
-class PegasusSchemaLoader(object):
+class Loader(object):
     """
     Takes care of loading pegasus schemas.
     """
-    def __init__(self, type_registry, entity_resolver):
+    def __init__(self, context):
+        self.context = context
         self.schema_initializers = SCHEMA_INITIALIZERS
-        self.entity_resolver = entity_resolver
-        self.type_registry = type_registry
 
     def load(self, fqn_or_path, root_dir = "."):
         """
