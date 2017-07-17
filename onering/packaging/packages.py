@@ -123,7 +123,7 @@ class Package(object):
         # Each entry in the inputs list can be:
         # A file or a wildcard that is either an absolute path or
         # a path relative to the folder where the package_spec exists
-        self.found_entities = LoaderActions(context).load_onering_paths(self.inputs)
+        self.found_entities = LoaderActions(context).load_entries(self.inputs)
 
         # Now load dependencies so resolutions will succeed
         for dep_pkg_name,dep_pkg_path in self.dependencies.iteritems():

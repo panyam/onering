@@ -3,6 +3,7 @@
 """
 Generates a package given the path to a package.spec.
 """
+import sys
 import os
 import json
 import ipdb
