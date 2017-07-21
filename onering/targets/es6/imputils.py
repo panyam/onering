@@ -53,6 +53,8 @@ class Importer(object):
                         obj_root = resolver.get("root", None)
                         self._fqn_mappings[fqn] = self._ensure_imported(source_package, obj_root, fqn)
                         break
+        if fqn not in self._fqn_mappings:
+            return fqn
         return self._fqn_mappings[fqn]
 
     def _ensure_imported(self, source_package, obj_root, fqn):

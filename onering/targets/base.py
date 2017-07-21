@@ -79,6 +79,7 @@ class File(object):
 
     def template_loaded(self, templ):
         """ Called after a template has been loaded. """
+        templ.globals["breakpoint"] = breakpoint
         templ.globals["context"] = self.generator.context
         templ.globals["package"] = self.generator.package
         templ.globals["importer"] = self.importer
@@ -95,3 +96,5 @@ class File(object):
             if flush:
                 self.output_file.flush()
         return self
+
+def breakpoint(*args, **kwargs): set_trace()

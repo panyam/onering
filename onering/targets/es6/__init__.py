@@ -238,7 +238,6 @@ class FunViewModel(object):
         templ = self.outfile.load_template("es6/function.tpl")
         return templ.render(view = self, function = self.function)
 
-
 def make_constructor(typeexpr, importer):
     """Generates the constructor call for a given type."""
     resolved_type = typeexpr
@@ -265,6 +264,7 @@ def make_constructor(typeexpr, importer):
     elif type(resolved_type) is tlcore.TypeApp:
         typefun = resolved_type.typefun_expr.resolve()
         typeargs = [arg.resolve() for arg in resolved_type.typeapp_args]
-        return "new (%s(%s))()" % (importer.ensure(typefun.fqn), ", ".join(arg.name for arg in typeargs))
+        out = "new (%s(%s))()" % (importer.ensure(typefun.fqn), ", ".join(importer.ensure(arg.fqn) for arg in typeargs))
+        return out
     set_trace()
     assert False, "Cannot create constructor for invalid type: %s" % repr(resolved_type)
