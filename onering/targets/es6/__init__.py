@@ -55,14 +55,26 @@ class Generator(base.Generator):
             # TODO: figure out how to write out to aliases and see if they are supported
             # self._write_alias_to_file(fqn, alias, outfile)
 
+        self._generate_main()
+
         # Close all the files we have open
         self.close_files()
 
+    def _generate_main(self):
+        gen_files = []
+        for f in self._allfiles.iterkeys():
+            if not f.endswith(".js"): continue
+            if not f.startswith("lib/"): continue
+            if f == "lib/index.js": continue
+            gen_files.append({
+                'basename': f.replace("lib/", "./").replace(".js",""),
+                'export_name': os.path.basename(f).replace(".js","")
+            })
+        mainfile, just_opened = self.ensure_file("lib/main.js")
+        mainfile.write(mainfile.load_template("es6/main.js.tpl").render(gen_files = gen_files)).close()
+
     def _generate_preamble(self):
         """ Generates the package.json for a given package in the output dir."""
-        mainfile, just_opened = self.ensure_file("lib/main.js")
-        mainfile.write(mainfile.load_template("es6/main.js.tpl").render()).close()
-
         indexfile, just_opened = self.ensure_file("index.js")
         indexfile.write(indexfile.load_template("es6/index.js.tpl").render()).close()
 

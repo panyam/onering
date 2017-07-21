@@ -1,4 +1,5 @@
 'use script'
 
-exports.models = require("./models")
-exports.client = require("./client")
+{% for f in gen_files %}
+exports.{{f.export_name}} = require("{{f.basename}}")
+{% endfor %}
