@@ -20,11 +20,13 @@ def exit_with_error(parser, msg):
     print parser.format_help()
     parser.exit(1)
 
+DEFAULT_TARGET = "es6"
+
 from optparse import OptionParser
 parser = OptionParser()
 parser.add_option("-p", "--package", dest = "package_path", help = "Folder containing the package.spec file or the path to the package.spec file.")
 parser.add_option("-o", "--output_dir", dest = "output_dir", help = "Root output folder where all generated schemas, models, transformers, interfaces and clients are written to", default = None)
-parser.add_option("-t", "--target_platform", dest = "target_platform", help = "The target platform for which artifacts are to be generted.  eg 'es6', 'swift', 'java', 'python'", default = "es6")
+parser.add_option("-t", "--target_platform", dest = "target_platform", help = "The target platform for which artifacts are to be generted.  eg 'es6', 'swift', 'java', 'python'", default = DEFAULT_TARGET)
 
 options,args = parser.parse_args()
 
@@ -43,8 +45,7 @@ else:
 
 context = orcontext.OneringContext()
 package = context.load_package(options.package_path)
-# package.select_platform(options.target_platform)
-package.select_platform("java")
+package.select_platform(options.target_platform)
 
 pkgdir = os.path.abspath(os.path.join(options.output_dir, package.name))
 package.copy_resources(context, pkgdir)
