@@ -1,6 +1,6 @@
 
 from __future__ import absolute_import
-import ipdb
+from ipdb import set_trace
 from typecube import core as tlcore
 from typecube import ext as tlext
 from typecube.utils import FieldPath
@@ -41,7 +41,6 @@ def parse_statement(parser, function):
 
     is_temporary = parser.next_token_is(TokenType.IDENTIFIER, "let")
     expr = parse_expr(parser)
-    expr.parent = function
     parser.ensure_token(TokenType.STREAM)
     target_var = parse_expr(parser)
 

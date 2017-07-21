@@ -7,7 +7,6 @@ from typecube import core as tlcore
 from typecube import ext as tlext
 from onering.utils.misc import FQN
 from onering.utils.dirutils import open_file_for_writing
-from onering.codegen import desugar2 as desugar
 from onering.codegen import symtable, ir
 from onering.packaging.utils import is_type_entity, is_typefun_entity, is_fun_entity
 from onering.targets import base
