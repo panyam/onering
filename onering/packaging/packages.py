@@ -1,8 +1,9 @@
-import ipdb
+from __future__ import absolute_import
+from ipdb import set_trace
 import os
-import glob
+import glob, fnmatch
 import importlib
-from onering.utils import dirutils
+from onering.utils import dirutils, misc
 from onering.actions import LoaderActions
 from onering.core import templates as tplloader
 
@@ -69,6 +70,8 @@ class Package(object):
     """
     dependencies = {}
 
+    resolvers = []
+
     """ Root folder of the output.  
     
     Files will be generated into:
@@ -86,7 +89,8 @@ class Package(object):
         package_spec_path = os.path.abspath(package_spec_path)
         if os.path.isdir(package_spec_path):
             package_spec_path = os.path.join(package_spec_path, "package.spec")
-        assert os.path.isfile(package_spec_path)
+        
+        assert os.path.isfile(package_spec_path), "%s is invalid" % package_spec_path
         pkgcode = compile(open(package_spec_path).read(), package_spec_path, "exec")
         pkgdata = {}
         exec pkgcode in pkgdata
@@ -100,6 +104,7 @@ class Package(object):
         self.description = kwargs["description"]
         self.inputs = kwargs["inputs"]
         self.dependencies = kwargs.get("dependencies", {})
+        self.resolvers = kwargs.get("resolvers", [])
         self.found_entities = {}
         self.platform_configs = {}
         self.current_platform = None
@@ -114,10 +119,14 @@ class Package(object):
 
     def load_entities(self, context):
         """ Loads the package spec from a package.spec file. """
-        # pkgdata is all we need!
+
         context.pushdir()
 
         context.curdir = self.package_dir
+
+        # First load entity resolver
+        old_entity_resolver = context.entity_resolver
+        context.entity_resolver = self._load_entity_resolver(context)
 
         # Load the necessary things common to all platforms
         # Each entry in the inputs list can be:
@@ -131,7 +140,24 @@ class Package(object):
             context.ensure_package(dep_pkg_name, abs_dep_pkg_path)
 
         context.popdir()
+        context.entity_resolver = old_entity_resolver
         return self
+
+    def _load_entity_resolver(self, context):
+        from onering.loaders import resolver as orresolver
+        self.entity_resolver = orresolver.EntityResolver()
+        for resolver in self.resolvers:
+            entries_wc = resolver.get("entries")
+            entry_dir = resolver.get("dir", resolver.get("jardir", None))
+            edir = os.path.abspath(os.path.join(context.curdir, entry_dir))
+            eprefix = resolver.get("prefix", None)
+            for f in misc.collect_files(edir):
+                if fnmatch.fnmatch(f, entries_wc):
+                    if "jardir" in resolver:
+                        self.entity_resolver.add_resolver(orresolver.ZipFilePathEntityResolver(f, eprefix))
+                    else:
+                        self.entity_resolver.add_resolver(orresolver.FilePathEntityResolver(f))
+        return self.entity_resolver
 
     def select_platform(self, platname):
         self.current_platform = self.platform_configs[platname]

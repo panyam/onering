@@ -63,10 +63,11 @@ class LoaderActions(ActionGroup):
                 loader_class_parts = entry["loader"].split(".")
                 basemod, classname = ".".join(loader_class_parts[:-1]), loader_class_parts[-1]
                 loader_class = getattr(importlib.import_module(basemod), classname)
-                loader = loader_class(context, *entry.get("args",[]), **entry.get("kwargs", {}))
+                entry_args = entry.get("args",[])
+                entry_kwargs = entry.get("kwargs",{})
+                loader = loader_class(context, *entry_args, **entry_kwargs)
                 found = loader.load()
-                set_trace()
-                found_entries.update(found)
+                found_entities.update(found)
         return found_entities
 
     def load_file(self, path):

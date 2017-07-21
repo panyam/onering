@@ -40,11 +40,12 @@ class Generator(base.Generator):
                 outfile.write("\n")
 
         for fqn,alias in aliases:
+            print "Found alias: ", fqn,alias.fqn
             set_trace()
             # Now write out aliases in which ever file they were found
-            filename = imputils.base_filename_for_fqn(self.package, fqn)
-            filename = "lib/" + filename;
-            outfile, just_opened = self.ensure_file(filename)
+            # filename = imputils.base_filename_for_fqn(self.package, fqn)
+            # filename = "lib/" + filename;
+            # outfile, just_opened = self.ensure_file(filename)
             # TODO: figure out how to write out to aliases and see if they are supported
             # self._write_alias_to_file(fqn, alias, outfile)
 
@@ -218,5 +219,9 @@ def signature(typeexpr, importer):
         typefun = resolved_type.typefun_expr.resolve()
         typeargs = [arg.resolve() for arg in resolved_type.typeapp_args]
         return "%s<%s>" % (signature(typefun, importer), ", ".join(arg.name for arg in typeargs))
+    elif resolved_type.is_typeref:
+        return signature(resolved_type.resolve(), importer)
+    elif resolved_type.is_alias_type:
+        return signature(resolved_type.target_type, importer)
     set_trace()
     assert False, "Cannot create constructor for invalid type: %s" % repr(resolved_type)

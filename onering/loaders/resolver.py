@@ -5,7 +5,7 @@ import zipfile
 
 class EntityResolver(object):
     def __init__(self, *extensions):
-        self.extensions = extensions or ["pdsc"]
+        self.extensions = extensions or ["pdsc", "onering", "schema", "avsc"]
         self.resolvers = []
 
     def add_resolver(self, resolver):

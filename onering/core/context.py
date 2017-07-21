@@ -18,6 +18,8 @@ class OneringContext(dirutils.DirPointer):
         self.register_default_types()
         self.template_dirs = []
         self.packages = {}
+        from onering.loaders import resolver
+        self.entity_resolver = resolver.EntityResolver()
 
         from onering.core import templates as tplloader
         self.template_loader = tplloader.TemplateLoader(self.template_dirs)
@@ -38,6 +40,7 @@ class OneringContext(dirutils.DirPointer):
                   tlext.StringType,
                   tlext.ListType,
                   tlext.MapType]:
+            t.parent = self.global_module
             self.global_module.add(t.fqn, t)
 
     def load_template(self, template_name):
@@ -49,6 +52,17 @@ class OneringContext(dirutils.DirPointer):
         parser = dsl.parser.Parser(source, self)
         parser.parse()
         set_trace()
+
+    def ensure_module(self, fqn):
+        """ Ensures that the module given by FQN exists and is a Module object. """
+        parts = fqn.split(".")
+        curr = self.global_module
+        for part in parts:
+            if part not in curr.entity_map:
+                curr.add(part, ormods.Module(part, curr))
+            curr = curr.get(part)
+            assert type(curr) is ormods.Module
+        return curr
 
     def ensure_package(self, package_name, package_spec_path = None):
         if package_name not in self.packages:
