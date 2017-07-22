@@ -58,8 +58,7 @@ def parse_statement(parser, function):
         return tlext.Assignment(target_var, expr)
 
 def parse_expr(parser):
-    """
-    Parse a function call expr or a literal.
+    """ Parse a function call expr or a literal.
 
         expr := literal
                 if_expr

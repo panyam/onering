@@ -1,7 +1,7 @@
 
 from __future__ import absolute_import
-import ipdb
-from typecube import core as tlcore
+from ipdb import set_trace
+from typecube import core as tccore
 from typecube import ext as tlext
 from typecube.utils import FieldPath
 from onering import utils
@@ -31,14 +31,14 @@ def parse_function(parser, is_external, annotations, **kwargs):
     input_typeargs, output_typearg = parse_function_signature(parser)
 
     parent = parser.current_module if func_name else None
-    functype = tlcore.make_fun_type(None, input_typeargs, output_typearg)
+    functype = tccore.make_fun_type(None, input_typeargs, output_typearg)
     if type_params:
-        functype = tlcore.make_type_fun(func_fqn, type_params, functype, parent = parser.current_module, annotations = annotations, docs = docs)
+        functype = tccore.make_type_fun(func_fqn, type_params, functype, parent = parser.current_module, annotations = annotations, docs = docs)
     else:
         functype.fqn = func_fqn
         functype.parent = parser.current_module
 
-    function = tlcore.Fun(func_fqn, functype, None, parser.current_module, annotations = annotations, docs = docs)
+    function = tccore.Fun(func_fqn, functype, None, parser.current_module, annotations = annotations, docs = docs)
     if not is_external:
         parse_function_body(parser, function)
 
@@ -81,7 +81,7 @@ def parse_function_signature(parser, require_param_name = True):
         output_typeexpr = ensure_typeexpr(parser)
         if parser.next_token_is(TokenType.IDENTIFIER, "as"):
             output_varname = parser.ensure_token(TokenType.IDENTIFIER)
-        output_typearg = tlcore.TypeArg(output_varname, output_typeexpr)
+        output_typearg = tccore.TypeArg(output_varname, output_typeexpr)
     return input_params, output_typearg 
 
 def parse_param_declaration(parser, require_name = True):
@@ -106,15 +106,14 @@ def parse_param_declaration(parser, require_name = True):
 
     param_typeexpr  = ensure_typeexpr(parser)
     # if we declared an inline Type then dont refer to it directly but via a Var
-    if type(param_typeexpr) is tlcore.Fun and param_typeexpr.name:
-        set_trace()
-        param_typeexpr = tlcore.Var(param_typeexpr.name)
+    if param_typeexpr.fqn and not param_typeexpr.is_typeref and not param_typeexpr.is_alias_type:
+        param_typeexpr = tccore.make_ref(param_typeexpr.name)
     is_optional     = parser.next_token_is(TokenType.QMARK)
     default_value   = None
     if parser.next_token_is(TokenType.EQUALS):
         default_value = parser.ensure_literal_value()
 
-    return tlcore.TypeArg(param_name, param_typeexpr, is_optional, default_value, annotations, docstring)
+    return tccore.TypeArg(param_name, param_typeexpr, is_optional, default_value, annotations, docstring)
 
 def parse_function_body(parser, function):
     if parser.peeked_token_is(TokenType.OPEN_BRACE):

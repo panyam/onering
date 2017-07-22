@@ -3,7 +3,7 @@ from __future__ import absolute_import
 
 from ipdb import set_trace
 from typecube.utils import FQN
-from typecube import core as tlcore
+from typecube import core as tccore
 from onering.dsl.lexer import Token, TokenType
 from onering.dsl.parser.rules.annotations import parse_annotations
 from onering.dsl.errors import UnexpectedTokenException
@@ -41,9 +41,9 @@ def parse_alias_decl(parser, annotations, **kwargs):
     parser.ensure_token(TokenType.EQUALS)
 
     # create the alias
-    alias = tlcore.make_alias(None, ensure_typeexpr(parser), parent = None, annotations = annotations, docs = docs)
+    alias = tccore.make_alias(None, ensure_typeexpr(parser), parent = None, annotations = annotations, docs = docs)
     if type_params:
-        alias = tlcore.make_type_fun(fqn, type_params, alias, None, parent = parser.current_module, annotations = annotations, docs = docs)
+        alias = tccore.make_type_fun(fqn, type_params, alias, None, parent = parser.current_module, annotations = annotations, docs = docs)
     else:
         alias.fqn = fqn
         alias.parent = parser.current_module
@@ -53,8 +53,7 @@ def parse_alias_decl(parser, annotations, **kwargs):
 
 def ensure_typeexpr(parser, annotations = None):
     out = parse_entity(parser)
-    if not issubclass(out.__class__, tlcore.Type):
-        set_trace()
+    if not issubclass(out.__class__, tccore.Type):
         assert False
     return out
 
@@ -75,10 +74,10 @@ def parse_type_initializer_or_name(parser, annotations):
             parser.ensure_token(TokenType.COMMA)
             child_typeexprs.append(ensure_typeexpr(parser))
         parser.ensure_token(parser.GENERIC_CLOSE_TOKEN)
-        return tlcore.make_type_app(fqn, child_typeexprs)
+        return tccore.make_type_app(fqn, child_typeexprs)
 
     # Otherwise we just have a type reference
-    return tlcore.make_ref(fqn)
+    return tccore.make_ref(fqn)
 
 def parse_typefunc_preamble(parser, name_required = False, allow_generics = True):
     name = None
@@ -114,7 +113,7 @@ def parse_extern_type(parser, annotations = None):
     parser.ensure_token(TokenType.IDENTIFIER, "extern")
     name, type_params, docs = parse_typefunc_preamble(parser, name_required = True)
 
-    type_func = tlcore.make_wrapper_type(name, type_params, parser.current_module,
+    type_func = tccore.make_wrapper_type(name, type_params, parser.current_module,
                                          annotations = annotations, docs = docs)
     parser.add_entity(name, type_func)
     return type_func
@@ -134,7 +133,7 @@ def parse_enum(parser, is_external, annotations = None):
     name, type_params, docs = parse_typefunc_preamble(parser, True, allow_generics = False)
     fqn = ".".join([parser.current_module.fqn, name])
     symbols = parse_enum_body(parser)
-    entity = tlcore.make_enum_type(fqn, symbols, annotations = annotations, docs = docs)
+    entity = tccore.make_enum_type(fqn, symbols, annotations = annotations, docs = docs)
     parser.add_entity(name, entity)
     return entity
 
@@ -172,14 +171,14 @@ def parse_record_or_union(parser, is_external, annotations = None):
     fields = parse_record_body(parser)
     fqn = ".".join([parser.current_module.fqn, name])
     if category == "record":
-        outtype = tlcore.make_product_type(category, None, fields, parent = None, annotations = annotations, docs = docs)
+        outtype = tccore.make_product_type(category, None, fields, parent = None, annotations = annotations, docs = docs)
     elif category == "union":
-        outtype = tlcore.make_sum_type(category, None, fields, parent = None, annotations = annotations, docs = docs)
+        outtype = tccore.make_sum_type(category, None, fields, parent = None, annotations = annotations, docs = docs)
     else:
         assert False
 
     if type_params:
-        outtype = tlcore.make_type_fun(fqn, type_params, outtype, parent = parser.current_module, annotations = annotations, docs = docs)
+        outtype = tccore.make_type_fun(fqn, type_params, outtype, parent = parser.current_module, annotations = annotations, docs = docs)
     else:
         outtype.fqn = fqn
         outtype.parent = parser.current_module
@@ -214,9 +213,8 @@ def parse_field_declaration(parser):
     parser.ensure_token(TokenType.COLON)
     field_typeexpr = ensure_typeexpr(parser)
     # if we declared an inline Type then dont refer to it directly but via a Var
-    if type(field_typeexpr) is tlcore.Fun and field_typeexpr.name:
-        set_trace()
-        field_typeexpr = tlcore.Var(field_typeexpr.name)
+    if field_typeexpr.fqn and not field_typeexpr.is_typeref and not field_typeexpr.is_alias_type:
+        field_typeexpr = tccore.make_ref(field_typeexpr.name)
     is_optional = False
     default_value = None
 
@@ -226,5 +224,5 @@ def parse_field_declaration(parser):
     if parser.next_token_is(TokenType.EQUALS):
         default_value = parser.ensure_literal_value()
 
-    field = tlcore.TypeArg(field_name, field_typeexpr, is_optional, default_value, annotations, docstring)
+    field = tccore.TypeArg(field_name, field_typeexpr, is_optional, default_value, annotations, docstring)
     return field
