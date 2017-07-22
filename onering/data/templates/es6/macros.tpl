@@ -68,7 +68,7 @@
 
 {% macro render_var(var) -%}
     {% with first, rest = var.field_path.pop() %}
-        {{importer.ensure("onering.core.externs.get_field_path")}}({{first}}, {{first}}.__class__, "{{rest}}")
+        {{importer.ensure("onering.core.externs.get_field_path")}}({{first}}, {{first}}.typeinfo(), "{{rest}}")
     {% endwith %}
 {%- endmacro %}
 
@@ -149,7 +149,7 @@
 
         typeinfo() {
             if (this.__proto__.__typeinfo__ == null) {
-                this.__proto__.__typeinfo__ = render_typeinfo(record_type);
+                this.__proto__.__typeinfo__ = {{render_typeinfo(record_type)}};
             }
             return this.__proto__.__typeinfo__;
         }
@@ -182,7 +182,7 @@
 
         typeinfo() {
             if (this.__proto__.__typeinfo__ == null) {
-                this.__proto__.__typeinfo__ = render_typeinfo(union_type);
+                this.__proto__.__typeinfo__ = {{render_typeinfo(union_type)}};
             }
             return this.__proto__.__typeinfo__;
         }
