@@ -51,7 +51,9 @@
     {% endwith %}
 {%- endmacro %}
 
-{% macro render_literal(literal) %} {{literal.value}} {%- endmacro %}
+{%- macro render_literal(literal) -%}
+    {% if literal.value_type.fqn == "string" %} "{{literal.value}}" {% else %} {{literal.value}} {% endif %}
+{%- endmacro -%}
 
 {% macro render_assignment(assignment) %}
     {% if assignment.target_variable.field_path.length == 1 %}
