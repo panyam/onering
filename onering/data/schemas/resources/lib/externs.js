@@ -27,3 +27,6 @@ onering.core.externs.concat = function(items) {
 
 onering.core.externs.ensure_field_path = function (starting_var, typeinfo, field_path) {
 };
+
+onering.core.externs.get_field_path = function (starting_var, typeinfo, field_path) {
+};

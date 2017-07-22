@@ -68,7 +68,7 @@
 
 {% macro render_var(var) -%}
     {% with first, rest = var.field_path.pop() %}
-        get_field_path({{first}}, {{first}}.__class__, "{{rest}}")
+        {{importer.ensure("onering.core.externs.get_field_path")}}({{first}}, {{first}}.__class__, "{{rest}}")
     {% endwith %}
 {%- endmacro %}
 

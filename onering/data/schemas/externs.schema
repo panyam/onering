@@ -27,6 +27,9 @@ module onering.core.externs {
      */
     @map("ensure_field_path")
     extern fun ensure_field_path(starting_var : any, typeinfo : onering.core.Type, field_path : list<string>) -> any
+
+    @map("get_field_path")
+    extern fun get_field_path(starting_var : any, typeinfo : onering.core.Type, field_path : list<string>) -> any
 }
 
 
