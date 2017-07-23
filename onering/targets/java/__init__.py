@@ -208,7 +208,7 @@ def signature(typeexpr, importer):
         return importer.ensure("java.awt.Map")
     elif resolved_type.fqn == "list":
         return importer.ensure("java.awt.List")
-    elif resolved_type.is_literal_type:
+    elif resolved_type.is_atomic_type:
         if resolved_type.fqn == "any":
             return "Object"
         elif resolved_type.fqn in ("boolean", "int", "long", "float", "double", "string"):

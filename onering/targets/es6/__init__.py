@@ -247,7 +247,7 @@ def make_constructor(typeexpr, importer):
         return "{}"
     elif resolved_type.fqn == "list":
         return "[]"
-    elif resolved_type.is_literal_type:
+    elif resolved_type.is_atomic_type:
         if resolved_type.fqn == "any":
             return "null"
         elif resolved_type.fqn == "boolean":

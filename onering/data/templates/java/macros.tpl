@@ -186,8 +186,8 @@
         {% if thetype.docs %}"docs": "{{thetype.docs}}", {% endif %}
         {% if thetype.fqn %}"fqn": "{{thetype.fqn}}", {% endif %}
         "value": new {{importer.ensure("onering.core.TypeValue")}}(
-            {% if thetype.is_literal_type %}
-                "literalType"
+            {% if thetype.is_atomic_type %}
+                "atomicType"
             {% endif %}
             {% if thetype.is_typeref %}
                 "typeRef"

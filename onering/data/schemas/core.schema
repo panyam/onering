@@ -33,7 +33,7 @@ module onering.core {
     }
 
     union TypeValue {
-        literalType : LiteralType
+        atomicType : AtomicType
         productType : ProductType
         sumType : SumType
         funType : FunType
@@ -42,7 +42,7 @@ module onering.core {
         typeApp : TypeApp
     }
 
-    record LiteralType {
+    record AtomicType {
     }
 
     record ProductType {
