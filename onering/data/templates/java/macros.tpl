@@ -37,7 +37,7 @@
 {%- endmacro %}
 
 {% macro render_funapp(funapp) %}
-    {% with func_expr = funapp.resolve_function() %}
+    {% with func_expr,_ = funapp.resolve_function() %}
         {% if func_expr.fqn %}
             {{func_expr.fqn}}({% for expr in funapp.args %}
                 {% if loop.index0 > 0 %}, {% endif %} {{render_expr(expr)}}
