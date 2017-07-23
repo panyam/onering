@@ -69,7 +69,7 @@ class Generator(base.Generator):
     def _write_alias_to_file(self, fqn, entity, outfile):
         print "Alias FQN: ", fqn
         fqn = FQN(fqn, None)
-        value = entity.args[0].type_expr.resolve()
+        value = entity.args[0].expr.resolve()
         outfile.write("exports.%s = %s;\n" % (fqn.fqn, value.fqn))
         outfile.write("%s = exports.%s;\n\n" % (fqn.fqn, fqn.fqn))
 
@@ -171,7 +171,7 @@ class TypeFunViewModel(object):
     def __init__(self, typefun, outfile):
         self.typefun = typefun
         self.outfile = outfile
-        self.child_view = TypeViewModel("", self.typefun.type_expr, outfile)
+        self.child_view = TypeViewModel("", self.typefun.expr, outfile)
 
     def render(self):
         print "Generating Fun: %s" % self.typefun.fqn
@@ -187,9 +187,9 @@ class FunViewModel(object):
         self._symtable = None
         self.real_fun_type = self.function.fun_type
         if self.function.fun_type.is_type_fun:
-            self.real_fun_type = self.real_fun_type.type_expr
+            self.real_fun_type = self.real_fun_type.expr
         self.return_typearg = self.real_fun_type.return_typearg
-        if self.return_typearg and self.return_typearg.type_expr == tlcore.VoidType:
+        if self.return_typearg and self.return_typearg.expr == tlcore.VoidType:
             self.return_typearg = None
 
     def render(self):

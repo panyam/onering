@@ -15,7 +15,7 @@
             {# we are at the lowest level! So go ahead and render the function's expression #}
             {# The constructor for output #}
             {% if view.return_typearg %}
-            var {{ view.return_typearg.name }} = {{ make_constructor(view.return_typearg.type_expr, importer) }};
+            var {{ view.return_typearg.name }} = {{ make_constructor(view.return_typearg.expr, importer) }};
             {% endif %}
 
             {{render_expr(function.expr)}}
@@ -127,13 +127,13 @@
         }
 
         {% for arg in record_type.args %}
-        private {{signature(arg.type_expr, importer)}} _{{arg.name}};
+        private {{signature(arg.expr, importer)}} _{{arg.name}};
 
-        public {{signature(arg.type_expr, importer)}} get{{camel_case(arg.name)}}() {
+        public {{signature(arg.expr, importer)}} get{{camel_case(arg.name)}}() {
           return _{{arg.name}};
         }
 
-        public void set{{camel_case(arg.name)}}({{signature(arg.type_expr, importer)}} {{arg.name}}) {
+        public void set{{camel_case(arg.name)}}({{signature(arg.expr, importer)}} {{arg.name}}) {
           _{{arg.name}} = {{arg.name}};
         }
         {% endfor %}
@@ -205,7 +205,7 @@
                             {% if loop.index0 > 0 %}, {% endif %}
                             new {{importer.ensure("onering.core.TypeArg")}}({
                                 'name': "{{arg.name}}",
-                                'argtype': {{render_typeinfo(arg.type_expr)}}
+                                'argtype': {{render_typeinfo(arg.expr)}}
                             })
                         {% endfor %}
                     ]
@@ -214,8 +214,8 @@
             {% if thetype.is_type_fun %}
                 "typeFun", new {{importer.ensure("onering.core.TypeFun")}}({
                     "params": [{% for param in thetype.type_params %} {{param}}, {% endfor %}]
-                    {% if thetype.type_expr %}
-                    ,"result": {{render_typeinfo(thetype.type_expr)}}
+                    {% if thetype.expr %}
+                    ,"result": {{render_typeinfo(thetype.expr)}}
                     {% endif %}
                 })
             {% endif %}

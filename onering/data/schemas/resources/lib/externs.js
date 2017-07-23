@@ -26,9 +26,17 @@ onering.core.externs.concat = function(items) {
 };
 
 onering.core.externs.ensure_field_path = function (starting_var, typeinfo, field_path) {
+    field_path = field_path .filter(function(x) { return x.trim().length > 0; });
     var a = 0;
+    null.a = 3;
 };
 
 onering.core.externs.get_field_path = function (starting_var, typeinfo, field_path) {
-    var a = 0;
+    field_path = field_path .filter(function(x) { return x.trim().length > 0; });
+    if (field_path.length == 0) {
+        return starting_var;
+    }
+
+    // otherwise keep diving in
+    null.a = 3;
 };

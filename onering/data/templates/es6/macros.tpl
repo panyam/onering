@@ -16,7 +16,11 @@
             {# we are at the lowest level! So go ahead and render the function's expression #}
             {# The constructor for output #}
             {% if view.return_typearg %}
-            var {{ view.return_typearg.name }} = {{ make_constructor(view.return_typearg.type_expr, importer) }};
+            var {{ view.return_typearg.name }} = {{ make_constructor(view.return_typearg.expr, importer) }};
+            {% endif %}
+
+            {% if function.name == "Http2SlackChannelListResponse" %}
+            {{breakpoint(function, view)}}
             {% endif %}
 
             {{render_expr(function.expr)}}
@@ -59,8 +63,12 @@
     {% if assignment.target_variable.field_path.length == 1 %}
         {{assignment.target_variable.field_path.get(0)}} = 
     {% else %}
-        {% with last, beginning = assignment.target_variable.field_path.poptail() %}
-            {{importer.ensure("onering.core.externs.ensure_field_path")}}({{beginning.get(0)}}.typeinfo(), "{{beginning}}").{{last}} = 
+        {% with beginning,last = assignment.target_variable.field_path.poptail() %}
+            {{importer.ensure("onering.core.externs.ensure_field_path")}}(
+                {{beginning.get(0)}},
+                {{beginning.get(0)}}.typeinfo(),
+                "{{beginning}}"
+            ).{{last}} = 
         {% endwith %}
     {% endif %}
     {{render_expr(assignment.expr)}}
@@ -68,7 +76,7 @@
 
 {% macro render_var(var) -%}
     {% with first, rest = var.field_path.pop() %}
-        {{importer.ensure("onering.core.externs.get_field_path")}}({{first}}, {{first}}.typeinfo(), "{{rest}}")
+        {{importer.ensure("onering.core.externs.get_field_path")}}({{first}}, {{first}}.typeinfo(), "{{rest}}".split("/"))
     {% endwith %}
 {%- endmacro %}
 
@@ -213,7 +221,7 @@
                             {% if loop.index0 > 0 %}, {% endif %}
                             new {{importer.ensure("onering.core.TypeArg")}}({
                                 'name': "{{arg.name}}",
-                                'argtype': {{render_typeinfo(arg.type_expr)}}
+                                'argtype': {{render_typeinfo(arg.expr)}}
                             })
                         {% endfor %}
                     ]
@@ -222,8 +230,8 @@
             {% if thetype.is_type_fun %}
                 "typeFun", new {{importer.ensure("onering.core.TypeFun")}}({
                     "params": [{% for param in thetype.type_params %} {{param}}, {% endfor %}]
-                    {% if thetype.type_expr %}
-                    ,"result": {{render_typeinfo(thetype.type_expr)}}
+                    {% if thetype.expr %}
+                    ,"result": {{render_typeinfo(thetype.expr)}}
                     {% endif %}
                 })
             {% endif %}

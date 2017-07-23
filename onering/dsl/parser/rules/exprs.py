@@ -1,7 +1,7 @@
 
 from __future__ import absolute_import
 from ipdb import set_trace
-from typecube import core as tlcore
+from typecube import core as tccore
 from typecube import ext as tlext
 from typecube.utils import FieldPath
 from onering import utils
@@ -47,7 +47,7 @@ def parse_statement(parser, function):
     parser.consume_tokens(TokenType.SEMI_COLON)
 
     # ensure last var IS a variable expr
-    if not isinstance(target_var, tlcore.Var):
+    if not isinstance(target_var, tccore.Var):
         raise errors.OneringException("Final target of an expr MUST be a variable")
 
     if target_var.field_path.get(0) == '_':
@@ -96,20 +96,28 @@ def parse_expr(parser):
         out = parse_if_expr(parser)
     elif parser.peeked_token_is(TokenType.IDENTIFIER):
         # See if we have a function call or a var or a field path
-        source = parse_field_path(parser, allow_abs_path = False, allow_child_selection = False)
-        out = tlcore.Var(source)
+        field_path = parse_field_path(parser, allow_abs_path = False, allow_child_selection = False)
+        out = tccore.Var(field_path)
 
-        # check if we have a function call
+        # check if we have a function call and also check if function call
+        # is a call to a function of a generic function type!
         func_param_exprs = []
         func_args = []
         if parser.next_token_is(parser.GENERIC_OPEN_TOKEN):
+            assert field_path.length == 1
             func_param_exprs = [ ensure_typeexpr(parser) ]
             while not parser.peeked_token_is(parser.GENERIC_CLOSE_TOKEN):
                 parser.ensure_token(TokenType.COMMA)
                 func_param_exprs.append(ensure_typeexpr(parser))
             parser.ensure_token(parser.GENERIC_CLOSE_TOKEN)
 
-        if func_param_exprs or parser.peeked_token_is(TokenType.OPEN_PAREN):
+            # Yep we have a type func being instantiated so
+            # dont forget to return a func_app whose function is a type_app!
+            out = tccore.make_ref(field_path.get(0))
+            out = tccore.make_type_app(out, func_param_exprs)
+
+        if parser.peeked_token_is(TokenType.OPEN_PAREN):
+            assert field_path.length == 1
             # function expr, so ensure field path has only one entry
             # Treat the source as a function name that will be resolved later on
             parser.ensure_token(TokenType.OPEN_PAREN)
@@ -123,11 +131,7 @@ def parse_expr(parser):
                     # will allow "," at the end which is a bit, well rough!
                     pass
             parser.ensure_token(TokenType.CLOSE_PAREN)
-
-        if func_param_exprs or func_args:
-            if source.length > 1:
-                raise errors.OneringException("Fieldpaths cannot be used as functions")
-            out = tlcore.FunApp(tlcore.Var(source), func_args)
+            out = tccore.FunApp(out, func_args)
     else:
         raise errors.UnexpectedTokenException(parser.peek_token(),
                                        TokenType.STRING, TokenType.NUMBER,
