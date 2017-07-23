@@ -39,11 +39,11 @@
 {% macro render_funapp(funapp) %}
     {% with func_expr = funapp.resolve_function() %}
         {% if func_expr.fqn %}
-            {{func_expr.fqn}}({% for expr in funapp.func_args %}
+            {{func_expr.fqn}}({% for expr in funapp.args %}
                 {% if loop.index0 > 0 %}, {% endif %} {{render_expr(expr)}}
             {% endfor %})
         {% else %}
-            {{render_function(func_expr)}}({% for expr in funapp.func_args %}
+            {{render_function(func_expr)}}({% for expr in funapp.args %}
                 {% if loop.index0 > 0 %}, {% endif %} {{render_expr(expr)}}
             {% endfor %})
         {% endif %}
@@ -221,9 +221,9 @@
             {% endif %}
             {% if thetype.is_type_app %}
                 "typeApp", new {{importer.ensure("onering.core.TypeApp")}}({
-                    "fun": {{render_typeinfo(thetype.typefun_expr)}},
+                    "fun": {{render_typeinfo(thetype.expr)}},
                     'args': [
-                        {% for arg in thetype.typeapp_args %}
+                        {% for arg in thetype.args %}
                             {% if loop.index0 > 0 %}, {% endif %}
                             {{render_typeinfo(arg)}}
                         {% endfor %}

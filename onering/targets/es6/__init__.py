@@ -261,8 +261,8 @@ def make_constructor(typeexpr, importer):
     elif issubclass(resolved_type.__class__, tlcore.ContainerType) and resolved_type.tag == "record":
         return "new %s()" % importer.ensure(resolved_type.fqn)
     elif type(resolved_type) is tlcore.TypeApp:
-        typefun = resolved_type.typefun_expr.resolve()
-        typeargs = [arg.resolve() for arg in resolved_type.typeapp_args]
+        typefun = resolved_type.expr.resolve()
+        typeargs = [arg.resolve() for arg in resolved_type.args]
         out = "new (%s(%s))()" % (importer.ensure(typefun.fqn), ", ".join(importer.ensure(arg.fqn) for arg in typeargs))
         return out
     set_trace()

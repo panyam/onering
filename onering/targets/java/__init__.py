@@ -216,8 +216,8 @@ def signature(typeexpr, importer):
     elif issubclass(resolved_type.__class__, tlcore.ContainerType):
         return importer.ensure(resolved_type.fqn)
     elif type(resolved_type) is tlcore.TypeApp:
-        typefun = resolved_type.typefun_expr.resolve()
-        typeargs = [arg.resolve() for arg in resolved_type.typeapp_args]
+        typefun = resolved_type.expr.resolve()
+        typeargs = [arg.resolve() for arg in resolved_type.args]
         return "%s<%s>" % (signature(typefun, importer), ", ".join(arg.name for arg in typeargs))
     elif resolved_type.is_typeref:
         return signature(resolved_type.resolve(), importer)
