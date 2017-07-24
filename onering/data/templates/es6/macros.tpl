@@ -7,12 +7,35 @@
  ################################################################################################}
 
 {% macro render_function(function, view) -%}
-    {%- if function.fun_type.is_type_fun -%}
+    function({% for param in function.params %} {% if loop.index0 > 0 %}, {%endif%}{{param}} {%endfor%}) { 
+        {# we are at the lowest level! So go ahead and render the function's expression #}
+        {# The constructor for output #}
+        {% if function.is_quant %}
+            return {{render_expr(function.expr)}};
+        {% else %}
+            {% if view.return_typearg %}
+                var {{ view.return_typearg.name }} = {{ make_constructor(view.return_typearg.expr, importer) }};
+            {% endif %}
+
+            {% if function.name == "Http2SlackChannelListResponse" %}
+            {{breakpoint(function, view)}}
+            {% endif %}
+
+            {{render_expr(function.expr)}}
+
+            {# Return output var if required #}
+            {% if view.return_typearg %}
+            return {{ view.return_typearg.name }};
+            {% endif %}
+        {% endif %}
+    }
+
+
+    {%- if function.fun_type.is_type_op -%}
     function({% for param in function.fun_type.type_params %} {% if loop.index0 > 0 %}, {%endif%}{{param}} {%endfor%}) { 
         return 
     {%- endif %}
         function({% for typearg in view.real_fun_type.source_typeargs %}{% if loop.index0 > 0 %}, {%endif%}{{typearg.name}}{%endfor%}) {
-
             {# we are at the lowest level! So go ahead and render the function's expression #}
             {# The constructor for output #}
             {% if view.return_typearg %}
@@ -30,7 +53,7 @@
             return {{ view.return_typearg.name }};
             {% endif %}
         }
-    {% if function.fun_type.is_type_fun %}
+    {% if function.fun_type.is_type_op %}
     }
     {% endif %}
 {%- endmacro %}
@@ -227,8 +250,8 @@
                     ]
                 })
             {% endif %}
-            {% if thetype.is_type_fun %}
-                "typeFun", new {{importer.ensure("onering.core.TypeFun")}}({
+            {% if thetype.is_type_op %}
+                "typeFun", new {{importer.ensure("onering.core.TypeOp")}}({
                     "params": [{% for param in thetype.type_params %} {{param}}, {% endfor %}]
                     {% if thetype.expr %}
                     ,"result": {{render_typeinfo(thetype.expr)}}

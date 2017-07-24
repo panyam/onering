@@ -8,7 +8,7 @@ from typecube import ext as tlext
 from onering.utils.misc import FQN
 from onering.utils.dirutils import open_file_for_writing
 from onering.codegen import symtable, ir
-from onering.packaging.utils import is_type_entity, is_typefun_entity, is_fun_entity
+from onering.packaging.utils import is_type_entity, is_typeop_entity, is_fun_entity
 from onering.targets import base
 from onering.targets import common as orgencommon
 import imputils
@@ -93,8 +93,8 @@ class Generator(base.Generator):
             self._write_model_to_file(fqn, entity, outfile)
         elif is_fun_entity(entity):
             self._write_function_to_file(fqn, entity, outfile)
-        elif is_typefun_entity(entity):
-            self._write_typefun_to_file(fqn, entity, outfile)
+        elif is_typeop_entity(entity):
+            self._write_typeop_to_file(fqn, entity, outfile)
         else:
             print "No writer found for entity: ", fqn, entity
 
@@ -107,9 +107,9 @@ class Generator(base.Generator):
         """ Generates all required functions. """
         outfile.write(FunViewModel(entity, entity.fun_type, outfile).render())
 
-    def _write_typefun_to_file(self, fqn, entity, outfile):
+    def _write_typeop_to_file(self, fqn, entity, outfile):
         """ Generates a type function. """
-        outfile.write(TypeFunViewModel(entity, outfile).render())
+        outfile.write(TypeOpViewModel(entity, outfile).render())
 
 class File(base.File):
     """ A file to which a collection of entries are written to. """
@@ -207,16 +207,16 @@ class TypeViewModel(object):
         templ = self.outfile.load_template("es6/%s.tpl" % self.thetype.tag)
         return templ.render(**{self.thetype.tag: self})
 
-class TypeFunViewModel(object):
-    def __init__(self, typefun, outfile):
-        self.typefun = typefun
+class TypeOpViewModel(object):
+    def __init__(self, typeop, outfile):
+        self.typeop = typeop
         self.outfile = outfile
-        self.child_view = TypeViewModel("", self.typefun.expr, outfile)
+        self.child_view = TypeViewModel("", self.typeop.expr, outfile)
 
     def render(self):
-        print "Generating Fun: %s" % self.typefun.fqn
-        templ = self.outfile.load_template("es6/typefun.tpl")
-        return templ.render(view = self, typefun = self.typefun)
+        print "Generating Fun: %s" % self.typeop.fqn
+        templ = self.outfile.load_template("es6/typeop.tpl")
+        return templ.render(view = self, typeop = self.typeop)
 
 
 class FunViewModel(object):
@@ -225,10 +225,7 @@ class FunViewModel(object):
         self.function = function
         self.outfile = outfile
         self._symtable = None
-        self.real_fun_type = self.function.fun_type
-        if self.function.fun_type.is_type_fun:
-            self.real_fun_type = self.real_fun_type.expr
-        self.return_typearg = self.real_fun_type.return_typearg
+        self.return_typearg = self.function.fun_type.return_typearg
         if self.return_typearg and self.return_typearg.expr == tlcore.VoidType:
             self.return_typearg = None
 
@@ -261,9 +258,9 @@ def make_constructor(typeexpr, importer):
     elif issubclass(resolved_type.__class__, tlcore.ContainerType) and resolved_type.tag == "record":
         return "new %s()" % importer.ensure(resolved_type.fqn)
     elif type(resolved_type) is tlcore.TypeApp:
-        typefun = resolved_type.expr.resolve()
+        typeop = resolved_type.expr.resolve()
         typeargs = [arg.resolve() for arg in resolved_type.args]
-        out = "new (%s(%s))()" % (importer.ensure(typefun.fqn), ", ".join(importer.ensure(arg.fqn) for arg in typeargs))
+        out = "new (%s(%s))()" % (importer.ensure(typeop.fqn), ", ".join(importer.ensure(arg.fqn) for arg in typeargs))
         return out
     set_trace()
     assert False, "Cannot create constructor for invalid type: %s" % repr(resolved_type)

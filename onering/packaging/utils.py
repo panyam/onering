@@ -10,12 +10,12 @@ def is_type_entity(entity):
             return True
     return False
 
-def is_typefun_entity(entity):
-    if not isinstance(entity, tlcore.TypeFun): return False
+def is_typeop_entity(entity):
+    if not isinstance(entity, tlcore.TypeOp): return False
     return not entity.is_external
 
 def is_fun_entity(entity):
-    if not isinstance(entity, tlcore.Fun): return False
+    if not issubclass(entity.__class__, tlcore.Fun): return False
     return not entity.is_external
 
 def is_function_mapping_entity(entity):

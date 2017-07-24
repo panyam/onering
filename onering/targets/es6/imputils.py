@@ -2,7 +2,7 @@
 import os
 import fnmatch
 from ipdb import set_trace
-from onering.packaging.utils import is_type_entity, is_typefun_entity, is_fun_entity, is_function_mapping_entity
+from onering.packaging.utils import is_type_entity, is_typeop_entity, is_fun_entity, is_function_mapping_entity
 
 def base_filename_for_fqn(package, fqn):
     for fqn_wildcard, filename in package.current_platform.exports:

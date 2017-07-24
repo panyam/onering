@@ -41,12 +41,11 @@ def parse_alias_decl(parser, annotations, **kwargs):
     parser.ensure_token(TokenType.EQUALS)
 
     # create the alias
-    alias = tccore.make_alias(None, ensure_typeexpr(parser), parent = None, annotations = annotations, docs = docs)
+    alias = tccore.make_alias(fqn, ensure_typeexpr(parser), parent = parser.current_module, annotations = annotations, docs = docs)
     if type_params:
-        alias = tccore.make_type_fun(fqn, type_params, alias, None, parent = parser.current_module, annotations = annotations, docs = docs)
-    else:
-        alias.fqn = fqn
-        alias.parent = parser.current_module
+        alias.clear_parent()
+        alias.fqn = None
+        alias = tccore.make_type_op(fqn, type_params, alias, parent = parser.current_module, annotations = annotations, docs = docs)
     print "Registering new alias: '%s'" % name
     parser.add_entity(name, alias)
     return alias
@@ -171,17 +170,17 @@ def parse_record_or_union(parser, is_external, annotations = None):
     fields = parse_record_body(parser)
     fqn = ".".join([parser.current_module.fqn, name])
     if category == "record":
-        outtype = tccore.make_product_type(category, None, fields, parent = None, annotations = annotations, docs = docs)
+        maker = tccore.make_product_type
     elif category == "union":
-        outtype = tccore.make_sum_type(category, None, fields, parent = None, annotations = annotations, docs = docs)
+        maker = tccore.make_sum_type
     else:
         assert False
 
+    outtype = maker(category, fqn, fields, parent = parser.current_module, annotations = annotations, docs = docs)
     if type_params:
-        outtype = tccore.make_type_fun(fqn, type_params, outtype, parent = parser.current_module, annotations = annotations, docs = docs)
-    else:
-        outtype.fqn = fqn
-        outtype.parent = parser.current_module
+        outtype.clear_parent()
+        outtype.fqn = None
+        outtype = tccore.make_type_op(fqn, type_params, outtype, parent = parser.current_module, annotations = annotations, docs = docs)
     parser.add_entity(name, outtype)
     return outtype
 

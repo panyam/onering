@@ -2,7 +2,7 @@
 import os
 import fnmatch
 from ipdb import set_trace
-from onering.packaging.utils import is_type_entity, is_typefun_entity, is_fun_entity, is_function_mapping_entity
+from onering.packaging.utils import is_type_entity, is_typeop_entity, is_fun_entity, is_function_mapping_entity
 
 class Importer(object):
     """ The purpose of this is give a method that takes a type reference/FQN and does two things:
