@@ -13,49 +13,18 @@
         {% if function.is_quant %}
             return {{render_expr(function.expr)}};
         {% else %}
-            {% if view.return_typearg %}
-                var {{ view.return_typearg.name }} = {{ make_constructor(view.return_typearg.expr, importer) }};
-            {% endif %}
-
-            {% if function.name == "Http2SlackChannelListResponse" %}
-            {{breakpoint(function, view)}}
+            {% if function.fun_type.return_typearg %}
+                var {{ function.fun_type.return_typearg.name }} = {{ make_constructor(function.fun_type.return_typearg.expr, importer) }};
             {% endif %}
 
             {{render_expr(function.expr)}}
 
             {# Return output var if required #}
-            {% if view.return_typearg %}
-            return {{ view.return_typearg.name }};
+            {% if function.fun_type.return_typearg %}
+            return {{ function.fun_type.return_typearg.name }};
             {% endif %}
         {% endif %}
     }
-
-
-    {%- if function.fun_type.is_type_op -%}
-    function({% for param in function.fun_type.type_params %} {% if loop.index0 > 0 %}, {%endif%}{{param}} {%endfor%}) { 
-        return 
-    {%- endif %}
-        function({% for typearg in view.real_fun_type.source_typeargs %}{% if loop.index0 > 0 %}, {%endif%}{{typearg.name}}{%endfor%}) {
-            {# we are at the lowest level! So go ahead and render the function's expression #}
-            {# The constructor for output #}
-            {% if view.return_typearg %}
-            var {{ view.return_typearg.name }} = {{ make_constructor(view.return_typearg.expr, importer) }};
-            {% endif %}
-
-            {% if function.name == "Http2SlackChannelListResponse" %}
-            {{breakpoint(function, view)}}
-            {% endif %}
-
-            {{render_expr(function.expr)}}
-
-            {# Return output var if required #}
-            {% if view.return_typearg %}
-            return {{ view.return_typearg.name }};
-            {% endif %}
-        }
-    {% if function.fun_type.is_type_op %}
-    }
-    {% endif %}
 {%- endmacro %}
 
 {% macro render_exprlist(exprlist) %}

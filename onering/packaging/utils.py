@@ -15,8 +15,7 @@ def is_typeop_entity(entity):
     return not entity.is_external
 
 def is_fun_entity(entity):
-    if not issubclass(entity.__class__, tlcore.Fun): return False
-    return not entity.is_external
+    return (entity.is_quant or (entity.is_fun and not entity.is_type_op)) and not entity.is_external
 
 def is_function_mapping_entity(entity):
     return isinstance(entity, tlcore.Fun) and entity.is_external and not entity.is_type_fun

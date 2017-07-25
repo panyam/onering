@@ -105,7 +105,7 @@ class Generator(base.Generator):
 
     def _write_function_to_file(self, fqn, entity, outfile):
         """ Generates all required functions. """
-        outfile.write(FunViewModel(entity, entity.fun_type, outfile).render())
+        outfile.write(FunViewModel(entity, outfile).render())
 
     def _write_typeop_to_file(self, fqn, entity, outfile):
         """ Generates a type function. """
@@ -160,6 +160,8 @@ class File(base.File):
         self.renderers = {
             tlcore.FunApp: "render_funapp",
             tlcore.Var: "render_var",
+            tlcore.Fun: "render_function",
+            tlcore.Quant: "render_function",
 
             tlext.ExprList: "render_exprlist",
             tlext.Literal: "render_literal",
@@ -168,12 +170,16 @@ class File(base.File):
             tlext.DictExpr: "render_dictexpr",
             tlext.TupleExpr: "render_listexpr",
         }
-        rend_func = self.renderers[type(expr)]
-        template = """
-            {%% import "es6/macros.tpl" as macros %%}
-            {{macros.%s (expr)}}
-        """ % rend_func
-        return self.load_template_from_string(template).render(expr = expr)
+        exptype = type(expr)
+        if exptype in (tlcore.Fun, tlcore.Quant):
+            return FunViewModel(expr, self).render()
+        else:
+            rend_func = self.renderers[exptype]
+            template = """
+                {%% import "es6/macros.tpl" as macros %%}
+                {{macros.%s (expr)}}
+            """ % rend_func
+            return self.load_template_from_string(template).render(expr = expr)
 
     def render_type(self, thetype, importer):
         """ Renders an expression onto the current template. """
@@ -220,14 +226,10 @@ class TypeOpViewModel(object):
 
 
 class FunViewModel(object):
-    def __init__(self, function, fun_type, outfile):
+    def __init__(self, function, outfile):
         print "Fun Value: ", function
         self.function = function
         self.outfile = outfile
-        self._symtable = None
-        self.return_typearg = self.function.fun_type.return_typearg
-        if self.return_typearg and self.return_typearg.expr == tlcore.VoidType:
-            self.return_typearg = None
 
     def render(self):
         print "Generating Fun: %s" % self.function.fqn
