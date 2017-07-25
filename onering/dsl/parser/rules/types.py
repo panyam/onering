@@ -212,7 +212,7 @@ def parse_field_declaration(parser):
     parser.ensure_token(TokenType.COLON)
     field_typeexpr = ensure_typeexpr(parser)
     # if we declared an inline Type then dont refer to it directly but via a Var
-    if field_typeexpr.fqn and not field_typeexpr.is_typeref and not field_typeexpr.is_alias_type:
+    if field_typeexpr.fqn and not field_typeexpr.isa(tccore.TypeRef) and not field_typeexpr.isa(tccore.Aliastype):
         field_typeexpr = tccore.make_ref(field_typeexpr.name)
     is_optional = False
     default_value = None

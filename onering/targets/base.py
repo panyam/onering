@@ -1,6 +1,7 @@
 
 import os
 from ipdb import set_trace
+from typecube import core as tccore
 from onering.utils.misc import FQN
 from onering.utils.dirutils import open_file_for_writing
 
@@ -84,6 +85,16 @@ class File(object):
         templ.globals["package"] = self.generator.package
         templ.globals["importer"] = self.importer
         templ.globals["file"] = self
+
+        # Enable a few type related helpers
+        templ.globals["is_atomic_type"] = lambda x: x.isa(tccore.AtomicType)
+        templ.globals["is_typeref"] = lambda x: x.isa(tccore.TypeRef)
+        templ.globals["is_product_type"] = lambda x: x.isa(tccore.ProductType)
+        templ.globals["is_sum_type"] = lambda x: x.isa(tccore.SumType)
+        templ.globals["is_type_op"] = lambda x: x.isa(tccore.TypeOp)
+        templ.globals["is_type_app"] = lambda x: x.isa(tccore.TypeApp)
+        templ.globals["is_fun"] = lambda x: x.isa(tccore.Fun)
+        templ.globals["is_quant"] = lambda x: x.isa(tccore.Quant)
         return templ
 
     def close(self):

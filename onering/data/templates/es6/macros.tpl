@@ -10,7 +10,7 @@
     function({% for param in function.params %} {% if loop.index0 > 0 %}, {%endif%}{{param}} {%endfor%}) { 
         {# we are at the lowest level! So go ahead and render the function's expression #}
         {# The constructor for output #}
-        {% if function.is_quant %}
+        {% if is_quant(function) %}
             return {{render_expr(function.expr)}};
         {% else %}
             {% if function.fun_type.return_typearg %}
@@ -194,14 +194,14 @@
         {% if thetype.docs %}"docs": "{{thetype.docs}}", {% endif %}
         {% if thetype.fqn %}"fqn": "{{thetype.fqn}}", {% endif %}
         "value": new {{importer.ensure("onering.core.TypeValue")}}(
-            {% if thetype.is_atomic_type %}
+            {% if is_atomic_type(thetype) %}
                 "atomicType"
             {% endif %}
-            {% if thetype.is_typeref %}
+            {% if is_typeref(thetype) %}
                 "typeRef"
             {% endif %}
-            {% if thetype.is_product_type or thetype.is_sum_type %}
-                {% if thetype.is_product_type %}
+            {% if is_product_type(thetype) or is_sum_type(thetype) %}
+                {% if is_product_type(thetype) %}
                     "productType", new {{importer.ensure("onering.core.ProductType")}}
                 {% else %}
                     "sumType", new {{importer.ensure("onering.core.SumType")}}
@@ -219,7 +219,7 @@
                     ]
                 })
             {% endif %}
-            {% if thetype.is_type_op %}
+            {% if is_type_op(thetype) %}
                 "typeFun", new {{importer.ensure("onering.core.TypeOp")}}({
                     "params": [{% for param in thetype.type_params %} {{param}}, {% endfor %}]
                     {% if thetype.expr %}
@@ -227,7 +227,7 @@
                     {% endif %}
                 })
             {% endif %}
-            {% if thetype.is_type_app %}
+            {% if is_type_app(thetype) %}
                 "typeApp", new {{importer.ensure("onering.core.TypeApp")}}({
                     "fun": {{render_typeinfo(thetype.expr)}},
                     'args': [

@@ -102,7 +102,6 @@ def parse_expr(parser):
         # check if we have a function call and also check if function call
         # is a call to a function of a generic function type!
         func_param_exprs = []
-        func_args = []
         if parser.next_token_is(parser.GENERIC_OPEN_TOKEN):
             assert field_path.length == 1
             func_param_exprs = [ ensure_typeexpr(parser) ]
@@ -113,9 +112,9 @@ def parse_expr(parser):
 
             # Yep we have a type func being instantiated so
             # dont forget to return a func_app whose function is a type_app!
-            out = tccore.make_ref(field_path.get(0))
-            out = tccore.make_type_app(out, func_param_exprs)
+            out = tccore.QuantApp(out, func_param_exprs)
 
+        func_args = []
         if parser.peeked_token_is(TokenType.OPEN_PAREN):
             assert field_path.length == 1
             # function expr, so ensure field path has only one entry

@@ -105,7 +105,7 @@ def parse_param_declaration(parser, require_name = True):
 
     param_typeexpr  = ensure_typeexpr(parser)
     # if we declared an inline Type then dont refer to it directly but via a Var
-    if param_typeexpr.fqn and not param_typeexpr.is_typeref and not param_typeexpr.is_alias_type:
+    if param_typeexpr.fqn and not param_typeexpr.isa(tccore.TypeRef) and not param_typeexpr.isa(tccore.AliasType):
         param_typeexpr = tccore.make_ref(param_typeexpr.name)
     is_optional     = parser.next_token_is(TokenType.QMARK)
     default_value   = None

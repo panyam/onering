@@ -3,7 +3,7 @@ import os
 import json
 from ipdb import set_trace
 from typecube import annotations as tlannotations
-from typecube import core as tlcore
+from typecube import core as tccore
 from typecube import ext as tlext
 from onering.utils.misc import FQN
 from onering.utils.dirutils import open_file_for_writing
@@ -39,7 +39,7 @@ class Generator(base.Generator):
             # Ensure that particular module is declared for use in this file
             outfile.ensure_module(fqn)
 
-            if is_type_entity(entity) and entity.is_alias_type:
+            if is_type_entity(entity) and entity.isa(tccore.AliasType):
                 # Comeback to aliases at the end
                 aliases.append((fqn,entity))
             else:
@@ -100,7 +100,7 @@ class Generator(base.Generator):
 
     def _write_model_to_file(self, fqn, entity, outfile):
         """ Generates the POJO corresponding to the particular module/type entity. """
-        assert not entity.is_alias_type
+        assert not entity.isa(tccore.AliasType)
         outfile.write(TypeViewModel(fqn, entity, outfile).render())
 
     def _write_function_to_file(self, fqn, entity, outfile):
@@ -158,10 +158,10 @@ class File(base.File):
     def render_expr(self, expr):
         """ Renders an expression onto the current template. """
         self.renderers = {
-            tlcore.FunApp: "render_funapp",
-            tlcore.Var: "render_var",
-            tlcore.Fun: "render_function",
-            tlcore.Quant: "render_function",
+            tccore.FunApp: "render_funapp",
+            tccore.Var: "render_var",
+            tccore.Fun: "render_function",
+            tccore.Quant: "render_function",
 
             tlext.ExprList: "render_exprlist",
             tlext.Literal: "render_literal",
@@ -171,7 +171,7 @@ class File(base.File):
             tlext.TupleExpr: "render_listexpr",
         }
         exptype = type(expr)
-        if exptype in (tlcore.Fun, tlcore.Quant):
+        if exptype in (tccore.Fun, tccore.Quant):
             return FunViewModel(expr, self).render()
         else:
             rend_func = self.renderers[exptype]
@@ -184,9 +184,9 @@ class File(base.File):
     def render_type(self, thetype, importer):
         """ Renders an expression onto the current template. """
         self.renderers = {
-            tlcore.Type: "render_basic_type",
-            tlcore.ProductType: "render_record",
-            tlcore.SumType: "render_union",
+            tccore.Type: "render_basic_type",
+            tccore.ProductType: "render_record",
+            tccore.SumType: "render_union",
         }
         rend_func = self.renderers[type(thetype)]
         template = """
@@ -230,6 +230,7 @@ class FunViewModel(object):
         print "Fun Value: ", function
         self.function = function
         self.outfile = outfile
+        if self.function.isa(tccore.TypeOp): set_trace()
 
     def render(self):
         print "Generating Fun: %s" % self.function.fqn
@@ -239,14 +240,14 @@ class FunViewModel(object):
 def make_constructor(typeexpr, importer):
     """Generates the constructor call for a given type."""
     resolved_type = typeexpr
-    while type(resolved_type) is tlcore.TypeRef:
+    while type(resolved_type) is tccore.TypeRef:
         resolved_type = resolved_type.resolve()
-    assert issubclass(resolved_type.__class__, tlcore.Type)
+    assert issubclass(resolved_type.__class__, tccore.Type)
     if resolved_type.fqn == "map":
         return "{}"
     elif resolved_type.fqn == "list":
         return "[]"
-    elif resolved_type.is_atomic_type:
+    elif resolved_type.isa(tccore.AtomicType):
         if resolved_type.fqn == "any":
             return "null"
         elif resolved_type.fqn == "boolean":
@@ -257,9 +258,9 @@ def make_constructor(typeexpr, importer):
             return "0.0"
         elif resolved_type.fqn == "string":
             return '""'
-    elif issubclass(resolved_type.__class__, tlcore.ContainerType) and resolved_type.tag == "record":
+    elif issubclass(resolved_type.__class__, tccore.ContainerType) and resolved_type.tag == "record":
         return "new %s()" % importer.ensure(resolved_type.fqn)
-    elif type(resolved_type) is tlcore.TypeApp:
+    elif type(resolved_type) is tccore.TypeApp:
         typeop = resolved_type.expr.resolve()
         typeargs = [arg.resolve() for arg in resolved_type.args]
         out = "new (%s(%s))()" % (importer.ensure(typeop.fqn), ", ".join(importer.ensure(arg.fqn) for arg in typeargs))
