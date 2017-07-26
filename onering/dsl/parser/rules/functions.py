@@ -9,7 +9,6 @@ from onering.dsl import errors
 from onering.dsl.parser.rules.types import ensure_typeexpr
 from onering.dsl.lexer import Token, TokenType
 from onering.dsl.parser.rules.annotations import parse_annotations
-from onering.dsl.parser.rules.misc import parse_field_path
 
 ########################################################################
 ##          Fun type and definition parsing rules

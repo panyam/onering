@@ -4,7 +4,6 @@ import ipdb
 from onering.dsl import errors
 from onering.dsl.lexer import Token, TokenType
 from onering.dsl.parser.rules.annotations import parse_annotations
-from onering.dsl.parser.rules.misc import parse_field_path
 from onering.utils.misc import FQN
 
 ########################################################################

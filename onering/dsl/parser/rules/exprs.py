@@ -2,7 +2,7 @@
 from __future__ import absolute_import
 from ipdb import set_trace
 from typecube import core as tccore
-from typecube import ext as tlext
+from typecube import ext as tcext
 from typecube.utils import FieldPath
 from onering import utils
 from onering.dsl import errors
@@ -17,7 +17,7 @@ def parse_expr_list(parser, function):
     expr_list := "{" expr * "}"
 
     """
-    out = tlext.ExprList()
+    out = tcext.ExprList()
     parser.ensure_token(TokenType.OPEN_BRACE)
     while not parser.peeked_token_is(TokenType.CLOSE_BRACE):
         out.add(parse_statement(parser, function))
@@ -42,20 +42,20 @@ def parse_statement(parser, function):
     is_temporary = parser.next_token_is(TokenType.IDENTIFIER, "let")
     expr = parse_expr(parser)
     parser.ensure_token(TokenType.STREAM)
-    target_var = parse_expr(parser)
+    target = parse_expr(parser)
 
     parser.consume_tokens(TokenType.SEMI_COLON)
 
     # ensure last var IS a variable expr
-    if not isinstance(target_var, tccore.Var):
-        raise errors.OneringException("Final target of an expr MUST be a variable")
+    if not target.isa(tccore.Var) and not target.isa(tcext.Index):
+        raise errors.OneringException("Final target of an expr MUST be a variable or an index expression")
 
-    if target_var.field_path.get(0) == '_':
+    if target.isa(tccore.Var) and target.name == '_':
         return expr
     else:
         if is_temporary:
-            function.register_temp_var(target_var.field_path.get(0))
-        return tlext.Assignment(target_var, expr)
+            function.register_temp(target.name)
+        return tcext.Assignment(target, expr)
 
 def parse_expr(parser):
     """ Parse a function call expr or a literal.
@@ -75,16 +75,16 @@ def parse_expr(parser):
     if parser.peeked_token_is(TokenType.NUMBER):
         value = parser.next_token().value
         if type(value) is int:
-            vtype = tlext.IntType
+            vtype = tcext.IntType
         elif type(value) is long:
-            vtype = tlext.LongType
+            vtype = tcext.LongType
         elif type(value) is float:
-            vtype = tlext.DoubleType
+            vtype = tcext.DoubleType
         else:
             assert False
-        out = tlext.Literal(value, vtype)
+        out = tcext.Literal(value, vtype)
     elif parser.peeked_token_is(TokenType.STRING):
-        out = tlext.Literal(parser.next_token().value, tlext.StringType)
+        out = tcext.Literal(parser.next_token().value, tcext.StringType)
     elif parser.peeked_token_is(TokenType.OPEN_SQUARE):
         # Read a list
         out = parse_list_expr(parser)
@@ -97,7 +97,12 @@ def parse_expr(parser):
     elif parser.peeked_token_is(TokenType.IDENTIFIER):
         # See if we have a function call or a var or a field path
         field_path = parse_field_path(parser, allow_abs_path = False, allow_child_selection = False)
-        out = tccore.Var(field_path)
+        out = None
+        for part in field_path:
+            if not out:
+                out = tccore.Var(part)
+            else:
+                out = tcext.Index(out, part)
 
         # check if we have a function call and also check if function call
         # is a call to a function of a generic function type!
@@ -148,7 +153,7 @@ def parse_tuple_expr(parser):
             expr = parse_expr(parser)
             exprs.append(expr)
         parser.ensure_token(TokenType.CLOSE_PAREN)
-    return tlext.TupleExpr(exprs)
+    return tcext.TupleExpr(exprs)
 
 def parse_list_expr(parser):
     parser.ensure_token(TokenType.OPEN_SQUARE)
@@ -160,7 +165,7 @@ def parse_list_expr(parser):
             expr = parse_expr(parser)
             exprs.append(expr)
         parser.ensure_token(TokenType.CLOSE_SQUARE)
-    return tlext.ListExpr(exprs)
+    return tcext.ListExpr(exprs)
 
 def parse_if_expr(parser):
     """ Parse an if expr:
@@ -189,4 +194,4 @@ def parse_if_expr(parser):
         else:
             break
 
-    return tlext.IfExpr(conditions, default_expr)
+    return tcext.IfExpr(conditions, default_expr)
