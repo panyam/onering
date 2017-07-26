@@ -3,13 +3,11 @@ from __future__ import absolute_import
 from ipdb import set_trace
 from typecube import core as tccore
 from typecube import ext as tcext
-from typecube.utils import FieldPath
 from onering import utils
 from onering.dsl import errors
 from onering.dsl.parser.rules.types import ensure_typeexpr
 from onering.dsl.lexer import Token, TokenType
 from onering.dsl.parser.rules.annotations import parse_annotations
-from onering.dsl.parser.rules.misc import parse_field_path
 
 def parse_expr_list(parser, function):
     """ Parses a statement block.
@@ -95,20 +93,13 @@ def parse_expr(parser):
     elif parser.peeked_token_is(TokenType.IDENTIFIER, "if"):
         out = parse_if_expr(parser)
     elif parser.peeked_token_is(TokenType.IDENTIFIER):
-        # See if we have a function call or a var or a field path
-        field_path = parse_field_path(parser, allow_abs_path = False, allow_child_selection = False)
-        out = None
-        for part in field_path:
-            if not out:
-                out = tccore.Var(part)
-            else:
-                out = tcext.Index(out, part)
+        # See if we have a variable or an index chain expression
+        out = parse_index_expr(parser)
 
         # check if we have a function call and also check if function call
         # is a call to a function of a generic function type!
         func_param_exprs = []
         if parser.next_token_is(parser.GENERIC_OPEN_TOKEN):
-            assert field_path.length == 1
             func_param_exprs = [ ensure_typeexpr(parser) ]
             while not parser.peeked_token_is(parser.GENERIC_CLOSE_TOKEN):
                 parser.ensure_token(TokenType.COMMA)
@@ -120,11 +111,7 @@ def parse_expr(parser):
             out = tccore.QuantApp(out, func_param_exprs)
 
         func_args = []
-        if parser.peeked_token_is(TokenType.OPEN_PAREN):
-            assert field_path.length == 1
-            # function expr, so ensure field path has only one entry
-            # Treat the source as a function name that will be resolved later on
-            parser.ensure_token(TokenType.OPEN_PAREN)
+        if parser.next_token_if(TokenType.OPEN_PAREN, consume = True):
             while not parser.peeked_token_is(TokenType.CLOSE_PAREN):
                 # read another expr
                 expr = parse_expr(parser)
@@ -166,6 +153,17 @@ def parse_list_expr(parser):
             exprs.append(expr)
         parser.ensure_token(TokenType.CLOSE_SQUARE)
     return tcext.ListExpr(exprs)
+
+def parse_index_expr(parser):
+    """ Parse a field chain indexing expression:
+
+        a/b/0/2/c/d
+    """
+    out = tccore.Var(parser.ensure_token(TokenType.IDENTIFIER))
+    while parser.next_token_if(TokenType.SLASH, consume = True):
+        next = parser.ensure_token(TokenType.IDENTIFIER)
+        out = tcext.Index(out, next)
+    return out
 
 def parse_if_expr(parser):
     """ Parse an if expr:
