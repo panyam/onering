@@ -2,6 +2,7 @@
 import os
 from ipdb import set_trace
 from typecube import core as tccore
+from typecube import ext as tcext
 from onering.utils.misc import FQN
 from onering.utils.dirutils import open_file_for_writing
 
@@ -94,6 +95,8 @@ class File(object):
         templ.globals["is_type_op"] = lambda x: x.isa(tccore.TypeOp)
         templ.globals["is_type_app"] = lambda x: x.isa(tccore.TypeApp)
         templ.globals["is_fun"] = lambda x: x.isa(tccore.Fun)
+        templ.globals["is_var"] = lambda x: x.isa(tccore.Var)
+        templ.globals["is_index"] = lambda x: x.isa(tcext.Index)
         templ.globals["is_quant"] = lambda x: x.isa(tccore.Quant)
         return templ
 

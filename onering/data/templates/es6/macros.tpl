@@ -52,11 +52,11 @@
 {%- endmacro -%}
 
 {% macro render_assignment(assignment) %}
-    {% if assignment.target_variable.field_path.length == 1 %}
-        {{assignment.target_variable.field_path.get(0)}} = 
+    {% if is_var(assignment.target) %}
+        {{assignment.target.name}} = 
     {% else %}
-        {% with beginning,last = assignment.target_variable.field_path.poptail() %}
-            {{importer.ensure("onering.core.externs.ensure_field_path")}}(
+        {% with beginning,last = assignment.target.expr, assignment.target.key %}
+            {{importer.ensure("onering.core.externs.ensure_index_expr")}}(assignment.target.expr)
                 {{beginning.get(0)}},
                 {{beginning.get(0)}}.typeinfo(),
                 "{{beginning}}"
@@ -66,11 +66,7 @@
     {{render_expr(assignment.expr)}}
 {%- endmacro %}
 
-{% macro render_var(var) -%}
-    {% with first, rest = var.field_path.pop() %}
-        {{importer.ensure("onering.core.externs.get_field_path")}}({{first}}, {{first}}.typeinfo(), "{{rest}}".split("/"))
-    {% endwith %}
-{%- endmacro %}
+{% macro render_var(var) -%} {{var.name}} {%- endmacro %}
 
 {% macro render_listexpr(listexpr) -%}
     [
