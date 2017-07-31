@@ -13,7 +13,6 @@ class Generator(object):
         self.output_dir = output_dir
         self._allfiles = {}
         self._openfiles = set()
-        context.global_module.ensure_parents()
 
     def generate(self, context):
         """ Generates all artifacts for a particular platform. """

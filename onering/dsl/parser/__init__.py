@@ -2,11 +2,11 @@
 from __future__ import absolute_import
 
 import ipdb
+from typecube import modules as tcmods
+from typecube import core as tlcore
 from onering.dsl.parser.tokstream import TokenStream
 from onering.dsl import errors
-from typecube import core as tlcore
 from onering.dsl.lexer import Token, TokenType
-from onering.core import modules as ormods
 
 class Parser(TokenStream):
     """
@@ -64,14 +64,6 @@ class Parser(TokenStream):
     def register_entity_parser(self, keyword, parser):
         self._entity_parsers[keyword] = parser
 
-    """
-    def ensure_key(self, fqn_or_name_or_parts):
-        entity = self.current_module.ensure_key(fqn_or_name_or_parts)
-        assert entity.fqn not in self.found_entities, "Entity '%s' already exists" % entity.fqn
-        self.found_entities[entity.fqn] = entity
-        return entity
-    """
-
     def add_entity(self, name, entity):
         if name:
             parent_fqn = self.current_module.fqn
@@ -92,22 +84,6 @@ class Parser(TokenStream):
     def ensure_literal_value(self):
         from onering.dsl.parser.rules.exprs import parse_expr
         return parse_expr(self)
-
-        """
-        if self.peeked_token_is(TokenType.NUMBER):
-            # TODO: handle long vs int vs float etc
-            return self.ensure_token(TokenType.NUMBER)
-        elif self.peeked_token_is(TokenType.STRING):
-            return self.ensure_token(TokenType.STRING)
-        elif self.peeked_token_is(TokenType.IDENTIFIER):
-            return self.ensure_fqn()
-        elif self.peeked_token_is(TokenType.OPEN_SQUARE):
-            raise errors.OneringException("Json Array literals not yet implemented")
-        elif self.peeked_token_is(TokenType.OPEN_BRACE):
-            raise errors.OneringException("Json Dict literals not yet implemented")
-        else:
-            raise errors.UnexpectedTokenException(self.peek_token(), TokenType.STRING, TokenType.NUMBER, TokenType.IDENTIFIER)
-        """
 
     def ensure_fqn(self, delim_token = None):
         """
@@ -156,18 +132,21 @@ class Parser(TokenStream):
         """ Tries to ensure that the module specified by an FQN exists from current module. """
         parts = fqn.split(".")
         last_module = self.current_module
+        total = self.current_module.fqn or ""
         for index,part in enumerate(parts):
+            if total: total = total + "." + part
+            else: total = part
             child = self.current_module.get(part)
             if child:
-                if not isinstance(child, ormods.Module):
+                if not isinstance(child, tcmods.Module):
                     raise OneringException("'%s' in '%s' is not a module" % (part, self.current_module.fqn))
                 self.current_module = child
             else:
                 if index == len(parts) - 1:
-                    child = ormods.Module(part, self.current_module, annotations, docs)
+                    child = tcmods.Module(total, self.current_module, annotations, docs)
                 else:
-                    child = ormods.Module(part, self.current_module)
-                self.current_module.add(child.name, child)
+                    child = tcmods.Module(total, self.current_module)
+                self.current_module.add(part, child)
                 self.current_module = child
         return last_module, self.current_module
 

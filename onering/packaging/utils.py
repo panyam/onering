@@ -1,7 +1,6 @@
 
 import ipdb
 from typecube import core as tccore
-from onering.core import modules as ormods
 
 def is_type_entity(entity):
     # What about type functions?
