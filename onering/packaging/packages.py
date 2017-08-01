@@ -128,19 +128,26 @@ class Package(object):
         old_entity_resolver = context.entity_resolver
         context.entity_resolver = self._load_entity_resolver(context)
 
+        # Load dependencies so resolutions will succeed
+        for dep_pkg_name,dep_pkg_path in self.dependencies.iteritems():
+            abs_dep_pkg_path = os.path.abspath(os.path.join(self.package_dir, dep_pkg_path))
+            context.ensure_package(dep_pkg_name, abs_dep_pkg_path)
+
         # Load the necessary things common to all platforms
         # Each entry in the inputs list can be:
         # A file or a wildcard that is either an absolute path or
         # a path relative to the folder where the package_spec exists
         self.found_entities = LoaderActions(context).load_entries(self.inputs)
 
-        # Now load dependencies so resolutions will succeed
-        for dep_pkg_name,dep_pkg_path in self.dependencies.iteritems():
-            abs_dep_pkg_path = os.path.abspath(os.path.join(self.package_dir, dep_pkg_path))
-            context.ensure_package(dep_pkg_name, abs_dep_pkg_path)
-
         context.popdir()
         context.entity_resolver = old_entity_resolver
+
+        # Kick off the semantic analyzer on the parsed entites
+        # to fix any holes.
+        from onering.dsl.analyzer import Analyzer
+        analyzer = Analyzer(context, self.found_entities)
+        analyzer.analyze()
+
         return self
 
     def _load_entity_resolver(self, context):

@@ -6,7 +6,7 @@ Generates a package given the path to a package.spec.
 import sys
 import os
 import json
-import ipdb
+from ipdb import set_trace
 import pprint
 
 from onering.packaging import packages

@@ -1,0 +1,463 @@
+
+Foreign Function Interfaces.
+
+So far we delegate a bunch of stuff to extern-ed functions that can be 
+"provided" to aid the code generation in onering.
+
+The flow is:
+
+Onering Source -> Target Processor -> Target Code
+
+
+Onering source contains functions and types.  Target processor (say for java) 
+generates classes/enumes and other things for the particular target. It also 
+generates the function implementations for the target.
+
+So if we had the adder function in onering as:
+
+```
+fun add(a: int, b : int) -> int {
+    sum(a,b) => dest
+}
+```
+
+then the generated code is (no optimisations applied here, we let the java 
+compiler do that):
+
+public static class Utils {
+    public static int add(int a, int b) {
+        int out;
+        out = sum(a,b);
+        return out;
+    }
+}
+
+And "sum" would be defined as:
+
+```
+fun extern sum(a : int, b : int) -> int
+```
+
+So far so good.  External functions provided here are meant to be implementable 
+by the particular target.
+
+Onering's aim is to be a strong type-system based language.   So we want to do 
+more than just work on values.  We want to work on expressions as first class 
+citizens.   Where might this be useful?
+
+One example is the "if" statement.  In onering there are very little constructs.   
+Everything is a function and we want to be judicious in adding new 
+constructs/statement types.   So one way to add this functionality is to be 
+able to implement the if statement as a function for now.
+
+A naive way to implement this function may look like:
+
+```
+fun extern if(condition, body, elsebody) -> void
+```
+
+So we could simply do:
+
+```
+fun lessthan5(value : int) -> string {
+    if(lt(value, 5),
+        concat(value, " is less than 5") => dest,
+        concat(value, " is greater than 5") => dest)
+
+    // or are more functional way
+    if(lt(value, 5),
+        concat(value, " is less than 5"),
+        concat(value, " is greater than 5")) => dest
+}
+```
+
+The problem with this however is that concat method is called twice instead of 
+only when lt(value, 5) returns true.
+
+What we need is implement "if" such that its parameters follow a "pass-by-name" 
+mechanism instead of the default "pass-by-value".  Note that PBN is vastly 
+inefficient than PBVbut sometimes deferring the evaluation is very beneficial 
+and actually required.  This is the first step to enabling functions that 
+can accept expressions instead of just values.
+
+Firstly it is important to realise that onering is not a runtime, but an 
+expression transformational langauge.  It will generate transformations to be 
+embedded targetted for other platforms/languages. So the good news is we *do* 
+adopt PBN until the point of the renderer.   Ie the renderer gets an expression 
+that needs to be rendered and it recursively drill down the expression tree 
+rendering things.
+
+To avoid the conundrums arising from "if-as-a-function" we could mark certain 
+extern functions as "macros" and have the target provide plugins for this.  
+This is in effect lik an extern.  Let us look at what this looks like.
+
+Back to the if function and the "lessthan5" method.  If the "if" function was 
+somehow marked as a macro then this is a signal that its parameters are to adopt 
+a PBN convention EVEN IN THE GENERATED CODE.  For example the lessthan5 method 
+above *should* be generated like:
+
+public static class Utils {
+    public static String lessthan5(int value) {
+        int out;
+        if (lt(value, 5)) {
+            out = concat(value, " is less than 5"),
+        } else {
+            out = concat(value, " is greater than 5")) => dest
+        }
+        return out;
+    }
+}
+
+In our code gen template, we have:
+
+```
+{% macro render_funapp(funapp) %}
+    {% with func_expr,_ = funapp.resolve_function() %}
+        {% if func_expr.fqn %}
+            {{func_expr.fqn}}({% for expr in funapp.args %}
+                {% if loop.index0 > 0 %}, {% endif %} {{render_expr(expr)}}
+            {% endfor %})
+        {% else %}
+            {{render_function(func_expr)}}({% for expr in funapp.args %}
+                {% if loop.index0 > 0 %}, {% endif %} {{render_expr(expr)}}
+            {% endfor %})
+        {% endif %}
+    {% endwith %}
+{%- endmacro %}
+```
+
+We could augment this (ie `if fun_expr.fqn == "if" .....`) to intercept calls to 
+"if" so that particular function applications are treated differently.  ie we 
+could actually do:
+
+{% macro render_if(if_funapp) %}
+    if ({{render_expr(args[0])}}) {
+        {{render_expr(body)}}
+    } else {
+        {{render_expr(elsebody)}}
+    }
+{% endmacro %}
+
+What we have essentially done is created "macros".   How would this work if "if" 
+was an expression instead of a statement?  This important since the "result" of 
+the if must be bound to a variable in the case of "if" being a expression.   This 
+is an interesting case because if-as-an-expression may not be supported by the 
+target so the macro in the target processor needs to know the final bound variable 
+if one is being assigned to.   So the render_if would actually have to look like:
+
+
+{% macro render_if(if_funapp, dest) %}
+    if ({{render_expr(args[0])}}) {
+        {{render_expr(body, dest)}}
+    } else {
+        {{render_expr(elsebody, dest)}}
+    }
+{% endmacro %}
+
+
+Welcome to destination passing style!!!  This we can look in more detail.
+
+Let us look at another example.  The "for loop".  Say we want to add a list of 
+numbers:
+
+```
+fun sumlist(values : list<int>) -> int {
+    0 => dest
+    for value : values {
+        sum(dest, value) => dest
+    }
+}
+```
+
+How would we do the for as a macro.  for statements are really declarations so 
+not really expressions but we could treat it as an expression that returns void.
+
+We would have a foreach function of the type:
+
+```
+extern fun <T> foreach(value : T, values : list<T>, body) -> void
+
+fun sumlist(values : list<int>) -> int {
+    0 => dest
+    foreach(value, values, {
+        sum(dest, value) => dest
+    }) => _
+}
+```
+
+Now for the macro:
+
+```
+{% macro render_foreach(foreach) %}
+    for ({{foreach.args[0]}} : {{render_expr(foreach.args[1])}}) 
+        {{render_expr(foreach.args[1])}}
+{% endmacro %}
+```
+
+And the funcional equivalent:
+
+``` 
+
+fun <T> reduce(accfun : fun(x : T, y : T) -> T, values : list<T>, seed : T) -> T {
+    seed => dest
+    foreach(value, values, {
+        sum(value, dest) => dest
+    })
+}
+
+fun sumlist(values : list<int>) -> int {
+    reduce(fun(x : int,y : int) -> int { sum(x,y) }, values, 0)
+}
+
+// With Currying
+fun sumlist = reduce!(accfun = sum, seed = 0)
+
+Say we have the "map" function:
+
+fun <X,Y> map(functor : fun(input : X) -> Y, values : list<X>) -> list<Y> {
+    [] => dest
+    foreach(value, values, {
+        append(dest, functor(value)) => _
+    })
+}
+```
+
+To summarise: 
+
+    To get PBN - use macros in templates, and in a fun_app, hijack based on fqn 
+                 of the function to apply special macro.
+    To get PBV - use extern functions that is implemented by the target language 
+                 (eg concat, dict_get etc)
+
+Let us look at another scenario.  In java we have inheritance and interfaces 
+modelled as:
+
+interface Talkable { methods }
+
+class TalkableBase { methods and data }
+
+class RealTalkable extends TalkableBase {
+    ....
+}
+
+Implementing Foreach
+====================
+
+As a native plubin:
+
+```
+# In python
+def foreach(pattern : Pattern, values : list<Expr>, body : any):
+    for value in values:
+        # value is an Expr object, 
+        bindings = unwrapExprIntoPattern(value, pattern)
+        if bindings is Failure:
+            return Failure
+        else:
+            runtime.eval(body, bindings)
+
+# In onering
+fun foreach(value : Pattern, values : list<Expr>, body : any) -> void {
+    forloop(
+}
+
+class ForLoop(Expr):
+    def __init__(self, cond, body):
+        self.cond = cond
+        self.body = body
+        self.cond.parent = self
+        self.body = self
+
+```
+
+Our contention is that there is nothing specific about "extends" and it is just 
+another function, albeit on types.
+
+so RealTalkable = extend("RealTalkable", TalkableBase, {
+                            // ... new methods and data
+                        })
+
+for this to happen we would need something like:
+
+fun extend(class_name, BaseClass, newmethods : list<Method>) -> Type {
+}
+
+Now extend can be called to just create a new function.   But this requires two 
+things:
+
+1. The ability to actually pass (or return) a type object
+2. To actually execute a function - ie instead of having a target processor in 
+   jinja (or in py), the target processor itself could be in onering.  So finally 
+   onering runtime (or rather typecube runtime) can replace jinja.  We are not 
+   getting a step closer to having a proper lisp without the ugliness - yes 
+   sligthly more verbose but also a lot more clearer and intentful.
+
+BUT - does this violate our principle of not needing to bundle a "VM".   Is 
+there a middle ground?  
+
+Having to do the rendering (or code gen) bits in jinja brings in an extra 
+dependency.  Our goal with doing this in onering is so we dont have to.  Or 
+atleast this becomes part of the library core that doesnt need porting if onering 
+ever needs to be ported to another language.
+
+For this we need to be able to have a "runtime" component for onering that basically 
+does expression evaluations.  The evaluator is not about performance as we are 
+just generating code for other languages.  The evaluater is in effect a code 
+generator.
+
+So currently we have a "render" method for each expression type.  This is what 
+we want to implement in for the different target languages.
+
+fun process_target(entities : list<union Entity { Fun, Quant, Type, TypeOp } >) {
+    foreach<Entity>(entity, entities, {
+    }) => _
+}
+
+What we need is something like:
+
+import typecube.core.isa
+import typecube.core.Expr
+import typecube.core.Abs
+import typecube.core.App
+import typecube.core.Fun
+import typecube.core.FunApp
+import typecube.core.Quant
+import typecube.core.QuantApp
+import typecube.core.Type
+import typecube.core.TypeOp
+import typecube.core.TypeApp
+import typecube.ext.Assignment
+import typecube.ext.ExprList
+import typecube.ext.Literal
+
+fun render_expr(expr : Expr) -> string {
+    if (isa(expr, Var)) {
+        render_var(cast(expr, Var))
+    } elif isa(expr, Abs) {
+        render_abs(cast(expr, Abs))
+    } elif isa(expr, App) {
+        render_app(cast(expr, App))
+    } elif isa(expr, Type) {
+        render_type(cast(expr, Type))
+    } elif isa(expr, Assignment) {
+        render_assignment(cast(expr, Assignment))
+    } elif isa(expr, ExprList) {
+        render_exprlist(cast(expr, ExprList))
+    } elif isa(expr, Literal) {
+        render_literal(cast(expr, Literal))
+    } else {
+        error("Invalid expression type")
+    } => dest
+}
+
+fun render_abs(abs : Abs) -> string {
+    match abs {
+        fun as Fun => {
+            render_fun(fun)
+        }
+        typeop as TypeOp => {
+            render_type_op(typeop)
+        }
+        quant as Quant => {
+            render_quant(quant)
+        }
+        default => {
+            error("Invalid expression type")
+        }
+    }
+}
+
+fun render_app(app : App) -> string {
+    if isa(expr, FunApp) {
+        render_fun_app(expr)
+    } elif isa(expr, TypeApp) {
+        render_type_app(expr)
+    } elif isa(expr, QuantApp) {
+        render_quant_app(expr)
+    } else {
+        error("Invalid expression type")
+    } => dest
+}
+
+fun render_type(type : Type) -> string {
+    dispatch_on(type,
+        [(AliasType, render_alias_type),
+         (AtomicType, render_atomic_type),
+         (ProductType, render_product_type),
+         (SumType, render_sum_type),
+         (TypeRef, render_typeref)]) => dest
+}
+
+fun dispatch_on(expr, cases : list<(Kind, Fun)>) -> string {
+    foreach((case_type, case_fun), cases, {
+        if isa(expr, case_type) {
+            case_fun(expr) => dest
+            break
+        }
+    })
+}
+
+fun render_var(var : Var) -> string {
+    var/name => dest
+}
+
+fun render_exprlist(exprlist : ExprList) -> string {
+    join(";", map(render_expr, exprlist.children)) => dest
+}
+
+fun render_literal(literal : Literal) -> string {
+    if equals(literal/value_type/fqn, "string") {
+        literal/value
+    } else {
+        tostring(literal)
+    }
+}
+
+fun render_assignment(assignment : Assignment) -> string {
+    let "" => prefix
+    if isvar(assignment/target) {
+        assignment/target/name => prefix
+    } else {
+        // Here we have 2 options.
+        // The "target" that is part of the assignment in this case is now
+        // and "index" expression - eg a/b/c/d/e
+        //
+        // Option 1: Generate checker/getter statements inline
+        //
+        // We can either generate all the "getter/setter" code inline, ie, for
+        // a/b/c/d, we could generate:
+        //
+        // result = default_value_of(typeof(d))
+        //
+        // if a.hasB and a.b.hasC and a.b.c.hasD {
+        //    result = a.getB.getC.getD
+        // }
+        //
+        // Option 2: Marshall assignment/target as an Expr object to the target 
+        // language, which then performs the equivalent of reflection and returns 
+        // back an Expr object that we unmarshall
+        //
+        // ie something like:
+        // marshall_expression(assignment/target) => marshalled_string
+        // unmarshall(concat(["ensure_field(" + marshalled_string + ")"])) => prefix
+        //
+        // Problem with (2) is the cost of marshalling and unmarshalling (which is 
+        // just a form of parsing even if we optimize it with binary).   And the 
+        // marshal/unmarshall for each platform (albeit on the target side).
+        //
+        // But with (1), the inline generation, we still need a function, but the 
+        // function is a TC function all running within the same runtime without 
+        // any marshalling or unmarshalling of data. Note that the function will 
+        // take an expression as always without requiring a full evaluation.
+        // Something like:
+        //
+        // render_settable(assignment/target, symtable) => prefix
+        //
+        // The variable "prefix" will now have the "settable" expression 
+        // after all new variables have been created.  This is similar to the
+        // original desugar transformtion that used auto generated local
+        // vars to keep track of intermediate state.
+    }
+    concat([prefix, " = ", render_expr(assignment/expr)]) => dest
+}
+
