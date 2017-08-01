@@ -30,14 +30,13 @@ def parse_function(parser, is_external, annotations, **kwargs):
 
     parent = parser.current_module if func_name else None
     fun_type = tccore.make_fun_type(None, input_typeargs, output_typearg)
-    function = tccore.Fun(func_fqn, None, fun_type, parser.current_module, annotations = annotations, docs = docs)
+    function = tccore.Fun(func_fqn, None, fun_type).set_annotations(annotations).set_docs(docs)
     if not is_external:
         parse_function_body(parser, function)
 
     if type_params:
-        function.clear_parent()
         function.fqn = None
-        function = tccore.Quant(func_fqn, type_params, function, parent = parser.current_module, annotations = annotations, docs = docs)
+        function = tccore.Quant(type_params, function, func_fqn).set_annotations(annotations).set_docs(docs)
 
     parser.add_entity(func_name, function)
     parser.onering_context.fgraph.register(function)
@@ -78,7 +77,7 @@ def parse_function_signature(parser, require_param_name = True):
         output_typeexpr = ensure_typeexpr(parser)
         if parser.next_token_is(TokenType.IDENTIFIER, "as"):
             output_varname = parser.ensure_token(TokenType.IDENTIFIER)
-        output_typearg = tccore.TypeArg(output_varname, output_typeexpr)
+        output_typearg = tccore.AnnotatedExpr(output_typeexpr, output_varname)
     return input_params, output_typearg 
 
 def parse_param_declaration(parser, require_name = True):
@@ -110,7 +109,7 @@ def parse_param_declaration(parser, require_name = True):
     if parser.next_token_is(TokenType.EQUALS):
         default_value = parser.ensure_literal_value()
 
-    return tccore.TypeArg(param_name, param_typeexpr, is_optional, default_value, annotations, docstring)
+    return tccore.AnnotatedExpr(param_typeexpr, param_name, is_optional, default_value, annotations, docstring)
 
 def parse_function_body(parser, function):
     if parser.peeked_token_is(TokenType.OPEN_BRACE):

@@ -27,6 +27,10 @@ class OneringContext(dirutils.DirPointer):
         # Load all onering "core" schemas
         # self.load_core_schemas()
 
+    @property
+    def global_module(self):
+        return self.runtime.global_module
+
     def register_default_types(self):
         # register references to default types.
         for t in [tccore.AnyType,

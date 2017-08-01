@@ -2,8 +2,8 @@
 from __future__ import absolute_import
 
 import ipdb
-from typecube import modules as tcmods
-from typecube import core as tlcore
+from typecube import core as tccore
+from typecube import ext as tcext
 from onering.dsl.parser.tokstream import TokenStream
 from onering.dsl import errors
 from onering.dsl.lexer import Token, TokenType
@@ -127,33 +127,6 @@ class Parser(TokenStream):
         except:
             raise
         return self.root_module
-
-    def push_module(self, fqn, annotations, docs):
-        """ Tries to ensure that the module specified by an FQN exists from current module. """
-        parts = fqn.split(".")
-        last_module = self.current_module
-        total = self.current_module.fqn or ""
-        for index,part in enumerate(parts):
-            if total: total = total + "." + part
-            else: total = part
-            child = self.current_module.get(part)
-            if child:
-                if not isinstance(child, tcmods.Module):
-                    raise OneringException("'%s' in '%s' is not a module" % (part, self.current_module.fqn))
-                self.current_module = child
-            else:
-                if index == len(parts) - 1:
-                    child = tcmods.Module(total, self.current_module, annotations, docs)
-                else:
-                    child = tcmods.Module(total, self.current_module)
-                self.current_module.add(part, child)
-                self.current_module = child
-        return last_module, self.current_module
-
-    def pop_to_module(self, module):
-        while self.current_module != module:
-            self.current_module = self.current_module.parent
-        return self.current_module
 
     def process_directive(self, command):
         parts = [c.strip() for c in command.split(" ") if c.strip()]

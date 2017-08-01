@@ -176,11 +176,11 @@ def parse_record_or_union(parser, is_external, annotations = None):
     else:
         assert False
 
-    outtype = maker(category, fqn, fields, parent = parser.current_module, annotations = annotations, docs = docs)
+    outtype = maker(category, fqn, fields).set_annotations(annotations).set_docs(docs)
     if type_params:
         outtype.clear_parent()
         outtype.fqn = None
-        outtype = tccore.make_type_op(fqn, type_params, outtype, parent = parser.current_module, annotations = annotations, docs = docs)
+        outtype = tccore.make_type_op(fqn, type_params, outtype).set_annotations(annotations).set_docs(docs)
     parser.add_entity(name, outtype)
     return outtype
 
@@ -223,5 +223,4 @@ def parse_field_declaration(parser):
     if parser.next_token_is(TokenType.EQUALS):
         default_value = parser.ensure_literal_value()
 
-    field = tccore.TypeArg(field_name, field_typeexpr, is_optional, default_value, annotations, docstring)
-    return field
+    return tccore.AnnotatedExpr(field_typeexpr, field_name, is_optional, default_value, annotations, docstring)
