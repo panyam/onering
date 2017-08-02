@@ -55,13 +55,15 @@
     {% if is_var(assignment.target) %}
         {{assignment.target.name}} = 
     {% else %}
-        {% with beginning,last = assignment.target.expr, assignment.target.key %}
+        {# 
+        {% with beginning,last = (assignment.target.expr, assignment.target.key %}
             {{importer.ensure("onering.core.externs.ensure_index_expr")}}(assignment.target.expr)
                 {{beginning.get(0)}},
                 {{beginning.get(0)}}.typeinfo(),
                 "{{beginning}}"
             ).{{last}} = 
         {% endwith %}
+        #} 
     {% endif %}
     {{render_expr(assignment.expr)}}
 {%- endmacro %}
@@ -122,11 +124,11 @@
     class {
         constructor(argmap) {
             argmap = argmap || {};
-            {% for arg in record_type.args %}
+            {% for arg in record_type.typerefs %}
             this.{{arg.name}} = argmap.{{arg.name}} || null;
             {% endfor %}
         }
-        {% for arg in record_type.args %}
+        {% for arg in record_type.typerefs %}
 
         get {{arg.name}}() {
             return this._{{arg.name}};
@@ -193,7 +195,7 @@
             {% if is_atomic_type(thetype) %}
                 "atomicType"
             {% endif %}
-            {% if is_typeref(thetype) %}
+            {% if is_typevar(thetype) %}
                 "typeRef"
             {% endif %}
             {% if is_product_type(thetype) or is_sum_type(thetype) %}

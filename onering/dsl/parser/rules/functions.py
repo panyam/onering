@@ -27,12 +27,17 @@ def parse_function(parser, is_external, annotations, **kwargs):
     func_name, type_params, docs = parse_typefunc_preamble(parser, name_required = True)
     func_fqn = ".".join([parser.current_module.fqn, func_name])
     input_typeargs, output_typearg = parse_function_signature(parser)
+    input_types, input_params = map(list, zip(*input_typeargs))
+    output_type, output_param = output_typearg
 
     parent = parser.current_module if func_name else None
-    fun_type = tccore.make_fun_type(None, input_typeargs, output_typearg)
-    function = tccore.Fun(func_fqn, None, fun_type).set_annotations(annotations).set_docs(docs)
+    fun_type = tccore.make_fun_type(None, input_types, output_type)
+    fun_expr = None
     if not is_external:
-        parse_function_body(parser, function)
+        from onering.dsl.parser.rules.exprs import parse_expr
+        fun_expr = parse_expr(parser)
+    function = tccore.Fun(input_params, fun_expr, func_fqn, fun_type).set_annotations(annotations).set_docs(docs)
+    function.return_param = output_param
 
     if type_params:
         function.fqn = None
@@ -77,7 +82,7 @@ def parse_function_signature(parser, require_param_name = True):
         output_typeexpr = ensure_typeexpr(parser)
         if parser.next_token_is(TokenType.IDENTIFIER, "as"):
             output_varname = parser.ensure_token(TokenType.IDENTIFIER)
-        output_typearg = tccore.AnnotatedExpr(output_typeexpr, output_varname)
+        output_typearg = tccore.Ref(output_typeexpr), output_varname
     return input_params, output_typearg 
 
 def parse_param_declaration(parser, require_name = True):
@@ -102,18 +107,13 @@ def parse_param_declaration(parser, require_name = True):
 
     param_typeexpr  = ensure_typeexpr(parser)
     # if we declared an inline Type then dont refer to it directly but via a Var
-    if param_typeexpr.fqn and not param_typeexpr.isa(tccore.TypeRef) and not param_typeexpr.isa(tccore.AliasType):
-        param_typeexpr = tccore.make_ref(param_typeexpr.name)
+    if param_typeexpr.fqn and not param_typeexpr.isa(tccore.Var) and not param_typeexpr.isa(tccore.AliasType):
+        param_typeexpr = tccore.make_type_var(param_typeexpr.name)
     is_optional     = parser.next_token_is(TokenType.QMARK)
     default_value   = None
     if parser.next_token_is(TokenType.EQUALS):
         default_value = parser.ensure_literal_value()
-
-    return tccore.AnnotatedExpr(param_typeexpr, param_name, is_optional, default_value, annotations, docstring)
-
-def parse_function_body(parser, function):
-    if parser.peeked_token_is(TokenType.OPEN_BRACE):
-        from onering.dsl.parser.rules.exprs import parse_expr_list
-        function.expr = parse_expr_list(parser, function)
-
-
+    out = tccore.Ref(param_typeexpr, annotations, docstring)
+    out.annotations.add(tccore.Annotation("typecube.field.is_optional", is_optional))
+    out.annotations.add(tccore.Annotation("typecube.field.default_value", default_value))
+    return out, param_name

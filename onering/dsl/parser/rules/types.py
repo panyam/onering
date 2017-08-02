@@ -41,18 +41,17 @@ def parse_alias_decl(parser, annotations, **kwargs):
     parser.ensure_token(TokenType.EQUALS)
 
     # create the alias
-    alias = tccore.make_alias(fqn, ensure_typeexpr(parser), parent = parser.current_module, annotations = annotations, docs = docs)
+    alias = tccore.make_alias(fqn, ensure_typeexpr(parser)).set_annotations(annotations).set_docs(docs)
     if type_params:
-        alias.clear_parent()
         alias.fqn = None
-        alias = tccore.make_type_op(fqn, type_params, alias, parent = parser.current_module, annotations = annotations, docs = docs)
+        alias = tccore.make_type_op(fqn, type_params, alias).set_annotations(annotations).set_docs(docs)
     print "Registering new alias: '%s'" % name
     parser.add_entity(name, alias)
     return alias
 
 def ensure_typeexpr(parser, annotations = None):
     out = parse_entity(parser)
-    if not issubclass(out.__class__, tccore.Type):
+    if not out.isany(tccore.Type) and not out.isa(tccore.Var):
         assert False
     return out
 
@@ -76,7 +75,7 @@ def parse_type_initializer_or_name(parser, annotations):
         return tccore.make_type_app(fqn, child_typeexprs)
 
     # Otherwise we just have a type reference
-    return tccore.make_ref(fqn)
+    return tccore.make_type_var(fqn)
 
 def parse_typefunc_preamble(parser, name_required = False, allow_generics = True):
     name = None
@@ -167,7 +166,7 @@ def parse_record_or_union(parser, is_external, annotations = None):
     assert category in ("record", "union")
 
     name, type_params, docs = parse_typefunc_preamble(parser)
-    fields = parse_record_body(parser)
+    field_types,field_names = parse_record_body(parser)
     fqn = ".".join([parser.current_module.fqn, name])
     if category == "record":
         maker = tccore.make_product_type
@@ -176,9 +175,8 @@ def parse_record_or_union(parser, is_external, annotations = None):
     else:
         assert False
 
-    outtype = maker(category, fqn, fields).set_annotations(annotations).set_docs(docs)
+    outtype = maker(category, fqn, field_types, field_names).set_annotations(annotations).set_docs(docs)
     if type_params:
-        outtype.clear_parent()
         outtype.fqn = None
         outtype = tccore.make_type_op(fqn, type_params, outtype).set_annotations(annotations).set_docs(docs)
     parser.add_entity(name, outtype)
@@ -200,7 +198,9 @@ def parse_record_body(parser):
         fields.append(parse_field_declaration(parser))
 
     parser.ensure_token(TokenType.CLOSE_BRACE)
-    return fields
+    if fields:
+        return map(list, zip(*fields))
+    return [],[]
 
 def parse_field_declaration(parser):
     """
@@ -212,8 +212,8 @@ def parse_field_declaration(parser):
     parser.ensure_token(TokenType.COLON)
     field_typeexpr = ensure_typeexpr(parser)
     # if we declared an inline Type then dont refer to it directly but via a Var
-    if field_typeexpr.fqn and not field_typeexpr.isa(tccore.TypeRef) and not field_typeexpr.isa(tccore.Aliastype):
-        field_typeexpr = tccore.make_ref(field_typeexpr.name)
+    if field_typeexpr.fqn and not field_typeexpr.isa(tccore.Var) and not field_typeexpr.isa(tccore.Aliastype):
+        field_typeexpr = tccore.make_type_var(field_typeexpr.name)
     is_optional = False
     default_value = None
 
@@ -223,4 +223,7 @@ def parse_field_declaration(parser):
     if parser.next_token_is(TokenType.EQUALS):
         default_value = parser.ensure_literal_value()
 
-    return tccore.AnnotatedExpr(field_typeexpr, field_name, is_optional, default_value, annotations, docstring)
+    out = tccore.Ref(field_typeexpr, annotations, docstring)
+    out.annotations.add(tccore.Annotation("typecube.param.is_optional", is_optional))
+    out.annotations.add(tccore.Annotation("typecube.param.default_value", default_value))
+    return out, field_name

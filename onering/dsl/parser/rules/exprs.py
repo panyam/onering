@@ -9,7 +9,7 @@ from onering.dsl.parser.rules.types import ensure_typeexpr
 from onering.dsl.lexer import Token, TokenType
 from onering.dsl.parser.rules.annotations import parse_annotations
 
-def parse_expr_list(parser, function):
+def parse_expr_list(parser):
     """ Parses a statement block.
 
     expr_list := "{" expr * "}"
@@ -18,12 +18,12 @@ def parse_expr_list(parser, function):
     out = tcext.ExprList()
     parser.ensure_token(TokenType.OPEN_BRACE)
     while not parser.peeked_token_is(TokenType.CLOSE_BRACE):
-        out.add(parse_statement(parser, function))
+        out.add(parse_statement(parser))
     parser.ensure_token(TokenType.CLOSE_BRACE)
     parser.consume_tokens(TokenType.SEMI_COLON)
     return out
 
-def parse_statement(parser, function):
+def parse_statement(parser):
     """
     Parses a single statement.
 
@@ -51,9 +51,7 @@ def parse_statement(parser, function):
     if target.isa(tccore.Var) and target.name == '_':
         return expr
     else:
-        if is_temporary:
-            function.register_temp(target.name)
-        return tcext.Assignment(target, expr)
+        return tcext.Assignment(target, expr, is_temporary)
 
 def parse_expr(parser):
     """ Parse a function call expr or a literal.
@@ -87,7 +85,7 @@ def parse_expr(parser):
         # Read a list
         out = parse_list_expr(parser)
     elif parser.peeked_token_is(TokenType.OPEN_BRACE):
-        out = parse_dict_expr(parser)
+        out = parse_expr_list(parser)
     elif parser.peeked_token_is(TokenType.OPEN_PAREN):
         out = parse_tuple_expr(parser)
     elif parser.peeked_token_is(TokenType.IDENTIFIER, "if"):

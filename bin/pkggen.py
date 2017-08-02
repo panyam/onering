@@ -51,4 +51,4 @@ pkgdir = os.path.abspath(os.path.join(options.output_dir, package.name))
 package.copy_resources(context, pkgdir)
 
 generator = package.get_generator(context, pkgdir)
-generator.generate()
+# generator.generate()

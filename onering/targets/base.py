@@ -88,7 +88,6 @@ class File(object):
 
         # Enable a few type related helpers
         templ.globals["is_atomic_type"] = lambda x: x.isa(tccore.AtomicType)
-        templ.globals["is_typeref"] = lambda x: x.isa(tccore.TypeRef)
         templ.globals["is_product_type"] = lambda x: x.isa(tccore.ProductType)
         templ.globals["is_sum_type"] = lambda x: x.isa(tccore.SumType)
         templ.globals["is_type_op"] = lambda x: x.isa(tccore.TypeOp)

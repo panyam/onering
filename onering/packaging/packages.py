@@ -144,10 +144,9 @@ class Package(object):
 
         # Kick off the semantic analyzer on the parsed entites
         # to fix any holes.
-        from onering.dsl.analyzer import Analyzer
-        analyzer = Analyzer(context, self.found_entities)
+        from typecube.analyzer import Analyzer
+        analyzer = Analyzer(context.global_module, self.found_entities)
         analyzer.analyze()
-
         return self
 
     def _load_entity_resolver(self, context):

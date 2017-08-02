@@ -37,7 +37,7 @@ module onering.core {
         productType : ProductType
         sumType : SumType
         funType : FunType
-        typeRef : TypeRef
+        typeVar : Var
         typeFun : TypeFun
         typeApp : TypeApp
     }
@@ -50,7 +50,7 @@ module onering.core {
         /**
          * Arguments from which the type is constructed.
          */
-        args : list<TypeArg>
+        args : list<Ref>
     }
 
     record SumType {
@@ -59,15 +59,15 @@ module onering.core {
         /**
          * Arguments from which the type is constructed.
          */
-        args : list<TypeArg>
+        args : list<Ref>
     }
 
     record FunType {
-        sourceTypeArgs : list<TypeArg>
-        returnTypeArg : TypeArg?
+        sourceTypes : list<Type>
+        returnType : Type?
     }
 
-    record TypeRef { }
+    record Var { }
 
     record TypeFun {
         params : list<string>
@@ -83,7 +83,7 @@ module onering.core {
      * Type arguments a children of a type and constitutes elements like function parameters, 
      * record fields, tuple element types and even arguments in a type generic.
      */
-    record TypeArg {
+    record Ref {
         name : string?
         argtype : Type
         optional : boolean

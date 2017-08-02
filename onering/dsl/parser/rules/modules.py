@@ -21,14 +21,18 @@ from onering.utils.misc import FQN
 def parse_module(parser, annotations, **kwargs):
     """ Parses a module definition and returns `Module` instance. """
     parser.ensure_token(TokenType.IDENTIFIER, "module")
-    fqn = parser.ensure_fqn()
     last_module = parser.current_module.fqn or ""
+    fqn = parser.ensure_fqn()
+    if last_module: fqn = last_module + "." + fqn
     global_module = parser.onering_context.global_module
     module = parser.current_module = global_module.ensure_module(fqn).set_annotations(annotations).set_docs(parser.last_docstring())
     parser.ensure_token(TokenType.OPEN_BRACE)
     parse_module_body(parser, module)
     parser.ensure_token(TokenType.CLOSE_BRACE)
-    parser.current_module = global_module.get(last_module)
+    if last_module:
+        parser.current_module = global_module.get(last_module)
+    else:
+        parser.current_module = global_module
     return module
 
 def parse_module_body(parser, module):
