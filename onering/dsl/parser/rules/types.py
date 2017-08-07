@@ -41,13 +41,15 @@ def parse_alias_decl(parser, annotations, **kwargs):
     parser.ensure_token(TokenType.EQUALS)
 
     # create the alias
-    alias = tccore.make_alias(fqn, ensure_typeexpr(parser)).set_annotations(annotations).set_docs(docs)
+    # alias = tccore.Var(fqn, True).set_annotations(annotations).set_docs(docs)
+    value = ensure_typeexpr(parser)
     if type_params:
-        alias.fqn = None
-        alias = tccore.make_type_op(fqn, type_params, alias).set_annotations(annotations).set_docs(docs)
+        # TODO: Not yet implemented
+        value = tccore.make_type_op(None, type_params, value)
+        assert False
     print "Registering new alias: '%s'" % name
-    parser.add_entity(name, alias)
-    return alias
+    parser.add_entity(name, value)
+    return value # alias
 
 def ensure_typeexpr(parser, annotations = None):
     out = parse_entity(parser)
