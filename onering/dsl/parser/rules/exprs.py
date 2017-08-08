@@ -78,9 +78,9 @@ def parse_expr(parser):
             vtype = tcext.DoubleType
         else:
             assert False
-        out = tcext.Literal(value, vtype)
+        out = tccore.Literal(value, vtype)
     elif parser.peeked_token_is(TokenType.STRING):
-        out = tcext.Literal(parser.next_token().value, tcext.StringType)
+        out = tccore.Literal(parser.next_token().value, tcext.StringType)
     elif parser.peeked_token_is(TokenType.OPEN_SQUARE):
         # Read a list
         out = parse_list_expr(parser)
@@ -120,7 +120,7 @@ def parse_expr(parser):
                     # will allow "," at the end which is a bit, well rough!
                     pass
             parser.ensure_token(TokenType.CLOSE_PAREN)
-            out = tccore.FunApp(out, func_args)
+            out = tccore.FunApp(out, *func_args)
     else:
         raise errors.UnexpectedTokenException(parser.peek_token(),
                                        TokenType.STRING, TokenType.NUMBER,

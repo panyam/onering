@@ -74,7 +74,7 @@ def parse_type_initializer_or_name(parser, annotations):
             parser.ensure_token(TokenType.COMMA)
             child_typeexprs.append(ensure_typeexpr(parser))
         parser.ensure_token(parser.GENERIC_CLOSE_TOKEN)
-        return tccore.make_type_app(fqn, child_typeexprs)
+        return tccore.make_type_app(fqn, *child_typeexprs)
 
     # Otherwise we just have a type reference
     return tccore.make_type_var(fqn)
