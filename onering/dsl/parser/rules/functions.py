@@ -117,3 +117,35 @@ def parse_param_declaration(parser, require_name = True):
     out.annotations.add(tccore.Annotation("typecube.field.is_optional", is_optional))
     out.annotations.add(tccore.Annotation("typecube.field.default_value", default_value))
     return out, param_name
+
+########################################################################
+##          Parsing of quantifier specialization rules.
+########################################################################
+
+def parse_quant_spec(parser, is_external, annotations, **kwargs):
+    """Parses a function declaration.
+
+    quant_spec  := func_fqn "<" type_param_values ">" "=" var_or_fun
+    """
+    assert not is_external, "Quantifier specializations cannot be external.  They *may* point to external functions."
+    docs = parser.last_docstring()
+    parser.ensure_token(TokenType.IDENTIFIER, "funi")
+
+    func_fqn = parser.ensure_fqn()
+    if "." not in func_fqn:
+        func_fqn = ".".join([parser.current_module.fqn, func_fqn])
+    type_values = []
+    parser_ensure_token(parser.GENERIC_OPEN_TOKEN)
+    while not parser.peeked_token_is(parser.GENERIC_CLOSE_TOKEN):
+        type_values.append(ensure_typeexpr(parser))
+        # Consume the COMMA
+        if parser.next_token_is(TokenType.COMMA):
+            pass
+    parser_ensure_token(parser.GENERIC_CLOSE_TOKEN)
+    parser_ensure_token(TokenType.EQUALS)
+    expr = parser.parse_expr()
+
+    quant = parser.global_module.get_parent(func_fqn)
+    assert quant and quant.isa(tccore.Quant), "Specialization ONLY allowed for Quantifiers"
+    quant.addcase((type_values, expr))
+    return quant

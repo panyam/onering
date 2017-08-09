@@ -55,8 +55,9 @@ class Parser(TokenStream):
         from onering.dsl.parser.rules.modules import parse_module
         self.register_entity_parser("module", parse_module)
 
-        from onering.dsl.parser.rules.functions import parse_function
+        from onering.dsl.parser.rules.functions import parse_function, parse_quant_spec
         self.register_entity_parser("fun", parse_function)
+        self.register_entity_parser("funi", parse_quant_spec)
 
     def get_entity_parser(self, entity_class):
         return self._entity_parsers.get(entity_class, None)
