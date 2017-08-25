@@ -106,7 +106,7 @@ def parse_expr(parser):
 
             # Yep we have a type func being instantiated so
             # dont forget to return a func_app whose function is a type_app!
-            out = tccore.QuantApp(out, func_param_exprs)
+            out = tccore.QuantApp(out, *func_param_exprs)
 
         func_args = []
         if parser.next_token_if(TokenType.OPEN_PAREN, consume = True):
