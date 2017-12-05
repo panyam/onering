@@ -1,0 +1,30 @@
+
+// Standard library modules.  A lot of the standard library modules are really "external" functions
+// But unlike typical external functions found in std libs of other langauges, we also want these
+// to be strongly typed.  ie typed versions point to actual implementations outside
+// So this will need the seperation of typed function declarations and its (possibly multiple)
+// function implementation
+module std {
+    module math {
+        extern fun add <A> (a : A, b : A) -> A
+        extern fun subtract <A> (a : A, b : A) -> A
+        extern fun multiply <A> (a : A, b : A) -> A
+        extern fun divide <A> (a : A, b : A) -> A
+    }
+
+    module bool {
+    }
+
+    module str {
+    }
+
+    module list {
+        fun concat<A>(list1 : list<A>, list2 : list<A>) -> list<A>
+        fun head<A>(l : list<A>) -> A
+        fun last<A>(l : list<A>) -> A
+        fun tail<A>(l : list<A>) -> list<A>
+        fun length<A>(l : list<A>) -> int
+
+        fun map<A,B>(f: A -> B, l : list<A>) -> list<B>
+    }
+}
