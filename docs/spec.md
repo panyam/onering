@@ -2,9 +2,7 @@
 Onering Language Specification
 ==============================
 
-The domain of data processing has seen swift and significant changes in this millenium.  There are different programming paradigms for different domains.  Offline processing relies heavily on map-reduce based batch processing with relational abstractions built on top it.   In contrast, online domains still follow imperative styles with a dash of functional constructs.  It is quite arrogant to think that a single language/paradigm could rule them all, especially in the face of decades of research, observations, contradictions and so on.   Yet what is a world where one does not try.   Onering is an attempt to adopt the best parts of several programming languages and to see what knobs could be turned to fine tune and optimize the impact of the various language features with others.
-
-Onering like all works before feeds off the inspiration of great works that preceede it.   
+Onering is an attempt at making schema specifications and transformations easy.
 
 Modules
 -------
