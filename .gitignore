@@ -2,6 +2,7 @@
 dist
 .cache
 gen
+.pytest_cache
 *.swp
 *.pyc
 .project

@@ -2,9 +2,6 @@
 import os
 import json
 from ipdb import set_trace
-from typecube import annotations as tlannotations
-from typecube import core as tlcore
-from typecube import ext as tlext
 from onering.utils.misc import FQN
 from onering.utils.dirutils import open_file_for_writing
 from onering.codegen import symtable, ir

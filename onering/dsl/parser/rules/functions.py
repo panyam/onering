@@ -1,8 +1,6 @@
 
 from __future__ import absolute_import
 from ipdb import set_trace
-from typecube import core as tccore
-from typecube import ext as tlext
 from onering import utils
 from onering.dsl import errors
 from onering.dsl.parser.rules.types import ensure_typeexpr

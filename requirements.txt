@@ -3,6 +3,5 @@ readline
 pyyaml
 avro
 thriftpy
-typecube
 pytest
 pytest-mock

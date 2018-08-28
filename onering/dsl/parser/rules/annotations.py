@@ -1,6 +1,5 @@
 from __future__ import absolute_import
 from onering.dsl.lexer import Token, TokenType
-from typecube import annotations as tlannotations
 
 ########################################################################
 ##          Annotation Parsing Rules

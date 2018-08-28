@@ -4,9 +4,6 @@ import fnmatch, pprint
 import os
 from ipdb import set_trace
 import json
-from typecube import core as tccore
-from typecube import utils
-from typecube import errors
 from onering.utils.misc import collect_files
 from onering.utils import dirutils
 

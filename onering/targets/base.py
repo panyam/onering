@@ -1,8 +1,6 @@
 
 import os
 from ipdb import set_trace
-from typecube import core as tccore
-from typecube import ext as tcext
 from onering.utils.misc import FQN
 from onering.utils.dirutils import open_file_for_writing
 

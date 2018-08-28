@@ -3,9 +3,6 @@ from __future__ import absolute_import
 from ipdb import set_trace
 import pkgutil
 import os
-from typecube import core as tccore
-from typecube import ext as tcext
-from typecube import runtime as tcruntime
 from onering.utils import dirutils
 from onering.core import errors
 from onering.core import fgraph

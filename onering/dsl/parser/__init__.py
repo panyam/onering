@@ -2,8 +2,6 @@
 from __future__ import absolute_import
 
 import ipdb
-from typecube import core as tccore
-from typecube import ext as tcext
 from onering.dsl.parser.tokstream import TokenStream
 from onering.dsl import errors
 from onering.dsl.lexer import Token, TokenType

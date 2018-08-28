@@ -1,6 +1,6 @@
 
 /**
- * Onering representation of core typecube schemas.
+ * Onering representation of core schemas.
  */
 module onering.core {
     /**
