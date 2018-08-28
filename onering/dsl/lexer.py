@@ -84,7 +84,7 @@ class Token(object):
 
 class Lexer(object):
     """
-    Tokenizers an input stream containing Onering records and returns the tokens.
+    Tokenizers an input stream containing OneRing records and returns the tokens.
     """
     def __init__(self, instream, source_uri):
         if type(instream) in (str, unicode):

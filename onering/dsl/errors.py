@@ -1,7 +1,7 @@
 
-from onering.core.errors import *
+from onering.common.errors import *
 
-class SourceException(OneringException):
+class SourceException(ORException):
     def __init__(self, line, col, msg):
         self.line = line
         self.column = col

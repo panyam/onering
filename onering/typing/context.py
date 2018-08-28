@@ -7,7 +7,7 @@ from onering.utils import dirutils
 from onering.core import errors
 from onering.core import fgraph
 
-class OneringContext(dirutils.DirPointer):
+class ORContext(dirutils.DirPointer):
     def __init__(self):
         dirutils.DirPointer.__init__(self)
         self.runtime = tcruntime.Runtime()

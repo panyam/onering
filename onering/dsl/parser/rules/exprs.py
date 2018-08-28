@@ -44,7 +44,7 @@ def parse_statement(parser):
 
     # ensure last var IS a variable expr
     if not target.isa(tccore.Var) and not target.isa(tcext.Index):
-        raise errors.OneringException("Final target of an expr MUST be a variable or an index expression")
+        raise errors.ORException("Final target of an expr MUST be a variable or an index expression")
 
     if target.isa(tccore.Var) and target.name == '_':
         return expr

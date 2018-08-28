@@ -52,13 +52,13 @@ class LoaderActions(ActionGroup):
                     abspath = context.abspath(entry)
                     dirname = os.path.dirname(abspath)
                     if not context.isdir(dirname):
-                        raise OneringException("Invalid path: %s" % abspath)
+                        raise ORException("Invalid path: %s" % abspath)
                     base_wildcard = os.path.basename(abspath) or "*.onering"
                     for f in collect_files(dirname):
                         if fnmatch.fnmatch(f, base_wildcard):
                             found_entities.update(self.load_file(f))
             elif not issubclass(entry.__class__, dict):
-                raise OneringException("Entry can be a string or a dictionary")
+                raise ORException("Entry can be a string or a dictionary")
             else:
                 loader_class_parts = entry["loader"].split(".")
                 basemod, classname = ".".join(loader_class_parts[:-1]), loader_class_parts[-1]

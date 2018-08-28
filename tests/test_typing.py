@@ -1,9 +1,9 @@
 
 from ipdb import set_trace
-from typecube.core import *
-from typecube import defaults
-from typecube import checkers
-from typecube import errors
+from onering.core import typing
+from onering.core import checkers
+from onering.core import errors
+import default_types as defaults
 
 def test_basic_validation():
     checkers.type_check(defaults.Int, 50)

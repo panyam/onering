@@ -6,12 +6,12 @@ import json
 
 from onering import parser
 
-class OneringSchemaLoader(object):
+class ORSchemaLoader(object):
     """
-    Takes care of loading onering schemas.   Onering schemas are compilation units that may contain one or more
-    records in them.   
-    Onering schemas require that the folder hierarchy of the schemas (files) on disk reflect the 
-    namespace.
+    Takes care of loading onering schemas.   OR schemas are compilation units that may 
+    contain one or more records in them.   
+    OR schemas require that the folder hierarchy of the schemas (files) on 
+    disk reflect the namespace.
     """
     def __init__(self, type_registry):
         self.type_registry = type_registry

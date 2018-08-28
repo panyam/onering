@@ -8,7 +8,7 @@ from onering.dsl.lexer import Token, TokenType
 
 class Parser(TokenStream):
     """
-    Parses a Onering compilation unit and extracts all records define in it.
+    Parses a OneRing compilation unit and extracts all records define in it.
     """
 
     GENERIC_OPEN_TOKEN = TokenType.LT
@@ -107,7 +107,7 @@ class Parser(TokenStream):
 
     def parse(self):
         """
-        Parses a Onering compilation unit.
+        Parses a OneRing compilation unit.
 
         compilation_unit := 
             namespace_decl ?
@@ -120,7 +120,7 @@ class Parser(TokenStream):
             parse_module_body(self, self.root_module)
         except errors.SourceException:
             raise
-        except errors.OneringException, exc:
+        except errors.ORException, exc:
             # Change its message to reflect the line and col
             raise errors.SourceException(self.line, self.column, exc.message)
         except:
@@ -133,8 +133,8 @@ class Parser(TokenStream):
             if parts[0] == "inject":
                 # add to an injection
                 if len(parts) != 4:
-                    raise errors.OneringException("'inject' directive usage: 'inject <MasterType> with <DerivedType>'")
+                    raise errors.ORException("'inject' directive usage: 'inject <MasterType> with <DerivedType>'")
                 self.injections[parts[3]] = parts[1]
             else:
-                raise errors.OneringException("Invalid directive: '%s'" % command)
+                raise errors.ORException("Invalid directive: '%s'" % command)
 

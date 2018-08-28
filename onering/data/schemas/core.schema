@@ -1,6 +1,6 @@
 
 /**
- * Onering representation of core schemas.
+ * OneRing representation of core schemas.
  */
 module onering.core {
     /**
