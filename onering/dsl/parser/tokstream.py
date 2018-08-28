@@ -34,7 +34,7 @@ class TokenStream(object):
             if not peek:
                 self.peeked_tokens.pop()
             return out
-        except StopIteration, si:
+        except StopIteration as si:
             # we are done
             return Token(TokenType.EOS, -1)
 

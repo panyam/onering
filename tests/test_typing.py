@@ -1,7 +1,7 @@
 
 from ipdb import set_trace
 from onering.common import errors
-from onering.typing import core
+from onering.typing.core import *
 from onering.typing import checkers
 import default_types as defaults
 

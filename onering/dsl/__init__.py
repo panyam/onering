@@ -7,5 +7,3 @@ def get_version(version = None):
 
 __version__ = get_version(VERSION)
 
-import lexer
-import parser

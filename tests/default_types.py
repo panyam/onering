@@ -1,6 +1,6 @@
 
-from typecube.core import *
-from typecube import errors
+from onering.common import errors
+from onering.typing.core import *
 
 def default_string_validator(thetype, val, bindings = None):
     if type(val) is not str:

@@ -120,7 +120,7 @@ class Parser(TokenStream):
             parse_module_body(self, self.root_module)
         except errors.SourceException:
             raise
-        except errors.ORException, exc:
+        except errors.ORException as exc:
             # Change its message to reflect the line and col
             raise errors.SourceException(self.line, self.column, exc.message)
         except:

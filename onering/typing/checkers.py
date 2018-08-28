@@ -1,7 +1,6 @@
 
-# Type checkers for data given types
-from typecube import core
-from typecube import errors
+from onering.common import errors
+from onering.typing import core
 
 class Bindings(object):
     class Entry(object):

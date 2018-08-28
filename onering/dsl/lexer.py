@@ -1,9 +1,9 @@
 
-import cStringIO
+import io
 import ipdb
 import os
 import shlex
-from errors import SourceException
+from onering.dsl.errors import SourceException
 from enum import Enum
 
 class TokenType(Enum):
@@ -88,7 +88,7 @@ class Lexer(object):
     """
     def __init__(self, instream, source_uri):
         if type(instream) in (str, unicode):
-            instream = cStringIO.StringIO(instream)
+            instream = io.StringIO.StringIO(instream)
         self.source_uri = source_uri
         self.instream = instream
         self.next_pos = 0
@@ -268,7 +268,7 @@ class Lexer(object):
                 curr_tok_value += self.read_while(str.isdigit)
                 try:
                     number_value = int(curr_tok_value)
-                except ValueError, ve:
+                except ValueError as ve:
                     number_value = float(curr_tok_value)
                 return make_token(TokenType.NUMBER, number_value, len(curr_tok_value))
             elif self.matches_func(lambda x: x == "_" or x.isalpha()):
