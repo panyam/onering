@@ -1,8 +1,8 @@
 
 from ipdb import set_trace
-from onering.core import typing
-from onering.core import checkers
-from onering.core import errors
+from onering.common import errors
+from onering.typing import core
+from onering.typing import checkers
 import default_types as defaults
 
 def test_basic_validation():
