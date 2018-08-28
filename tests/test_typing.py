@@ -3,7 +3,7 @@ from ipdb import set_trace
 from onering.common import errors
 from onering.typing.core import *
 from onering.typing import checkers
-import default_types as defaults
+from . import default_types as defaults
 
 def test_basic_validation():
     checkers.type_check(defaults.Int, 50)
