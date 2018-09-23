@@ -1,20 +1,24 @@
 
-class Namespace(object):
+class Module(object):
     def __init__(self, name, parent = None):
-        self.name = name
+        self._name = name
         self.parent = parent
         self.children = {}
         self.types = {}
 
+    @property
+    def name(self):
+        return self._name
+
 class Type(object):
-    def __init__(self, name, args = None):
-        self.name = name
+    def __init__(self, name = None, args = None):
+        self._name = name
         self.args = args or []
         self.validator = None
 
-    def set_name(self, name):
-        self.name = name
-        return self
+    @property
+    def name(self):
+        return self._name
 
     def __repr__(self):
         out = "<%s(0x%x)" % (self.__class__.__name__, id(self))
@@ -40,9 +44,16 @@ class Type(object):
     def apply(self, **param_values):
         return TypeApp(self, **param_values)
 
+class TypeAlias(Type):
+    """ A type variable.  """
+    def __init__(self, target_type, name = None):
+        assert name is not None and name.strip(), "Type aliases MUST have names"
+        Type.__init__(self, name)
+        self.target_type = target_type
+
 class TypeVar(Type):
     """ A type variable.  """
-    def __init__(self, name, args = None):
+    def __init__(self, name = None, args = None):
         assert name is not None and name.strip(), "Type vars MUST have names"
         Type.__init__(self, name, args)
 
@@ -50,7 +61,9 @@ class TypeApp(Type):
     """ Type applications allow generics to be concretized. """
     def __init__(self, target_type, **param_values):
         Type.__init__(self, target_type.name)
-        self.param_values = param_values
+
+        # Ensure String values are auto converted to TypeVars
+        self.param_values = {k: TypeVar(v) if type(v) is str else v for k,v in param_values.items()}
         self.root_type = target_type
         if isinstance(target_type, TypeApp):
             self.root_type = target_type.root_type
@@ -66,18 +79,20 @@ class NativeType(Type):
 
     eg Array<T>, Map<K,V> etc
     """
-    def __init__(self, name, args = None):
+    def __init__(self, name = None, args = None):
         Type.__init__(self, name, args)
         self.mapper_functor = None
 
-class ContainerType(Type):
+class DataType(Type):
     """ Non leaf types.  These include:
 
         Product types (Records, Tuples, Named tuples etc) and 
         Sum types (Eg Unions, Enums (Tagged Unions), Algebraic Data Types.
     """
-    def name_exists(self, name):
-        pass
+    def __init__(self, name = None, args = None):
+        Type.__init__(self, name, args)
+        self.child_types = []
+        self.child_names = []
 
     def add(self, child_type, child_name = None):
         if child_name and self.name_exists(child_name):
@@ -85,26 +100,10 @@ class ContainerType(Type):
         self._add_type(child_type, child_name)
         return self
 
-class FunctionType(ContainerType):
-    def __init__(self, name, args = None):
-        Type.__init__(self, name, args)
-        self.input_types = []
-        self.input_names = []
-        self.output_type = None
-        self.output_name = None
-
-    def name_exists(self, name):
-        return name == self.output_name or name in self.input_names
-
-    def _add_type(self, input_type, input_name):
-        self.input_types.append(input_type)
-        self.input_names.append(input_name)
-
-class DataType(ContainerType):
-    def __init__(self, name, args = None):
-        ContainerType.__init__(self, name, args)
-        self.child_types = []
-        self.child_names = []
+    def add_multi(self, *child_types_and_names):
+        for t, n in zip(*[iter(child_types_and_names)]*2):
+            self.add(t,n)
+        return self
 
     def name_exists(self, name):
         return name in self.child_names
@@ -112,6 +111,42 @@ class DataType(ContainerType):
     def _add_type(self, child_type, child_name):
         self.child_types.append(child_type)
         self.child_names.append(child_name)
+
+class TypeClass(Type):
+    def __init__(self, name = None, args = None):
+        Type.__init__(self, name, args)
+        self.methods = {}
+
+    def add_traits(self, *names_and_func_types):
+        for n, ft in zip(*[iter(names_and_func_types)]*2):
+            assert isinstance(ft, FunctionType)
+            self.methods[n] = ft
+        return self
+
+class FunctionType(Type):
+    def __init__(self, name = None, args = None):
+        Type.__init__(self, name, args)
+        self._input_types = []
+        self._return_type = None
+
+    @property
+    def return_type(self):
+        return self._return_type
+
+    @property
+    def input_types(self):
+        return self._input_types
+
+    def returns(self, return_type):
+        self._return_type = return_type
+        return self
+
+    def with_inputs(self, *input_types):
+        for it in input_types:
+            if type(it) is str:
+                it = TypeVar(it)
+            self._input_types.append(it)
+        return self
 
 class RecordType(DataType): pass
 
