@@ -7,7 +7,6 @@ import ipdb
 from jinja2 import BaseLoader, TemplateNotFound, StrictUndefined
 from jinja2 import Environment, PackageLoader
 
-
 class TemplateLoader(BaseLoader):
     """
     Responsible for loading templates given a name.
@@ -66,7 +65,7 @@ class TemplateLoader(BaseLoader):
         return initialise_template(env.from_string(template_string))
 
 def debug_print(*text):
-    print "".join(map(str, list(text)))
+    print("".join(map(str, list(text))))
     return ''
 
 def camel_case(value):

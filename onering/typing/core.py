@@ -3,12 +3,28 @@ class Module(object):
     def __init__(self, name, parent = None):
         self._name = name
         self.parent = parent
-        self.children = {}
-        self.types = {}
+        # SubModules of this module
+        self.modules = {}
+        # Entries in this module (that are not sub modules)
+        self.entries = {}
 
     @property
     def name(self):
         return self._name
+
+    def ensure_module(self, submodule):
+        parts = submodule.split(".")
+        curr = self
+        for p in parts:
+            if p not in curr.modules:
+                newmodule = Module(p, curr)
+                curr.modules[p] = newmodule
+                curr = newmodule
+        return curr
+
+    def add_entry(self, name, value):
+        assert name not in self.entries
+        self.entries[name] = value
 
 class Type(object):
     def __init__(self, name = None, args = None):

@@ -22,7 +22,7 @@ class EntityResolver(object):
         for resolver in self.resolvers:
             schema_contents = resolver.resolve_schema(fqn, *schema_types)
             if schema_contents: 
-                print "Found Entity '%s' in Resolver: %s" % (fqn, resolver)
+                print("Found Entity '%s' in Resolver: %s" % (fqn, resolver))
                 return schema_contents
 
 class FilePathEntityResolver(object):
