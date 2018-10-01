@@ -11,7 +11,7 @@ class World(object):
         self.packages = {}
 
         from onering.typing import core as orcore
-        self.global_module = orcore.Module(None)
+        self.typing_context = orcore.Context()
 
         from onering.loaders import resolver
         self.entity_resolver = resolver.EntityResolver()

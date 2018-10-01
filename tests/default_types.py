@@ -29,21 +29,21 @@ def default_dict_mapper_functor(function, val):
     for k,v in iter(val.items()): function(k,v)
     return val
 
-Byte = NativeType("byte")
-Char = NativeType("char")
-Float = NativeType("float").set_validator(default_float_validator)
-Double = NativeType("double").set_validator(default_float_validator)
-Int = NativeType("int").set_validator(default_int_validator)
-Long = NativeType("Long").set_validator(default_int_validator)
-String = NativeType("String").set_validator(default_string_validator)
+Byte = NativeType()
+Char = NativeType()
+Float = NativeType().set_validator(default_float_validator)
+Double = NativeType().set_validator(default_float_validator)
+Int = NativeType().set_validator(default_int_validator)
+Long = NativeType().set_validator(default_int_validator)
+String = NativeType().set_validator(default_string_validator)
 
-Array = NativeType("Array", ["T"])
+Array = NativeType(["T"])
 Array.mapper_functor = default_array_mapper_functor
 
-List = NativeType("List", ["T"])
+List = NativeType(["T"])
 List.mapper_functor = default_array_mapper_functor
 
-Map = NativeType("Map", ["K", "V"])
+Map = NativeType(["K", "V"])
 Map.mapper_functor = default_dict_mapper_functor
 
-DateTime = TypeVar("DateTime")
+DateTime = TypeVar("Long")

@@ -1,45 +1,45 @@
 
-class Module(object):
-    def __init__(self, name, parent = None):
-        self._name = name
-        self.parent = parent
-        # SubModules of this module
-        self.modules = {}
-        # Entries in this module (that are not sub modules)
-        self.entries = {}
+from ipdb import set_trace
 
-    @property
-    def name(self):
-        return self._name
+class Context(object):
+    """ A type context/environment that provides bindings between names and types. """
+    def __init__(self):
+        self.root = {}
+        self.typefqns = {}
 
-    def ensure_module(self, submodule):
-        parts = submodule.split(".")
-        curr = self
+    def add(self, fqn, thetype):
+        """ Adds a type given its fqn """
+        currfqn = self.fqn_for(thetype)
+        if currfqn:
+            # The type has already been added, it needs to be added by a reference instead
+            set_trace()
+            assert False
+        self.typefqns[thetype] = fqn
+        parts = fqn.split(".")
+        module, last = parts[:-1], parts[-1]
+        parent = self.ensure(".".join(module))
+        parent[last] = thetype
+
+    def fqn_for(self, thetype):
+        """ Given a type, returns it FQN. """
+        return self.typefqns.get(thetype, None)
+
+    def ensure(self, fqn):
+        parts = fqn.split(".")
+        curr = self.root
         for p in parts:
-            if p not in curr.modules:
-                newmodule = Module(p, curr)
-                curr.modules[p] = newmodule
-                curr = newmodule
+            if p not in curr:
+                curr[p] = {}
+            curr = curr[p]
         return curr
 
-    def add_entry(self, name, value):
-        assert name not in self.entries
-        self.entries[name] = value
-
 class Type(object):
-    def __init__(self, name = None, args = None):
-        self._name = name
+    def __init__(self, args = None):
         self.args = args or []
         self.validator = None
 
-    @property
-    def name(self):
-        return self._name
-
     def __repr__(self):
         out = "<%s(0x%x)" % (self.__class__.__name__, id(self))
-        if self.name:
-            out += ": " + self.name
         if self.args:
             out += " [%s]" % ", ".join(self.args)
         out += ">"
@@ -60,23 +60,17 @@ class Type(object):
     def apply(self, **param_values):
         return TypeApp(self, **param_values)
 
-class TypeAlias(Type):
-    """ A type variable.  """
-    def __init__(self, target_type, name = None):
-        assert name is not None and name.strip(), "Type aliases MUST have names"
-        Type.__init__(self, name)
-        self.target_type = target_type
-
 class TypeVar(Type):
     """ A type variable.  """
-    def __init__(self, name = None, args = None):
+    def __init__(self, name):
         assert name is not None and name.strip(), "Type vars MUST have names"
-        Type.__init__(self, name, args)
+        Type.__init__(self)
+        self.name = name
 
 class TypeApp(Type):
     """ Type applications allow generics to be concretized. """
     def __init__(self, target_type, **param_values):
-        Type.__init__(self, target_type.name)
+        Type.__init__(self)
 
         # Ensure String values are auto converted to TypeVars
         self.param_values = {k: TypeVar(v) if type(v) is str else v for k,v in param_values.items()}
@@ -95,42 +89,13 @@ class NativeType(Type):
 
     eg Array<T>, Map<K,V> etc
     """
-    def __init__(self, name = None, args = None):
-        Type.__init__(self, name, args)
+    def __init__(self, args = None):
+        Type.__init__(self, args)
         self.mapper_functor = None
 
-class DataType(Type):
-    """ Non leaf types.  These include:
-
-        Product types (Records, Tuples, Named tuples etc) and 
-        Sum types (Eg Unions, Enums (Tagged Unions), Algebraic Data Types.
-    """
-    def __init__(self, name = None, args = None):
-        Type.__init__(self, name, args)
-        self.child_types = []
-        self.child_names = []
-
-    def add(self, child_type, child_name = None):
-        if child_name and self.name_exists(child_name):
-            assert False, "Type '%s' already taken" % child_name
-        self._add_type(child_type, child_name)
-        return self
-
-    def add_multi(self, *child_types_and_names):
-        for t, n in zip(*[iter(child_types_and_names)]*2):
-            self.add(t,n)
-        return self
-
-    def name_exists(self, name):
-        return name in self.child_names
-
-    def _add_type(self, child_type, child_name):
-        self.child_types.append(child_type)
-        self.child_names.append(child_name)
-
 class TypeClass(Type):
-    def __init__(self, name = None, args = None):
-        Type.__init__(self, name, args)
+    def __init__(self, args = None):
+        Type.__init__(self, args)
         self.methods = {}
 
     def add_traits(self, *names_and_func_types):
@@ -140,8 +105,8 @@ class TypeClass(Type):
         return self
 
 class FunctionType(Type):
-    def __init__(self, name = None, args = None):
-        Type.__init__(self, name, args)
+    def __init__(self, args = None):
+        Type.__init__(self, args)
         self._input_types = []
         self._return_type = None
 
@@ -164,8 +129,45 @@ class FunctionType(Type):
             self._input_types.append(it)
         return self
 
-class RecordType(DataType): pass
+class DataType(Type):
+    """ Non leaf types.  These include:
 
-class TupleType(DataType): pass
+        Product types (Records, Tuples, Named tuples etc) and 
+        Sum types (Eg Unions, Enums (Tagged Unions), Algebraic Data Types.
+    """
+
+    name_required = False
+    sum_type = True
+
+    def __init__(self, args = None):
+        Type.__init__(self, args)
+        self.child_types = []
+        self.child_names = []
+
+    def add(self, child_type, child_name = None):
+        assert not (self.name_required and child_name is None), "Name is required and cannot be empty"
+        if child_name and self.name_exists(child_name):
+            assert False, "Type '%s' already taken" % child_name
+        self._add_type(child_type, child_name)
+        return self
+
+    def add_multi(self, *child_types_and_names):
+        for t, n in zip(*[iter(child_types_and_names)]*2):
+            self.add(t,n)
+        return self
+
+    def name_exists(self, name):
+        return name in self.child_names
+
+    def _add_type(self, child_type, child_name):
+        self.child_types.append(child_type)
+        self.child_names.append(child_name)
+
+class RecordType(DataType):
+    name_required = True
+    sum_type = False
+
+class TupleType(DataType):
+    sum_type = False
 
 class UnionType(DataType): pass

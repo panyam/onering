@@ -17,13 +17,13 @@ def test_basic_validation():
     except errors.ValidationError as ve: pass
 
 def test_record_creation():
-    Pair = RecordType("Pair")                   \
+    Pair = RecordType()                         \
                 .add(defaults.Int, "first")     \
                 .add(defaults.String, "second")
     checkers.type_check(Pair, {'first': 1, 'second': '2'})
 
 def test_tuple_creation():
-    MyTuple = TupleType("MyTuple")              \
+    MyTuple = TupleType()              \
                 .add(defaults.Int)              \
                 .add(defaults.Float)            \
                 .add(defaults.String)
@@ -49,14 +49,14 @@ def test_dict_checking():
 
 def test_typeapp_creation():
     # Pair<F,S> { first : F, second : S}
-    Pair = RecordType("Pair", ["F", "S"])       \
+    Pair = RecordType(["F", "S"])       \
                     .add(TypeVar("F"), "first") \
                     .add(TypeVar("S"), "second")
     checkers.type_check(Pair[defaults.Int, defaults.String], {'first': 1, 'second': '2'})
 
 def test_typeapp_with_unbound_type():
     # Pair<F,S> { first : F, second : S}
-    Pair = RecordType("Pair", ["F", "S"])       \
+    Pair = RecordType(["F", "S"])       \
                     .add(TypeVar("F"), "first") \
                     .add(TypeVar("S"), "second")
     try:

@@ -1,6 +1,5 @@
 
 import os
-from itertools import ifilter
 
 def parse_line_dict(line):
     """
@@ -50,12 +49,12 @@ def collect_files(root_dir):
             yield full_path
 
 def collect_files_by_extension(root_dir, ext):
-    return ifilter(lambda path: path.endswith("." + ext) and os.path.isfile(path), collect_files(root_dir))
+    return filter(lambda path: path.endswith("." + ext) and os.path.isfile(path), collect_files(root_dir))
 
 def collect_jars(root_dir):
     def is_model_jar(name):
         return name.find("data-template") > 0 and name.find("SNAPSHOT") < 0 and name.endswith(".jar")
-    return ifilter(is_model_jar, collect_files(root_dir))
+    return filter(is_model_jar, collect_files(root_dir))
 
 from optparse import Option
 class ListOption(Option):
