@@ -1,5 +1,6 @@
 
 from ipdb import set_trace
+from onering.common import errors
 
 class Context(object):
     """ A type context/environment that provides bindings between names and types. """
@@ -54,11 +55,7 @@ class Type(object):
             type_vals = list(iter(type_vals))
         elif type(type_vals) is not list:
             type_vals = [type_vals]
-        param_values = dict(zip(self.args, type_vals))
-        return self.apply(**param_values)
-
-    def apply(self, **param_values):
-        return TypeApp(self, **param_values)
+        return TypeApp(self, *type_vals)
 
 class TypeVar(Type):
     """ A type variable.  """
@@ -68,20 +65,61 @@ class TypeVar(Type):
         self.name = name
 
 class TypeApp(Type):
-    """ Type applications allow generics to be concretized. """
-    def __init__(self, target_type, **param_values):
+    """ Type applications allow generics to be concretized. 
+
+        TypeApps follow certain rules.  Say if we have a type:
+        
+            Map = record Map[A,B,C,D,E,F] { .... }
+
+        Following are some possibilities:
+            Map[Int, String]            -> Valid - Binds A and B
+            Map[A = Int, C = String]    -> Valid - Binds A and C
+            Map[Int, String][A = Float] -> Invalid - Should result in error since A is already bound
+            Map[Int, String][D = Int]   -> Valid - Fine, same as Map[A = Int, B = String, D = Int]
+            Map[Int, String, Int, Float, Double, Boolean]   -> Valid - Fine as all params bound
+            Map[Int, String, Int, Float, Double, Boolean, String]   -> Invalid - Since we have more params than required
+            T[Int]   -> Valid - Though is actually same as above, but since T is a type var, 
+                        Int "could" bind if the resolved value of T can take a parameter as per above rule!
+            T[A = Int]  -> Invalid since T could be a type that has a parameter but not called A.
+    """
+    def __init__(self, target_type, *type_args, **type_kwargs):
         Type.__init__(self)
 
-        # Ensure String values are auto converted to TypeVars
-        self.param_values = {k: TypeVar(v) if type(v) is str else v for k,v in param_values.items()}
+        self.param_values = {}
+        self.unused_values = []
         self.root_type = target_type
         if isinstance(target_type, TypeApp):
             self.root_type = target_type.root_type
-            self.param_values.update(target_type.param_values)
-            # now only update *new* values that have not been duplicated
-            for k,v in param_values.iteritems():
-                if k in target_type.args:
-                    self.param_values[k] = v
+            for k,v in target_type.param_values.items():
+                self.apply_to_key(k, v)
+        for v in type_args: self.apply(v)
+        for k,v in type_kwargs: self.apply_to_key(k, v)
+
+    def apply_to_key(self, key, value):
+        """ Applies a value to a key. """
+        if type(value) is str:
+            value = TypeVar(value)
+        # Ensure this value has not already been applied.
+        if isinstance(self.root_type, TypeVar):
+            raise errors.ORException("Values cannot be bound by key for TypeVars")
+        if key in self.param_values:
+            raise errors.ORException("Type argument '%s' is already bound to a value" % key)
+        self.param_values[key] = value
+        return self
+
+    def apply(self, value):
+        if type(value) is str:
+            value = TypeVar(value)
+
+        if isinstance(self.root_type, TypeVar):
+            self.unused_values.append(value)
+        else:
+            # Get the next unbound type argument in the root type and apply this value to it
+            next_arg = next(filter(lambda x: x not in self.param_values, self.root_type.args), None)
+            if not next_arg:
+                raise errors.ORException("Trying to bind type (%s), but no more unbound arguments left in TypeApp" % repr(value))
+            self.param_values[next_arg] = value
+        return self
 
 class NativeType(Type):
     """ A native type whose details are not known but cannot be 
@@ -160,6 +198,8 @@ class DataType(Type):
         return name in self.child_names
 
     def _add_type(self, child_type, child_name):
+        if type(child_type) is str:
+            child_type = TypeVar(child_type)
         self.child_types.append(child_type)
         self.child_names.append(child_name)
 

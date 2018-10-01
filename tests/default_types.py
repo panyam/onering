@@ -37,6 +37,8 @@ Int = NativeType().set_validator(default_int_validator)
 Long = NativeType().set_validator(default_int_validator)
 String = NativeType().set_validator(default_string_validator)
 
+Ref = NativeType(["T"])
+
 Array = NativeType(["T"])
 Array.mapper_functor = default_array_mapper_functor
 

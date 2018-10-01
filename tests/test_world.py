@@ -28,6 +28,12 @@ def create_default_world():
 def test_world():
     create_default_world()
 
+def test_recursive():
+    TL = TypeVar("ListNode")["T"]
+    ListNode = RecordType(["T"]).add_multi(
+                "T", "value",
+                defaults.Ref[TL], "next")
+
 def test_record_gen():
     """ Test how a record is generated in a given language. """
     Pair = RecordType().add_multi(

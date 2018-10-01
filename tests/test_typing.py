@@ -64,6 +64,40 @@ def test_typeapp_with_unbound_type():
         assert False
     except errors.ValidationError as ve: pass
 
+def test_typeapps_basic():
+    TheType = NativeType(["A", "B", "C", "D", "E", "F"])
+    TheType[defaults.Int]
+
+def test_typeapps_dup_binding():
+    try:
+        TheType = NativeType(["A", "B", "C", "D", "E", "F"])
+        TheType[defaults.Int].apply_to_key("A", defaults.Int)
+        assert False
+    except errors.ORException as ve: pass
+
+def test_typeapps_applying_for_typevar():
+    A = TypeVar("A")
+    TheType = A[defaults.Int]
+    assert TheType.root_type == A
+    assert len(A.args) == 0
+    assert len(TheType.unused_values) == 1 and TheType.unused_values[0] == defaults.Int
+    assert len(TheType.param_values) == 0
+
+def test_typeapps_too_many_bindings():
+    TheType = NativeType(["A", "B", "C"])
+    T1 = TheType[defaults.Int, defaults.String, defaults.Float]
+    try:
+        T1[defaults.Int]
+        assert False
+    except errors.ORException as ve: pass
+
+def test_typeapps_key_binding_for_typevar():
+    try:
+        TheType = TypeVar("A")
+        TypeApp(TheType).apply_to_key("A", defaults.Int)
+        assert False
+    except errors.ORException as ve: pass
+
 def test_record_to_object():
     """ Here we want to create "native" classes out of Types so we can do something
     useful with instances of these types.
