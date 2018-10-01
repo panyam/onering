@@ -84,41 +84,38 @@ class TypeApp(Type):
     """
     def __init__(self, target_type, *type_args, **type_kwargs):
         Type.__init__(self)
-
         self.param_values = {}
         self.unused_values = []
         self.root_type = target_type
         if isinstance(target_type, TypeApp):
             self.root_type = target_type.root_type
-            for k,v in target_type.param_values.items():
-                self.apply_to_key(k, v)
-        for v in type_args: self.apply(v)
-        for k,v in type_kwargs: self.apply_to_key(k, v)
+            self.apply(**target_type.param_values)
+        self.apply(*type_args)
+        self.apply(**type_kwargs)
 
-    def apply_to_key(self, key, value):
-        """ Applies a value to a key. """
-        if type(value) is str:
-            value = TypeVar(value)
-        # Ensure this value has not already been applied.
-        if isinstance(self.root_type, TypeVar):
-            raise errors.ORException("Values cannot be bound by key for TypeVars")
-        if key in self.param_values:
-            raise errors.ORException("Type argument '%s' is already bound to a value" % key)
-        self.param_values[key] = value
-        return self
+    def apply(self, *values, **kvpairs):
+        for value in values:
+            if type(value) is str:
+                value = TypeVar(value)
 
-    def apply(self, value):
-        if type(value) is str:
-            value = TypeVar(value)
+            if isinstance(self.root_type, TypeVar):
+                self.unused_values.append(value)
+            else:
+                # Get the next unbound type argument in the root type and apply this value to it
+                next_arg = next(filter(lambda x: x not in self.param_values, self.root_type.args), None)
+                if not next_arg:
+                    raise errors.ORException("Trying to bind type (%s), but no more unbound arguments left in TypeApp" % repr(value))
+                self.param_values[next_arg] = value
 
-        if isinstance(self.root_type, TypeVar):
-            self.unused_values.append(value)
-        else:
-            # Get the next unbound type argument in the root type and apply this value to it
-            next_arg = next(filter(lambda x: x not in self.param_values, self.root_type.args), None)
-            if not next_arg:
-                raise errors.ORException("Trying to bind type (%s), but no more unbound arguments left in TypeApp" % repr(value))
-            self.param_values[next_arg] = value
+        for key, value in kvpairs.items():
+            if type(value) is str:
+                value = TypeVar(value)
+            # Ensure this value has not already been applied.
+            if isinstance(self.root_type, TypeVar):
+                raise errors.ORException("Values cannot be bound by key for TypeVars")
+            if key in self.param_values:
+                raise errors.ORException("Type argument '%s' is already bound to a value" % key)
+            self.param_values[key] = value
         return self
 
 class NativeType(Type):

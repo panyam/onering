@@ -20,6 +20,7 @@ def create_default_world():
     w.typing_context.add("core.Long", defaults.Long)
     w.typing_context.add("core.String", defaults.String)
     w.typing_context.add("core.Array", defaults.Array)
+    w.typing_context.add("core.Ref", defaults.Ref)
     w.typing_context.add("core.List", defaults.List)
     w.typing_context.add("core.Map", defaults.Map)
     w.typing_context.add("core.DateTime", defaults.DateTime)
@@ -27,12 +28,6 @@ def create_default_world():
 
 def test_world():
     create_default_world()
-
-def test_recursive():
-    TL = TypeVar("ListNode")["T"]
-    ListNode = RecordType(["T"]).add_multi(
-                "T", "value",
-                defaults.Ref[TL], "next")
 
 def test_record_gen():
     """ Test how a record is generated in a given language. """

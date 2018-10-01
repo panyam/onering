@@ -38,6 +38,18 @@ def test_array_checking():
     except errors.ValidationError as ve:
         pass
 
+def test_recursive_types():
+    TL = TypeVar("ListNode")["T"]
+    ListNode = RecordType(["T"]).add_multi(
+                "T", "value",
+                defaults.Ref[TL], "next")
+
+    TL = TypeVar("TreeNode")["T"]
+    TreeNode = RecordType(["T"]).add_multi(
+                "T", "value",
+                defaults.Ref[TL], "left",
+                defaults.Ref[TL], "right")
+
 def test_dict_checking():
     dt = defaults.Map[defaults.String, defaults.Int]
     checkers.type_check(dt, dict(a = 1, b = 2, c = 3))
@@ -71,7 +83,7 @@ def test_typeapps_basic():
 def test_typeapps_dup_binding():
     try:
         TheType = NativeType(["A", "B", "C", "D", "E", "F"])
-        TheType[defaults.Int].apply_to_key("A", defaults.Int)
+        TheType[defaults.Int].apply(A = defaults.Int)
         assert False
     except errors.ORException as ve: pass
 
@@ -94,7 +106,7 @@ def test_typeapps_too_many_bindings():
 def test_typeapps_key_binding_for_typevar():
     try:
         TheType = TypeVar("A")
-        TypeApp(TheType).apply_to_key("A", defaults.Int)
+        TypeApp(TheType).apply(A = defaults.Int)
         assert False
     except errors.ORException as ve: pass
 
