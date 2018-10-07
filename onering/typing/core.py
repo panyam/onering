@@ -121,9 +121,9 @@ class NativeType(Type):
         Type.__init__(self, args)
         self.mapper_functor = None
 
-class TypeClass(Type):
+class TypeClass(object):
     def __init__(self, args = None):
-        Type.__init__(self, args)
+        self.args = args or []
         self.methods = {}
 
     def add_traits(self, *names_and_func_types):
