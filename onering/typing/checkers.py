@@ -30,9 +30,8 @@ def type_check(thetype : core.Type, data, context : Context = None):
         for k,v in thetype.param_values.items():
             context.set(k, v)
         root_type = thetype.root_type
-        if isinstance(root_type, core.TypeVar):
-            if root_type.binding is None:
-                raise errors.ValidationError("TypeVar(%s) is unbound.  Run the resolver first.")
+        if isinstance(root_type, core.TypeVar) and not root_type.is_bound:
+            raise errors.ValidationError("TypeVar(%s) is unbound.  Run the resolver first." % root_type.name)
         type_check(root_type, data, context)
         context.pop()
     elif isinstance(thetype, core.TypeVar):
@@ -42,7 +41,6 @@ def type_check(thetype : core.Type, data, context : Context = None):
             # Check if we are in the bindings
             bound_type = context.get(thetype.name)
         if not bound_type:
-            set_trace()
             raise errors.ValidationError("TypeVar(%s) is not bound to a type." % thetype.name)
         type_check(bound_type, data, context)
     elif isinstance(thetype, core.NativeType):

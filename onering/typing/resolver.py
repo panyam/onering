@@ -33,10 +33,14 @@ def resolve_bindings_for_type(T : core.Type, context : Context, container_stack 
         newstack = [T] + container_stack
         [resolve_bindings_for_type(child, context, newstack) for child in T.child_types]
     elif isinstance(T, core.TypeApp):
-        resolve_bindings_for_type(T.target_type, context, container_stack)
+        resolve_bindings_for_type(T.root_type, context, container_stack)
         [resolve_bindings_for_type(v, context, container_stack) for v in T.param_values.values()]
-        # TODO - Should we check if the application is possible here 
-        # or in the checker phase?
+        # Now that root has been resolved, apply any unused values we have
+        while T.unused_values:
+            prevlen = len(T.unused_values)
+            T.apply(T.unused_values.pop(0))
+            # TODO - Expecting a bug here but not sure how to fix it yet So investigating
+            assert len(T.unused_values) == prevlen - 1
     elif isinstance(T, core.TypeVar):
         # Now the fun begins - find the parent in the container stack that has this "name"
         # as a variable otherwise bind to a value in the context

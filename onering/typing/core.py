@@ -77,11 +77,15 @@ class TypeApp(Type):
     def apply(self, *values, **kvpairs):
         for value in values:
             value = ensure_type(value)
-            if isinstance(self.root_type, TypeVar):
+            root_type = self.root_type
+            while isinstance(root_type, TypeVar) and root_type.bound_type:
+                root_type = root_type.bound_type
+
+            if isinstance(root_type, TypeVar):
                 self.unused_values.append(value)
             else:
                 # Get the next unbound type argument in the root type and apply this value to it
-                next_arg = next(filter(lambda x: x not in self.param_values, self.root_type.args), None)
+                next_arg = next(filter(lambda x: x not in self.param_values, root_type.args), None)
                 if not next_arg:
                     raise errors.ORException("Trying to bind type (%s), but no more unbound arguments left in TypeApp" % repr(value))
                 self.param_values[next_arg] = value

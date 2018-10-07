@@ -75,8 +75,5 @@ def test_resolution_success():
     P1 = TypeApp("utils.Pair").apply(defaults.Int, defaults.String)
 
     resolver.resolve_bindings(w.typing_context)
-    try:
-        checkers.type_check(P1, {'first': 1, 'second': '2'}, w.typing_context)
-        assert False
-    except errors.ValidationError as ve:
-        pass
+    resolver.resolve_bindings_for_type(P1, w.typing_context)
+    checkers.type_check(P1, {'first': 1, 'second': '2'}, w.typing_context)
