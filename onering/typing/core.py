@@ -1,5 +1,6 @@
 
 from ipdb import set_trace
+import typing
 from onering.common import errors
 
 def ensure_type(type_or_str):
@@ -42,8 +43,19 @@ class TypeVar(Type):
         self.bound_parent = None
 
     @property
-    def is_bound(self):
+    def is_bound(self) -> bool:
         return self.bound_type is not None or self.bound_parent is not None
+
+    @property
+    def final_type(self) -> Type:
+        """ Returns the ultimate type this variable is bound to since a TypeVar 
+        can bind to another TypeVar and so on.
+        TODO - Can there be cycles here?
+        """
+        t = self
+        while t and isinstance(t, TypeVar):
+            t = t.bound_type
+        return t
 
 class TypeApp(Type):
     """ Type applications allow generics to be concretized. 
@@ -74,16 +86,15 @@ class TypeApp(Type):
             self.apply(**target_type.param_values)
         self.apply(*type_args, **type_kwargs)
 
-    def apply(self, *values, **kvpairs):
+    def apply(self, *values : typing.List[Type], **kvpairs) -> "TypeApp":
         for value in values:
             value = ensure_type(value)
             root_type = self.root_type
-            while isinstance(root_type, TypeVar) and root_type.bound_type:
-                root_type = root_type.bound_type
-
-            if isinstance(root_type, TypeVar):
+            if isinstance(root_type, TypeVar) and not root_type.final_type:
                 self.unused_values.append(value)
             else:
+                if isinstance(root_type, TypeVar):
+                    root_type = root_type.final_type
                 # Get the next unbound type argument in the root type and apply this value to it
                 next_arg = next(filter(lambda x: x not in self.param_values, root_type.args), None)
                 if not next_arg:
