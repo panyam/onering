@@ -1,73 +1,50 @@
 
+from ipdb import set_trace
 from onering.common import errors
 from onering.typing import core
+from onering.typing.context import Context
 
-class Bindings(object):
-    class Entry(object):
-        def __init__(self, value, level, prev = None):
-            self.value = value
-            self.level = level
-            self.prev = prev
-
-        def __repr__(self):
-            if self.prev:
-                return "%s[%d] (%s)" % (repr(self.value), self.level, repr(self.prev))
-            else:
-                return "%s[%d]" % (repr(self.value), self.level)
-
-    def __init__(self):
-        self.level = 0
-        self.entries = {}
-
-    def __setitem__(self, key, value):
-        entry = self.entries.get(key, None)
-        if entry is not None and entry.level > self.level:
-            raise errors.ValidationError("Value for '%s' already exists in this level (%d)" % (key, self.level))
-        self.entries[key] = Bindings.Entry(value, self.level, entry)
-
-    def __getitem__(self, key):
-        while key in self.entries and self.entries[key].level > self.level:
-            self.entries[key] = self.entries[key].prev
-        if key not in self.entries: return None
-        return self.entries[key].value
-
-    def push(self):
-        self.level += 1
-
-    def pop(self):
-        self.level += 1
-
-def type_check(thetype, data, bindings = None):
+def type_check(thetype : core.Type, data, context : Context = None):
     """ Checks that a given bit of data conforms to the type provided  """
-    if not bindings: bindings = Bindings()
+    context = context or Context()
     if isinstance(thetype, core.RecordType):
         for name,child in zip(thetype.child_names, thetype.child_types):
             value = data[name]
-            type_check(child, value, bindings)
+            type_check(child, value, context)
     elif isinstance(thetype, core.TupleType):
         assert isinstance(data, tuple)
         assert len(data) == len(thetype.child_types)
         for value,child_type in zip(data, thetype.child_types):
-            type_check(child_type, value, bindings)
+            type_check(child_type, value, context)
     elif isinstance(thetype, core.UnionType):
         assert isinstance(thetype, dict)
         children = [(name,child) for name,child in zip(thetype.child_names, thetype.child_types) if name in data]
         assert len(fields) == 1, "0 or more than 1 entry in Union"
         child_name,child_type = children[0]
-        type_check(child_type, data[child_name], bindings)
+        type_check(child_type, data[child_name], context)
     elif isinstance(thetype, core.TypeApp):
-        # Type applications are tricky.  These will "affect" bindings
-        bindings.push()
+        # Type applications are tricky.  These will "affect" the type context
+        if thetype.unused_values:
+            raise errors.ValidationError("TypeApp still has unused type params.  Run the resolver first.")
+        context.push()
         for k,v in thetype.param_values.items():
-            bindings[k] = v
-        type_check(thetype.root_type, data, bindings)
-        bindings.pop()
+            context.set(k, v)
+        root_type = thetype.root_type
+        if isinstance(root_type, core.TypeVar):
+            if root_type.binding is None:
+                raise errors.ValidationError("TypeVar(%s) is unbound.  Run the resolver first.")
+        type_check(root_type, data, context)
+        context.pop()
     elif isinstance(thetype, core.TypeVar):
         # Find the binding for this type variable
-        bound_type = bindings[thetype.name]
-        if bound_type is None:
+        bound_type = thetype.bound_type
+        if not bound_type:
+            # Check if we are in the bindings
+            bound_type = context.get(thetype.name)
+        if not bound_type:
+            set_trace()
             raise errors.ValidationError("TypeVar(%s) is not bound to a type." % thetype.name)
-        type_check(bound_type, data, bindings)
+        type_check(bound_type, data, context)
     elif isinstance(thetype, core.NativeType):
         # Native types are interesting - these can be plain types such as Int, Float etc
         # or they can be generic types like Array<T>, Map<K,V>
@@ -79,13 +56,14 @@ def type_check(thetype, data, bindings = None):
         if thetype.args and thetype.mapper_functor:
             def type_check_functor(*values):
                 for arg, value in zip(thetype.args, values):
-                    bound_type = bindings[arg]
+                    bound_type = context.get(arg)
                     if bound_type is None:
                         raise errors.ValidationError("Arg(%s) is not bound to a type." % arg)
-                    type_check(bound_type, value)
+                    type_check(bound_type, value, context)
             thetype.mapper_functor(type_check_functor, data)
 
     # Finally apply any other validators that were nominated 
     # specifically for that particular type
+    if not thetype: set_trace()
     if thetype.validator:
-        thetype.validator(thetype, data, bindings)
+        thetype.validator(thetype, data, context)

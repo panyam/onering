@@ -2,37 +2,10 @@
 from ipdb import set_trace
 from onering.common import errors
 
-class Context(object):
-    """ A type context/environment that provides bindings between names and types. """
-    def __init__(self):
-        self.root = {}
-        self.typefqns = {}
-
-    def add(self, fqn, thetype):
-        """ Adds a type given its fqn """
-        currfqn = self.fqn_for(thetype)
-        if currfqn:
-            # The type has already been added, it needs to be added by a reference instead
-            set_trace()
-            assert False
-        self.typefqns[thetype] = fqn
-        parts = fqn.split(".")
-        module, last = parts[:-1], parts[-1]
-        parent = self.ensure(".".join(module))
-        parent[last] = thetype
-
-    def fqn_for(self, thetype):
-        """ Given a type, returns it FQN. """
-        return self.typefqns.get(thetype, None)
-
-    def ensure(self, fqn):
-        parts = fqn.split(".")
-        curr = self.root
-        for p in parts:
-            if p not in curr:
-                curr[p] = {}
-            curr = curr[p]
-        return curr
+def ensure_type(type_or_str):
+    if isinstance(type_or_str, str):
+        type_or_str = TypeVar(type_or_str)
+    return type_or_str 
 
 class Type(object):
     def __init__(self, args = None):
@@ -64,6 +37,14 @@ class TypeVar(Type):
         Type.__init__(self)
         self.name = name
 
+        # What does this bind to?
+        self.bound_type = None
+        self.bound_parent = None
+
+    @property
+    def is_bound(self):
+        return self.bound_type is not None or self.bound_parent is not None
+
 class TypeApp(Type):
     """ Type applications allow generics to be concretized. 
 
@@ -86,18 +67,16 @@ class TypeApp(Type):
         Type.__init__(self)
         self.param_values = {}
         self.unused_values = []
+        target_type = ensure_type(target_type)
         self.root_type = target_type
         if isinstance(target_type, TypeApp):
             self.root_type = target_type.root_type
             self.apply(**target_type.param_values)
-        self.apply(*type_args)
-        self.apply(**type_kwargs)
+        self.apply(*type_args, **type_kwargs)
 
     def apply(self, *values, **kvpairs):
         for value in values:
-            if type(value) is str:
-                value = TypeVar(value)
-
+            value = ensure_type(value)
             if isinstance(self.root_type, TypeVar):
                 self.unused_values.append(value)
             else:
@@ -108,8 +87,7 @@ class TypeApp(Type):
                 self.param_values[next_arg] = value
 
         for key, value in kvpairs.items():
-            if type(value) is str:
-                value = TypeVar(value)
+            value = ensure_type(value)
             # Ensure this value has not already been applied.
             if isinstance(self.root_type, TypeVar):
                 raise errors.ORException("Values cannot be bound by key for TypeVars")
@@ -159,8 +137,7 @@ class FunctionType(Type):
 
     def with_inputs(self, *input_types):
         for it in input_types:
-            if type(it) is str:
-                it = TypeVar(it)
+            it = ensure_type(it)
             self._input_types.append(it)
         return self
 
@@ -195,8 +172,7 @@ class DataType(Type):
         return name in self.child_names
 
     def _add_type(self, child_type, child_name):
-        if type(child_type) is str:
-            child_type = TypeVar(child_type)
+        child_type = ensure_type(child_type)
         self.child_types.append(child_type)
         self.child_names.append(child_name)
 

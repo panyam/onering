@@ -1,8 +1,12 @@
 
+def ensure_fqn(value):
+    if type(value) is not FQN: value = FQN(value, None)
+    return value
+
 class FQN(object):
     def __init__(self, name, namespace, ensure_namespaces_are_equal = True):
         name,namespace = (name or "").strip(), (namespace or "").strip()
-        comps = name.split(".")
+        self._parts = comps = [n for n in name.split(".") if name.strip()]
         if len(comps) > 1:
             n2 = comps[-1]
             ns2 = ".".join(comps[:-1])
@@ -10,28 +14,16 @@ class FQN(object):
                 if namespace and ns2 != namespace:
                     assert ns2 == namespace or not namespace, "Namespaces dont match '%s' vs '%s'" % (ns2, namespace)
             name,namespace = n2,ns2
-        fqn = None
-        if namespace and name:
-            fqn = namespace + "." + name
-        elif name:
-            fqn = name
-        self._name = name
-        self._namespace = namespace
-        self._fqn = fqn
 
     @property
     def parts(self):
-        return self._name, self._namespace, self._fqn
+        return self._parts
 
     @property
-    def name(self):
-        return self._name
+    def last(self):
+        return self._parts[-1]
 
     @property
-    def namespace(self):
-        return self._namespace
-
-    @property
-    def fqn(self):
-        return self._fqn
+    def parent(self):
+        return None if len(self.parts) == 1 else FQN(".".join(self.parts[:-1]), None)
 

@@ -47,5 +47,3 @@ List.mapper_functor = default_array_mapper_functor
 
 Map = NativeType(["K", "V"])
 Map.mapper_functor = default_dict_mapper_functor
-
-DateTime = TypeVar("Long")

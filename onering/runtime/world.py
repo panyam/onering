@@ -3,6 +3,7 @@ from __future__ import absolute_import
 from ipdb import set_trace
 import pkgutil
 from onering.utils import dirutils
+import onering.typing.context
 
 class World(object):
     """ The onering world is where all the actors live and interact with one another. """
@@ -10,8 +11,7 @@ class World(object):
         self.dirpointer = dirutils.DirPointer()
         self.packages = {}
 
-        from onering.typing import core as orcore
-        self.typing_context = orcore.Context()
+        self.typing_context = onering.typing.context.Context()
 
         from onering.loaders import resolver
         self.entity_resolver = resolver.EntityResolver()
