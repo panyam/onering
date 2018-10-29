@@ -1,0 +1,24 @@
+
+namespace onering.protobuf.types {
+    atomic Any
+    atomic bool
+    atomic byte
+    atomic int32
+    atomic int64
+    atomic uint32
+    atomic uint64
+    atomic sint32
+    atomic sint64
+    atomic fixed32
+    atomic fixed64
+    atomic sfixed32
+    atomic sfixed64
+    atomic float
+    atomic double
+    atomic string
+    atomic string
+    atomic bytes
+
+    atomic repeated<T>      // these are just lists
+    atomic map<K,V>
+}

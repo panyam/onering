@@ -1,0 +1,33 @@
+
+// The atomic types defined in pegasus.  Also annotations are not defined here and they are just
+// used as is.
+//
+// Note we do not need to declare aliases, records, unions, or enums as that is part of 
+// the core onering spec and is a common type system primitive!
+
+namespace onering.pegasus.types {
+    atomic byte;
+    atomic char;
+    atomic int;
+    atomic long;
+    atomic float;
+    atomic double;
+    atomic string;
+    atomic null;
+    atomic Array<T>;
+    atomic List<T>;
+    atomic Map<K,V>;
+
+    // We could have done Bytes as an atomic type with the size being an annotation,
+    // but going with an explicit record view of "bytes" means we can decouple the
+    // implementation (as a byte array) from its specification.
+    record Bytes {
+        size : int;
+        data : Array<byte>;
+    }
+
+    record Fixed {
+        size : int;
+        data : Array<char>;
+    }
+}

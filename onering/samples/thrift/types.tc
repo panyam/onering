@@ -1,0 +1,14 @@
+
+namespace onering.thrift.types {
+    atomic bool;
+    atomic byte;
+    atomic i16;
+    atomic i32;
+    atomic i64;
+    atomic double;
+    atomic string;
+    atomic binary;
+    atomic list<T>;
+    atomic set<T>;
+    atomic map<K,V>;
+}

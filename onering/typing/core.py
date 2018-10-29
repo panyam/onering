@@ -1,7 +1,7 @@
 
 from ipdb import set_trace
 import typing
-from onering.common import errors
+from onering.common import errors, annotations
 
 def ensure_type(type_or_str):
     if isinstance(type_or_str, str):
@@ -12,6 +12,7 @@ class Type(object):
     def __init__(self, args = None):
         self.args = args or []
         self.validator = None
+        self._annotations = Annotations()
 
     def __repr__(self):
         out = "<%s(0x%x)" % (self.__class__.__name__, id(self))
@@ -19,6 +20,9 @@ class Type(object):
             out += " [%s]" % ", ".join(self.args)
         out += ">"
         return out
+
+    @property
+    def annotations(self): return self._annotations
 
     def set_validator(self, validator):
         self.validator = validator
@@ -199,3 +203,21 @@ class TupleType(DataType):
     sum_type = False
 
 class UnionType(DataType): pass
+
+class RefinedType(Type):
+    """ Refined types are types decorated by logical predicates or constraints.
+    TODO - Do we need a special wrapper type here or can predicates not apply
+    to *all* types?
+    """
+    def __init__(self, target_type):
+        Type.__init__(self)
+        self.target_type = target_type
+        self.predicates = []
+
+    def add(self, predicate):
+        self.predicates.append(predicate)
+        return self
+
+    def add_multi(self, *predicates):
+        map(self.add, predicates)
+        return self
