@@ -228,134 +228,162 @@ And to make this all murkier, People’s choice of languages and frameworks and 
 
 Onering is *not* a language.   It is instead a DSL for declaring data models, schemas, derivations (between platforms) and transformations between derivations so that platform specific processors can generate the artifacts they need to hook a new platform (language and/or framework) to work with and add value to the data model.
 
+### Base schemas
+
 Diving right back into the motivating example.   We had earlir described the model of our data in the application's universe.   Without it being stored it is useless.  Where do we store it?  There are plenty of choices, Relational, Document, No-SQl, Graph and so on.   So many choices!   Let us pick one and dive right in.  Let us store our model into a relational DB.   A relational store cannot store our data as is.  It requires some transformation.   But before we describe a transformation we want to specify some derivations that will help us hint data transformations so that any system.  An example will make it clear.
 
-Consider the User model in our logical world (above).   As a table in a relational DB we expect it to be something like:
+We want our logical data model above to map something similar to what is below for kosher consumption by a relation DB.
+
+First starting with the User record and its equivalent:
 
 ```
-table User
-```
-
-This is what onering is for.  A resource/entity is described ones along with the validators and transformers that it needs.  However these transformers and validators are not implemented in onering (Onering is *not* a language).   These transformers and validators are described via strongly typed (even polymorphic) function signature that can be “injected” when a new language is used.
-
-Examples:
-
-* Rest API  ->  Django ORM
-* Rest API  ->  Appengine backend
-* Rest API (Restli) -> Flask -> App Engine
-
-What do we want onering to do here?
-
-There are two scenarios.   
-
-1. Web app frameworks that take a HttpRequest -> ResourceHandler
-2. Restful frameworks that auto convert a HttpRequest -> Typed Resource (applying some validations) -> ResourceHandler
-
-In both cases, ResourceHandler needs to convert to a storage object and save.  This means we either need to convert a way to convert a typed Restful resource into a storage resource with transforms included.   This is the same way a HttpRequest can be transformed to a RestResource.
-
-### Basic Resource Schemas
-
-So Onering has a model DSL.  As a model DSL, we expect basic things:
-
-NativeTypes	-	Basic opaque types to be “provided” by environment - eg Int, FILE, Array, Map, etc
-TypeVar	-	Type variables that are used to bind a type to somewhere in a context.
-FunctionType	-	To declare and specify function signatures.
-RecordType	-	For named product types
-TupleType	-	For unnamed tuple types
-UnionType	-	Named sum types
-
-Given this we can define records as so:
-
-```
-# Some basics:
-
-record Person {
-   id : String
-   name : String
-   dateOfBirth : Optional[DateTime]
-   address : union AddressInfo {
-        homeAddress : Address
-        companyAddress : Address
-   }
+@sql.table(name = "users")
+record User {
+	@sql.primarykey
+    id : String
+    
+    @sql.constraint(blank = False, null = False)
+    name : String
+    
+    @sql.default(auto_now = True)
+    createdAt : DateTime
+    
+    @sql.default(auto_now = True)
+    updatedAt : DateTime
 }
+```
 
+Nothing magical above.  Tables can be records with annotation without loss of generality.   A record can be marked as a persistable entry with the `@sql.table` annotation above.   This way the ORM toolchain gets hints as to the the name of the table in which this data will be read from/written to.
+
+Not all records need a table annotation:
+
+```
 record Address {
     streetNumber : Int
     streetName : String
     city : String
     state : String
     country : String
-    postcode : Optional[String]
+    postcode : String?
 }
 ```
 
-Correspondingly our restful api for a person could be a typical CRUD api whose resource handlers could correspond to:
+The Address cannot be persisted and has to be used in a flattened way.
+
+Now let us introduce some constraints onto the fields.  Again nothing fancy.  Annotations help indicate to the toolchain that is consuming this (SQL/ORM) as to what validation to put in place and when.
 
 ```
-def createPerson(person : Person) -> Person:
-    …
-
-def getPerson(id : String) -> Person:
-    …
-
-def deletePerson(id : String) -> Boolean:
-    …
-
-def updatePerson(patch : List[PatchOp[Person]]) -> Boolean:
-    … 
-# Where Patch is:
-typedef PatchApplyFunc[R] :: R -> R
-typeclass PatchOp[R]:
-    apply :: PatchApplyFunc
+@sql.table(name = "instruments")
+record Instrument : RecordBase {
+	@sql.primarykey
+    id : String
+    
+    @sql.constraints(null = False, blank = False)
+    name : String
+    
+    @sql.max_length(512)
+    description : String
+    
+    @sql.null(True)
+    url : URL
+}
 ```
 
-
-Now looking at the above we know exactly what the “rest” API would look like.  One of the many things we dont yet know is when the resource handler is invoked how are the parameters extracted from the request object, eg HttpRequest.
-
-Let us define a HttpRequest type for it:
+Just declaring bits of base tables is no fun.  We ultimately do want relations between tables.  The Artist is perfect:
 
 ```
-    record File {
-        /**
-         * Path of the file used as attachments.
-         */
-        path : String
+record Artist : RecordBase {
+	@sql.primarykey
+    id : String
+    
+    @sql.constraints(null = False, blank = False)
+    name : String
+    
+    // how do we use the address
+    @sql.flatten(prefix = "address_")
+    address : Address
+    
+    @sql.constraints(null = True)
+    dateOfBirth : DateTime
+    
+    // instruments : List[Ref[Instrument]]
+}
+```
 
-        /**
-         * Content type of the file.
-         */
-        contentType : String
+First thing to note is the "flatten" annotation that takes a complex type and flattens it into multiple fields with a given prefix.  This would result in an error if a flattened field already exists.
+
+Secondly and more interestingly is how can we model instruments?  We know instruments are a many-to-many relation between an Artist and the Instruments she plays.   An easy way is to simply create a new ArtistInstrument record as something like:
+
+```
+@sql.table(name = "artist_instruments")
+@sql.constraint(unique_together = ["artist", "instrument"])
+record ArtistInstrument {
+    @sql.ForeignKey(Artist)
+    artist : Ref[Artist]
+    
+    @sql.ForeignKey(Instrument)
+    instrument : Ref[Instrument]
+    
+    // When the artist declared his love/proficiency for this instrument?
+    registeredAt : DateTime
+}
+```
+
+### Derivations
+
+The above helps us model "target" schemas easily and until now nothing new or major has been demonstrated beyond a new schema DSL.   In fact the above strategy has the disadvantage that even though we can define annotations and let the tool use them, the linkage between a vanilla Artist and the SQL Artist are not obvious.  A backend that converts an Artist retrieved from a SQL backend and converting it to an Artist in the ViewModel would have no idea that the name fields are the same (let alone when there may be a renaming).
+
+In order to do this, we need derivations that can generate target schemas while maintaining these logical linkages.
+
+What is required is something along the lines of:
+
+Starting with the easier User record - let us put it in a different namespace to differentiate from the original data model:
+
+```
+namespace org.onering.samples.sql {
+    @sql.table(name = "users")
+    record User derives org.onering.samples.vanilla.User {
+        @sql.primarykey
+        id
+
+        @sql.constraint(blank = False, null = False)
+        name
+
+        @sql.default(auto_now = True)
+        createdAt : Long
+
+        @sql.default(auto_now = True)
+        updatedOn <= updatedAt : Long
     }
-
-    /**
-     * Payload can either be raw data or a dictionary of key/value pairs
-     */
-    union Payload {
-        rawData : Stream[Byte]
-        fileData : File
-        kvPairs : Map[String, Payload]
-    }
-
-    /**
-     * Defines a generic http request that is sent to any API
-     * server that is based on http.
-     */
-    record HttpRequest {
-        method : String
-        path : String
-        contentType : String
-        args : Map[string, string]
-
-        /**
-         * headers of the form part.
-         */
-        headers : Map[String, List[String]]
-
-        /**
-         * Content of the request otherwise.
-         */
-        body : Payload
-    }
+}
 ```
 
-A lot is going on here.  Here we just defined a HttpRequest but no way to actually convert this into a People resource.
+A few interesting things above:
+1. A derived record simply "derives" a source record.  This by default gives it all the fields in the source record.
+2. From this point on derived fields can just be specified without their type.  This indicates that in the new record it has the same type as in the source record.
+3. The `createdAt` and `updatedOn` fields are interesting.  They indicate a change in type.   The conversion between a DateTime (whatever that is) to a Long is Onering's job!!  
+4. `updatedOn` is a field renaming and is semantically linked to the `updatedAt` field in the source record.   There is more to the `<=` operator!
+5. Annotations still dont mean anything they are just passed onto the processors.
+
+Before proceeding further, this has enough information to give us a target User record that is equivalent to the below record without actually typing it up but also maintaining linkages across fields:
+
+```
+namespace org.onering.samples.sql {
+    @sql.table(name = "users")
+    record User {
+        @sql.primarykey
+        id : String
+
+        @sql.constraint(blank = False, null = False)
+        name : String
+
+        @sql.default(auto_now = True)
+        createdAt : Long
+
+        @sql.default(auto_now = True)
+        updatedOn : Long
+    }
+}
+```
+
+### Projections
