@@ -352,8 +352,14 @@ namespace org.onering.samples.sql {
         @sql.default(auto_now = True)
         createdAt : Long
 
+		// Let Onering find a DataTime to Long transformer
         @sql.default(auto_now = True)
-        updatedOn <= updatedAt : Long
+        updatedAt as updatedOn : Long
+        
+        // or specify a custom transformer - note DateTime2Long tells
+        // us what the target type will be!
+        @sql.default(auto_now = True)
+        updatedAt as updatedOn using DateTime2Long
     }
 }
 ```
@@ -362,7 +368,7 @@ A few interesting things above:
 1. A derived record simply "derives" a source record.  This by default gives it all the fields in the source record.
 2. From this point on derived fields can just be specified without their type.  This indicates that in the new record it has the same type as in the source record.
 3. The `createdAt` and `updatedOn` fields are interesting.  They indicate a change in type.   The conversion between a DateTime (whatever that is) to a Long is Onering's job!!  
-4. `updatedOn` is a field renaming and is semantically linked to the `updatedAt` field in the source record.   There is more to the `<=` operator!
+4. `updatedOn` is a field renaming and is semantically linked to the `updatedAt` field in the source record.
 5. Annotations still dont mean anything they are just passed onto the processors.
 
 Before proceeding further, this has enough information to give us a target User record that is equivalent to the below record without actually typing it up but also maintaining linkages across fields:
