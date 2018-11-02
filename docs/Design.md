@@ -1,16 +1,21 @@
 # Onering
 
-Data representation and transformations are at the heart of everything we do and need.   The semantics of data (and their transformations and views) must be the same regardless of pesky barriers like frameworks, backends, languages, DSLs, libraries, data stores etc right?  
 
-Unfortunately these pesky barriers are the reality and what cause the distortion in the model being represented in the most truthful way (which ever domain we pick - ER, OO, Documents etc).
+## Background
 
-So what we really need is a way to represent data in its truest form (again ER, OO, Documents etc) and then generate the real-world representation on the details that are in place (eg language, backends, data stores and their constraints etc).
+We live in an [amazing (but paralyzing)](https://techcrunch.com/2018/10/28/the-tools-they-are-a-changing/) world full of choices in tools and tech stacks.  It used to be that data models were a definitive guide to a modeller's intent highlighting the features/relationships/constraints between the different parts and facets of data.  However due to the plethora of choices in technologies (and their constraints) addressing limitations of systems takes precedence over sound data modelling.   How can we go back to the other way around?  Ie take the model of data as we see fit, and then plugin systems to process or wrap or work with the model?   After all data on its own is useless if it is not served/stored/transformed/processed.     
 
-Onering is a cross language, cross stack and portable polymorphic and strongly typed code generator for representing data in its truest form and *then* deriving the things necessary to work with real world barriers!
+The semantics of data (and their transformations and views) must be the same regardless of barriers like frameworks, backends, languages, DSLs, libraries, data stores etc?  Unfortunately these barriers are the reality and what cause the distortion in the model being represented in the most truthful way (which ever domain we pick - ER, OO, Documents etc).
+
+A typical application does not directly return/update the data model directly but does so to parts of it in different phases.  For instance web clients have different view models from mobile (or "smaller") devices and the view models in turn may be composed of other view models or views.   Similarly when performing updates if the views/view models are used as a proxy for the update API, these would translate to real backend APIs responsible for certain parts of the data models.
+
+Business logic (as validation and filtering) should kick in any time it is required (say in a responsive SPA or in an API backend or even in offline analysis).   Currently this requires replication that is very specific to the tier it is hosted in and intents cannot easily be shared.   
+
+We propose **Onering**.   Onering is a cross language, cross stack and portable polymorphic and strongly typed code generator for representing data in its truest form and *then* enabling pluggable derivations necessary to work in the real world!
+
 
 ## Motivating Example
 
-### Sample Application
 Consider a system for managing musical albums, tracks, playlists, artists and users.   Some objects in this system are (without worrying about whether they are entities or relationships):
 
 | Entities              	| Relationships/Collections     |
@@ -25,12 +30,13 @@ Consider a system for managing musical albums, tracks, playlists, artists and us
 
 In a typical music player application we are interested in letting users uploading songs, tracks, albums (legally ofcourse) and organizing them into playlists and sharing them with other users.
 
-### Data Models/Schemas
+## Onering Basics
 
-One "logical" representation without worrying about what our underlying systems give us would be:
+### Native Types
+
+To represent our models we will need some basic types.  There are no built in types in Onering.  These can just be declared as a native type:
 
 ```
-
 // Some basic and native types in our system
 native Any
 native Byte
@@ -39,89 +45,260 @@ native Char
 native Float
 native Double
 native Int
-native Null
 native Long
 native String
 
-# Native types do not have to be just basic ones like above.
-# Reference types!
-native Ref[T]
+// Native types do not have to be just basic ones like above.  
+// They can also be parametrized (more on parametrized types later).
 native Optional[T]
 native Array[T]
 native List[T]
 native Map[K,V]
-typeref DateTime = Long
+native Ref[T]	// References are native types too
+```
 
-union Json {
-    listValue : List[Json]
-    dictValue : Map[String, Json]
-    stringValue : String
-    longValue : Long
-    doubleValue : Double
-    booleanValue : Boolean
-    nullValue : Null
-}
+Native types have no meaning and are completely pluggable by the modeller.
 
+### Composite Types
+
+We can represent the logical view of this data in a simple way.  This would include both the structure as well as the constraints and validations we expect on the data.  Note that validation being here makes sense since this is a way to ensure that bad/invalid data does not stay at the logical level.   
+
+One "logical" representation without worrying about what our underlying systems give us (but with validation rules) would be:
+
+A user record can be defined as:
+
+```
 record User {
+	@unique
     id : String
+    
+    @EnsureNonEmpty()
     name : String
-    createdAt : DateTime
-    updatedAt : DateTime
+
+	createdAt : DateTime
+
+	updatedAt : DateTime
 }
+```
 
-alias UserRef = Ref[User]
+The above User record has a few fields and importantly a few annotations on a few of the fields.  
 
-record Address {
-    streetNumber : Int
-    streetName : String
-    city : String
-    state : String
-    country : String
-    postcode : String?
-}
+### Aliases
 
-record RecordBase {
-    creator : UserRef
+The User is integral to several parts of the system so we can expect to see it referenced in several other types.  The `creator` field below is an example of this:
+
+```
+alias DateTime = Long
+
+record EntityBase {
+    @unique
+    id : String
+    creator : Ref[User]
     createdAt : DateTime
     updatedAt : DateTime    
 }
+```
 
-record Artist : RecordBase {
+We can simplify this by creating aliases:
+
+```
+alias UserRef = Ref[User]
+```
+
+thus turning the `EntityBase` into:
+
+```
+record EntityBase {
+    @unique
     id : String
-    name : String
-    address : Address?
+    
+    creator : UserRef
+    
+    createdAt : DateTime
+    updatedAt : DateTime    
+}
+```
+
+### RefinedTypes
+
+We also expect annotations to be used commonly.  For instance the `@unique` attribute on the `id` field in the `EntityBase`.  We can shortcut this with `RefinedType` (TODO: Can this actually just be done with an alias too if aliases themselves do not need any annotations?):
+
+```
+@unique
+refined UniqueId = String
+
+@EnsurePositive
+refined PositiveInt = Int
+
+@EnsureNonEmpty
+refined NonEmptyString = String
+
+```
+
+... further simplifying `EntityBase` into:
+
+```
+record EntityBase {
+    id : UniqueId
+    
+    creator : UserRef
+    
+    createdAt : DateTime
+    updatedAt : DateTime    
+}
+```
+
+Multiple annotations (with arguments) can also be applied on RefinedTypes:
+
+```
+@EnsureNonEmpty
+@EnsureEvenLength
+@MaxLength(32)
+refined EvenLengthString = String
+```
+
+**TODO**: Define the signature of an annotation on a refined type (to include error handling).
+
+### Includes
+
+Often models need to reuse common parts.  For example in our model all persistable fields need `id`, `creator`, and created/deleted timestamps.  This is captured in the `EntityBase` record which can be included with:
+
+```
+record Venue {
+    #include EntityBase
+    
+    name : NonEmptyString
+    
+    location : Address
+    
+    url : URL
+}
+
+
+record Address {
+    streetNumber : PositiveInt
+    
+    streetName : NonEmptyString
+    
+    city : NonEmptyString
+
+	state : NonEmptyString
+    
+    @EnsureValidCountryCode
+    country : String
+    
+    postcode : String?
+}
+```
+
+
+### Parametrized Types
+
+Sometimes we need polymorphic behavior over the types and type parametrization can help with structuring common fields regardless of types:
+
+Consider user actions on entities 
+```
+record Follow[T] {
+    #include EntityBase
+    
+	follower : UserRef
+    
+    target : Ref[T]
+    
+    followedAt : DateTime
+}
+
+record Reaction[T] {
+    #include EntityBase
+    
+	// Who is posting a reaction?
+    actor : UserRef
+    
+    // On what entity?
+    source : Ref[T]
+}
+
+record Share[T] {
+	#include Reaction[T]
+    
+    title : String
+    
+    description : String
+    
+    previewImage : URL?
+}
+
+record Like[T] {
+	#include Reaction[T]
+    
+    likeCount : Int
+    
+    likeType : enum LikeType {
+        LIKE,
+        ANGRY,
+        HATE,
+        WOW,
+        CONFUSED,
+        SAD
+    }
+}
+
+record Comment[T] {
+	#include Reaction[T]
+    
+    text : String
+    
+    media : URL
+}
+```
+
+### Data model
+We can go on to describe the rest of the data model:
+
+```
+record Artist {
+	#include EntityBase
+    
+    name : NonEmptyString
+
+	address : Address?
+    
     instruments : List[Ref[Instrument]]
+    
     dateOfBirth : DateTime?
 }
 
-record Instrument : RecordBase {
-    id : String
-    name : String
+record Instrument {
+	#include EntityBase
+    
+    name : NonEmptyString    
     description : String
     url : URL
 }
 
 // A Song.  This is not the actual playable but only details
 // about the original song as composed.
-record Song : RecordBase {
-    id : String
-    title : String
-    composer : String    // This should be typed but ok for now
+record Song {
+	#include EntityBase
+    
+    title : NonEmptyString
+    
+    composer : NonEmptyString    // This should be typed but ok for now
+    
     composedAt : DateTime
+    
     lyricsUrl : URL?
 }
 
-record Venue : RecordBase {
-    id : String
-    name : String
-    location : Address
-    url : URL
-}
-
-record Event : RecordBase {
-    name : String
+record Event {
+	#include EntityBase
+    
+    name : NonEmptyString
+    
     venue : Ref[Venue]
+    
     date : DateTime
+    
     artists : List[record ArtistRole {
          artist : Ref[Artist]
          role : String
@@ -129,81 +306,49 @@ record Event : RecordBase {
 }
 
 record Track {
-    song : Ref[Ref[Song]]
+    song : Ref[Song]
     streamingUrls : List[URL]
 }
 
-record Album : RecordBase {
+record Album {
+    #include EntityBase
+    
     title : String
     event : Ref[Event]
     tracks : List[Track]
 }
 
 // A Playlist is a collection of entries - these could be albums or solo tracks
-record Playlist : RecordBase {
+record Playlist {
+	#include EntityBase
+    
 	// Name of the playlist, eg "Kids Lullabies"
-    name : String
+    name : NonEmptyString
     
     // Who this playlist belongs to
     owner : UserRef
 
-    entries : List[Union {
+    entries : List[union PlaylistEntry {
     	album : Ref[Album]
         track : Ref[Track]
     }]
 }
-
-// We also have generic records!
-record Follow[T] : RecordBase {
-	follower : UserRef
-    target : Ref[T]
-    followedAt : DateTime
-}
-
-record Reaction[T] : RecordBase {
-	// Who is posting a reaction?
-    perfomer : UserRef
-    
-    // On what entity?
-    source : Ref[T]
-}
-
-record Share[T] : Reaction[T] {
-    title : String
-    description : String
-    previewImage : URL?
-}
-
-record Like[T] : Reaction[T] {
-    likeCount : Int
-}
-
-record Comment[T] : Reaction[T] {
-    text : String
-    media : URL
-}
 ```
+
+**TODO**: Should we allow inner type definitions?  eg PlaylistEntry or LikeType above.  If so should their fully qualified name be their own name or `<Parent>.name`?
 
 ### Schemas features
 
 In the above notice we dont know what is an entity, or what is a relationship.  We are modelling in a way we (the modeller sees fit).   Coincidentally the above looks "like" an ER model.   
 
-
-Some interesting things to point out above are:
-* We describe our models with some basic constructs like records, unions, enums, primitive types.
-* Primitive types (like String, Int etc) have no meaning.  Types are all pluggable.
-* Complex types (records and unions) can inherit other records and inheritance is a matter of inclusion from a parent to a child type.
-* Complex and Native types can be parametrized (fairly so in the inheritance chain).
-
 Couple more of interesting choices:
 
-* All entries are value types unless explicitly called out via the Ref wrapper type `Ref[T]` (or using `NativeTypes` (like List, String etc).
 * Optionality is interesting since it only denotes the lack of a field value (whether it is a Reference or a Value).   Also Optionality **("?")** can be considered just shorthand for the type `Optional [T]`.
 * Default values are not present above since the concept of a default is a serving or a storage artifact and even their semantic highly depandant on the systems that work with this data so they can be provided as annotations when required.
 
 ### Limitations
 
-It is obvious that while the core data model for an application/system is easy to represent, its flow through the system is what is completely missing and where all the messiness creeps in.  How we model data ideally is almost always different from how other parts of the system see this (or some parts of this) data.   Some things that complicate matters are:
+It is obvious that while the core data model for an application/system is easy to represent, its flow through the system is missing and is where a lot of the complexity creeps in.  How we model data ideally is almost always different from how other parts of the system consume this (or some parts of this) data.   Some things that complicate matters are:
 
 * What kind of serving framework are we using - restful?, rpc?
 * What kind of transport mechanism?  xml/json/bson?  over Http?, websockets?, custom tcp?
@@ -213,28 +358,29 @@ It is obvious that while the core data model for an application/system is easy t
    * Handling these nearline
    * In the offline world (no union support etc)
 
-## Problem Statement
 
 
-[This blog post](https://techcrunch.com/2018/10/28/the-tools-they-are-a-changing/) really summarizes the (amazing but paralyzing) world we live in.   There is a plenty of choice in the different parts of the stacks we use.   Though it would be ideal to come up with a data model first that highlights the features/relationships/constraints between the different parts and facets of data, modellers are forced to address limitations of systems first and then model data accordingly.   What if we could go the other way around?  Ie take the model of data as we see fit, and then plugin systems to process or wrap or work with the model?   After all data on its own is useless if it is not served/stored/transformed/processed.   
+## Onering Derivations
 
-A typical application does not directly return/update the data model directly but does so parts of it.  For instance web clients have different view models from mobile (or "smaller") devices and the view models in turn may be composed of other view models or views.   Similarly when performing updates if the views/view models are used as a proxy for the update API, these would translate to real backend APIs responsible for certain parts of the data models.
+What we need is a way to describe derivations of a type into another type that can generate or reason about functions that enable this transformation.   Derivations in Onering aim to solve a part of this problem.  Onering is *not* a language for arbitrary and general purpose computation.   It is instead a tool for declaring data models/schemas and derivations so that specific processors can generate the artifacts they need to hook a new platform (language and/or framework) to work with and add value to the data model.
 
-Business logic (as validation and transformation) should kick in any time it is required (say in a responsive SPA or in an API backend or even in offline analysis).   Currently this requires replication that is very specific to the tier it is hosted in and intents cannot easily be shared.   
+### Rationale
 
-And to make this all murkier, People’s choice of languages and frameworks and tooling are arbitrary and is (and fairly so) a matter of personal taste.  What is required is a system that allows a design of a system that starts with the modelling of the data followed by the derivation of data into different systems along with the transformation that makes this derivation possible.  Finally we want these transformations to be composable, reusable and plugable so the boilerplate of dealing with language/framework/platform specific details do not leak into the actual work designers would be interested in doing.
+We had earlier described the model of our data in the application's universe.   Without it being stored it is useless.  Where do we store it?  There are plenty of choices, Relational, Document, No-SQl, Graph and so on.   Each system comes with its own schema DSL/spec to declare structure and constraints.
 
-## Onering
+As an example considering storing our models into a relational DB.   A table description of the user model (in pseudo-SQL) would look like:
 
-Onering is *not* a language.   It is instead a DSL for declaring data models, schemas, derivations (between platforms) and transformations between derivations so that platform specific processors can generate the artifacts they need to hook a new platform (language and/or framework) to work with and add value to the data model.
+```
+CREATE TABLE users (
+    id varchar(32),
+    name varchar(255) NOT NULL,
+    createdAt datetime DEFAULT   CURRENT_TIMESTAMP,	
+    updatedAt datetime ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
+)
+```
 
-### Base schemas
-
-Diving right back into the motivating example.   We had earlir described the model of our data in the application's universe.   Without it being stored it is useless.  Where do we store it?  There are plenty of choices, Relational, Document, No-SQl, Graph and so on.   So many choices!   Let us pick one and dive right in.  Let us store our model into a relational DB.   A relational store cannot store our data as is.  It requires some transformation.   But before we describe a transformation we want to specify some derivations that will help us hint data transformations so that any system.  An example will make it clear.
-
-We want our logical data model above to map something similar to what is below for kosher consumption by a relation DB.
-
-First starting with the User record and its equivalent:
+or if a more typed view is preferred, something like:
 
 ```
 @sql.table(name = "users")
@@ -242,7 +388,7 @@ record User {
 	@sql.primarykey
     id : String
     
-    @sql.constraint(blank = False, null = False)
+    @sql.constraint(blank = False, null = False, maxlength = 255)
     name : String
     
     @sql.default(auto_now = True)
@@ -268,20 +414,31 @@ record Address {
 }
 ```
 
-The Address cannot be persisted and has to be used in a flattened way.
+The Address cannot be persisted and has to be used in an embedded way.
 
-Now let us introduce some constraints onto the fields.  Again nothing fancy.  Annotations help indicate to the toolchain that is consuming this (SQL/ORM) as to what validation to put in place and when.
+Constraints can also be introduced onto the fields.  Annotations help indicate to the toolchain that is consuming this (SQL/ORM) as to what validation to apply and when.
 
 ```
-@sql.table(name = "instruments")
-record Instrument : RecordBase {
+record EntityBase {
 	@sql.primarykey
     id : String
     
+    @sql.constraints(null = False)
+    creator : UserRef
+    
+    @sql.default(auto_now = True)
+    createdAt : DateTime
+    
+    @sql.default(auto_now = True)
+    updatedAt : DateTime
+}
+
+@sql.table(name = "instruments")
+record Instrument : EntityBase {
     @sql.constraints(null = False, blank = False)
     name : String
     
-    @sql.max_length(512)
+    @sql.constraints(maxlength = 512)
     description : String
     
     @sql.null(True)
@@ -289,13 +446,10 @@ record Instrument : RecordBase {
 }
 ```
 
-Just declaring bits of base tables is no fun.  We ultimately do want relations between tables.  The Artist is perfect:
+At somepoint relations are required.  For example with the `Artist`:
 
 ```
-record Artist : RecordBase {
-	@sql.primarykey
-    id : String
-    
+record Artist : EntityBase {
     @sql.constraints(null = False, blank = False)
     name : String
     
@@ -331,13 +485,60 @@ record ArtistInstrument {
 
 ### Derivations
 
-The above helps us model "target" schemas easily and until now nothing new or major has been demonstrated beyond a new schema DSL.   In fact the above strategy has the disadvantage that even though we can define annotations and let the tool use them, the linkage between a vanilla Artist and the SQL Artist are not obvious.  A backend that converts an Artist retrieved from a SQL backend and converting it to an Artist in the ViewModel would have no idea that the name fields are the same (let alone when there may be a renaming).
+The above helps us model "target" schemas easily.   However this has the disadvantage that the linkage between a vanilla Artist and the SQL Artist are not obvious (and are lost).  A backend that converts an Artist retrieved from a SQL backend and converting it to an Artist in the ViewModel is unaware of sameness of the corresponding `name` field.
 
-In order to do this, we need derivations that can generate target schemas while maintaining these logical linkages.
+In order to do over come this, we need something like:
 
-What is required is something along the lines of:
+1. Derive a target type while deducing transformation rules.
+2. Annotate forward transformation rules to convert source types to a target type.
+3. Annotate reverse transformation rules to allow atleast partial conversion back from a derived type to its source types.
 
-Starting with the easier User record - let us put it in a different namespace to differentiate from the original data model:
+**TODO**: Can there be fields in a target type that do *not* exist anywhere in the sources?   
+
+A way to encode the above rules takes the general form of:
+
+```
+(record|union|enum) <NameOfDerivedType> derives SourceTypeSpecs {
+	derivation_rule1
+    derivation_rule2
+    ...
+    derivation_ruleN
+}
+
+SourceTypeSpecs ::= SourceTypeSpec
+				|  SourceTypeSpec "," SourceTypeSpecs
+                
+SourceTypeSpec ::= "explicit" ? SourceType ("as" varname) ?
+
+derivation_rule ::= field_spec | forward_rule | backward_rule
+
+forward_rule ::= field_spec + "<=" expression
+reverse_rule ::= expression "=>" field_spec +
+
+field_spec ::= var1 ( "." var2 )*
+```
+
+A target type (record or union) can derive from multiple source types (themselves being unions or records) and define derivation rules that select/project fields from source types into the target type.  This by default copies **all** of the fields from the source types into the target type.
+
+As a simple User derivation is below.  Note the `id` and `name` fields.  They are "derived" as is and their types are inferred by default.
+
+```
+namespace org.onering.samples.sql {
+    @sql.table(name = "users")
+    record User derives org.onering.samples.vanilla.User {
+        @sql.primarykey
+        id
+
+        @sql.constraint(blank = False, null = False)
+        name
+    }
+}
+```
+
+### Renamed and Retyped fields
+
+While in the original data model createdAt and updatedAt were typed as `DataTime`, here these may have to be retyped as Long (or even renamed), this can just be done with a retyping rule:
+
 
 ```
 namespace org.onering.samples.sql {
@@ -351,10 +552,24 @@ namespace org.onering.samples.sql {
 
         @sql.default(auto_now = True)
         createdAt : Long
+	}
+}
+```
 
+The conversion between a DateTime (whatever that is) to a Long for `createdAt` will be done automatically by Onering if it finds a suitable converter.  
+
+Sometimes a suitable converter may not be found in which case a converter function can be specified:
+
+
+```
+namespace org.onering.samples.sql {
+    @sql.table(name = "users")
+    record User derives org.onering.samples.vanilla.User {
+		...
+        
 		// Let Onering find a DataTime to Long transformer
         @sql.default(auto_now = True)
-        updatedAt as updatedOn : Long
+        updatedAt as updatedOn : Long using DateTime2Long
         
         // or specify a custom transformer - note DateTime2Long tells
         // us what the target type will be!
@@ -364,14 +579,11 @@ namespace org.onering.samples.sql {
 }
 ```
 
-A few interesting things above:
-1. A derived record simply "derives" a source record.  This by default gives it all the fields in the source record.
-2. From this point on derived fields can just be specified without their type.  This indicates that in the new record it has the same type as in the source record.
-3. The `createdAt` and `updatedOn` fields are interesting.  They indicate a change in type.   The conversion between a DateTime (whatever that is) to a Long is Onering's job!!  
-4. `updatedOn` is a field renaming and is semantically linked to the `updatedAt` field in the source record.
-5. Annotations still dont mean anything they are just passed onto the processors.
+**Note**: Annotations are still arbitrary and plugged into be used by the target processor.
 
-Before proceeding further, this has enough information to give us a target User record that is equivalent to the below record without actually typing it up but also maintaining linkages across fields:
+### Target Type Generation
+
+A derivation has enough information to result in a target User record that is equivalent to the below record without actually typing it up but also maintaining linkages across fields:
 
 ```
 namespace org.onering.samples.sql {
@@ -392,4 +604,148 @@ namespace org.onering.samples.sql {
 }
 ```
 
+Additionally we also have functions that can convert from the vanilla User record to the SQL User record with the signature:
+
+```
+vanilla.User -> sql.User
+```
+
+### Multi source derivations
+
+Sometimes it would make sense to derive a target field from several fields.  Perhaps multiple records into a union.  Or taking parts of multiple unions or simply cherrypicking parts of multiple records into a record.  This can be done with:
+
+```
+record SongWithLyrics derives explicit Song as song, explicit Lyrics as lyrics {
+    song.title as songTitle
+    lyrics.firstSection as sampleSection
+}
+```
+
+This would result in:
+
+```
+record SongWithLyrics {
+    songTitle : String
+    sampleSection : Section
+}
+```
+
+Note the "explicit" qualifier in the derivation.  By default "all" fields are derived/included in the target type with the renames being "add-ons".   Sometimes we want to only extract fields by default instead of all.   The "explicit" qualifier *only* introduces new fields and none of the old fields in the particular source.   Within a list of sources, some can be explicit and some can be "all".
+
+### Duplicate source types
+
+Source types can also have duplicate types and this is nothing special.  For instance a Duet could involve the first section of two different song lyrics:
+
+```
+record Duet derives explicit Lyrics as vocal, explicit Lyrics as instrument {
+    vocal.firstSection as vocalSection
+    instrument.firstSection as instrumentSection
+}
+```
+
+resulting in:
+
+```
+record Duet {
+    vocalSection : String
+    instrumentSection : Section
+}
+```
+
+### NativeType Sources
+
+Well why not have multiple lyrics instead of just two?
+
+```
+record Concerto derives List[Lyrics] as lyrics {
+    ???
+}
+```
+
+List is a native/opaque type.   In Onering lists/maps/arrays are not special by any means.   The easiest way to enable this transformation is via an external function (with type signature `List[Lyrics] -> List[Section]`):
+
+```
+record Concerto derives List[Lyrics] as lyrics {
+    lyrics as firstSections : List[Section] using ExtractSections[Lyrics, Sections]
+}
+```
+
+### Composition Style
+
+The above has the disadvantage of having to implemnt a `map` iteration in every external function.  Onering provides `interfaces` that result in better compositional style of declarations.
+
+**ASSUME**: We have a way to define functors (or interfaces).
+
+ie something like:
+
+```
+native List[T] enables Functor
+
+or
+
+native List[T] implements Functor
+```
+
+so we can do:
+
+```
+// Assuming InputList = [1,2,3,4,5]
+fmap squareIt InputList
+
+or 
+
+InputList.fmap(squareIt)
+```
+
+With traits/protocols/interfaces/typeclasses we can simply do:
+
+```
+record Concerto derives List[Lyrics] as lyrics {
+    firstSections as fmap(FirstLyricSection, lyrics) as firstSections : List[Section]
+}
+```
+
+`FirstLyricSection` is a UDF that converts a `Lyrics` instance to a `Section` instance (in this case by simply returning lyrics.firstSection).
+
+This could apply to other parametrized native types too (eg `Map[K,V]`) as long as they provide a functor implementation for given types.
+
+
+But is this the case of construct chasing syntax?   A derivation is a rule that says 3 things:
+
+1. Here is a target type.
+2. Here are the "rules" to create fields in the target type
+3. Here are the rules to go "backwards".
+
+Note that (2) must be "complete" in that it does not make sense for there to be any field in the target type that is not already a function of existing fields.  ie we cannot introduce new origin fields in the derived type since that would mean our data model itself is not complete.
+
+(3) however can definitely be "incomplete".   (3) describes the rules to take an instance of a derived type and traverse back to the source type(s).   This is fair since in most cases derived types may just be partial data from the source types.
+
+So our derivations without any fanfare could just be:
+
+```
+record X derives A,B,C {
+    targetField1, targetField2.... <= F(sf1, sf2, sf3 ....)
+    RF(tf1, tf2, tf3 ...) => sourceField1, sourceField2...
+}
+```
+
+### Validation Errors
+
+In more complex cases multiple validations would need to be applied which may fail or succeed.  While treating this is an all or nothing will work, more sophistiction error handling schemes should be allowed (like say collecting all errors).
+
+Consider the example of extracting an `Address` instance *from* a json object (or even a HttpRequest).
+
+```
+record Address derives HttpRequest as hreq {
+}
+```
+
+### Derivation Schema
+
+A derivation can be typed as follows:
+
+```
+Derivation := 
+		
+```
 ### Projections

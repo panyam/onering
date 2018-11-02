@@ -90,7 +90,7 @@ class TypeApp(Type):
             self.apply(**target_type.param_values)
         self.apply(*type_args, **type_kwargs)
 
-    def apply(self, *values : typing.List[Type], **kvpairs) -> "TypeApp":
+    def apply(self, *values : typing.List[Type], **kvpairs : typing.Map[str, Type]) -> "TypeApp":
         for value in values:
             value = ensure_type(value)
             root_type = self.root_type
