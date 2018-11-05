@@ -209,9 +209,11 @@ class RefinedType(Type):
     TODO - Do we need a special wrapper type here or can predicates not apply
     to *all* types?
     """
-    def __init__(self, target_type):
-        Type.__init__(self)
+    def __init__(self, target_type, args = None):
+        Type.__init__(self, args)
         self.target_type = target_type
+
+    """
         self.predicates = []
 
     def add(self, predicate):
@@ -221,3 +223,4 @@ class RefinedType(Type):
     def add_multi(self, *predicates):
         map(self.add, predicates)
         return self
+    """
