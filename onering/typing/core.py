@@ -8,11 +8,11 @@ def ensure_type(type_or_str):
         type_or_str = TypeVar(type_or_str)
     return type_or_str 
 
-class Type(object):
+class Type(annotations.Annotatable):
     def __init__(self, args = None):
+        annotations.Annotatable.__init__(self)
         self.args = args or []
         self.validator = None
-        self._annotations = Annotations()
 
     def __repr__(self):
         out = "<%s(0x%x)" % (self.__class__.__name__, id(self))
@@ -20,9 +20,6 @@ class Type(object):
             out += " [%s]" % ", ".join(self.args)
         out += ">"
         return out
-
-    @property
-    def annotations(self): return self._annotations
 
     def set_validator(self, validator):
         self.validator = validator
@@ -139,6 +136,7 @@ class TypeClass(object):
 class FunctionType(Type):
     def __init__(self, args = None):
         Type.__init__(self, args)
+        self._input_names = []
         self._input_types = []
         self._return_type = None
 
@@ -154,10 +152,18 @@ class FunctionType(Type):
         self._return_type = return_type
         return self
 
+    def add_input(self, input_type, input_name = None):
+        if type(input_type) is tuple:
+            assert input_name is None
+            input_type, input_name = input_type
+        it, name = input_type, input_name
+        it = ensure_type(it)
+        self._input_types.append(it)
+        self._input_names.append(name)
+        return self
+
     def with_inputs(self, *input_types):
-        for it in input_types:
-            it = ensure_type(it)
-            self._input_types.append(it)
+        map(self.add_input, input_types)
         return self
 
 class DataType(Type):

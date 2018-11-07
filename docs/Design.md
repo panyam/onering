@@ -219,7 +219,7 @@ record Reaction[T] {
 }
 
 record Share[T] {
-	#include Reaction[T]
+	#include Reaction
     
     title : String
     
@@ -229,7 +229,7 @@ record Share[T] {
 }
 
 record Like[T] {
-	#include Reaction[T]
+	#include Reaction
     
     likeCount : Int
     
@@ -244,7 +244,7 @@ record Like[T] {
 }
 
 record Comment[T] {
-	#include Reaction[T]
+	#include Reaction
     
     text : String
     
@@ -699,3 +699,218 @@ In general our flows look like:
 Here we have the concept of "transport" that is really a way to serialize/transmit a model instance.   By decoupling these out, our processing could work directly on "registerd" models only instead of us worring about custom model types.
 
 For instance the DataStoreModel would be an interface that a specific storage engine would implement instead of us worrying about what those look like.
+
+## Onering Interfaces
+
+Interfaces are the bindings between different data domains.   Interfaces describe abstract methods that can be called to retrieve, manage, store data.   Onering will generate client implementations for these interfaces as well as stubs for implementation if required (in cases of server side generation).
+
+### Basic Interface syntax
+
+They look like very much similar to records in structure but also allow functions as members.  Any data in an interface is 
+
+```
+interface AlbumsApi {
+	get : fun(id : String) -> Album
+    create : fun(entry : Album) -> UniqueId
+    update : fun(id : String, patchOps : List[PatchOp[Album]]) -> Void
+    delete : fun(id : String) -> Void
+    list : fun(offset : Int, count : Int, orderBy : Map[String, Bool], filterBy : List[Predicate]) -> List[Album]
+}
+```
+
+Like records they can also be included in other interfaces to extend others:
+
+```
+interface Api[T] {
+	get : fun(id : String) -> T
+    create : fun(entry : T) -> UniqueId
+    update : fun(id : String, patchOps : List[PatchOp[T]]) -> Void
+    delete : fun(id : String) -> Void
+}
+
+interface AlbumsApi {
+    #include Api[Album]
+    
+    // And extend with specific bits
+    list : fun(offset : Int, count : Int, orderBy : Map[String, Bool], otherOptions...) -> List[Album]
+}
+```
+
+### Client generation
+
+Main purpose of an interface is to generate clients to call it.  In most cases we may already have a resource backed by an arbitrary RESTful service.  While most RESTful services transport/encode resources in a very similar way, there may be slight differences.  Client help us abstract away the details of a client invocation from the intent of the interface.  This way we could even wrap the different client helpers that are provided for a service in a single uniform way.
+
+For example if we need the Albums API to be backed by the following RESTful interface:
+
+```
+Endpoint: /albums
+	get:
+    	path: GET /<id>/
+        accept: application/json	// This ensures our "return" 
+              						// is transformed to required content type
+    create: 
+    	path: POST /
+        content-type: application/json
+        body: entry		// content-type applied here
+        returns: UniqueId
+    update:
+    	path: PUT /<id>/
+        content-type: application/json
+        body: patchOps
+    delete:
+    	path: DELETE /<id>/
+```
+
+We can specify the above using:
+
+```
+@http.endpoint("/albums/")
+interface AlbumsApi {
+	@http({endpoint : "/${id}/", accept : "application/json"})
+	get : fun(id : String) -> Album
+    
+	@http({method = "POST", contentType : "application/json", body = "${entry}"})
+    create : fun(entry : Album) -> UniqueId
+    
+	@http({method = "POST", endpoint = "/${id}/", contentType : "application/json", body = ${patchOps}})
+    update : fun(id : String, patchOps : List[PatchOp[Album]]) -> Void
+
+	@http({method : "DELETE", endpoint : "/${id}/"})
+    delete : fun(id : String) -> Void
+    
+	@http({endpoint = "/",
+    	   queryParams = [("offset", ${offset}), ("count", ${count}), flatMap(${orderBy}), flatMap(map(toQP, filterBy))], 
+    	   accept : "application/json"})
+    list : fun(offset : Int, count : Int, orderBy : Map[String, Bool], filterBy : List[Predicate]) -> List[Album]
+}
+```
+
+There are a couple of problems with this:
+
+1. First we are clutterning our API definition with http specific details.  If we ever need to describe a different transport or content type (or encoding) we would have to add a ton more annotations at which point this becomes an exercise in annotation organization.
+2. The annotations themselves can actually be typed instead of being a bunch of arbitrary (and worse - untyped) KV pairs.  
+3. The "$" notation is clunky again.  It seems like a code smell introduced to do bindings and introduce "expressions" inline.
+
+Given this can we do better?  Instead of overloading the interface definition, how about decouping the client definition out of it?
+
+eg something like:
+
+```
+// We have our generic HttpRequest here
+record HttpRequest {
+	@default("GET")
+	method : String
+    
+    @default("/")
+    endpoint : String
+    
+    // The body we want to send in the payload
+    body : Stream[Byte]?
+    
+    // Headers in the request
+    headers : Map[String, List[String]]
+}
+
+record HttpResponse {
+	code : Int
+    
+    @default("")
+ 	reason : String
+    
+    // The body we want to send in the payload
+    body : Stream[Byte]?
+    
+    // Headers in the request
+    headers : Map[String, List[String]]
+}
+
+client HttpAlbumApi serves AlbumApi {
+	// 	In the interface this is: `get : fun(id : String) -> Album`
+	get : ???
+}
+```
+
+We need the `get` method to transform our original interface method into a HttpRequest.  We know it can only take an `id` parameter and only return an `Album` instance.   
+Our HttpAlbumApi should be called the same way as we would call our AlbumApi (only implementation is different):
+
+```
+api = HttpAlbumApi(port = 9999, prefix = "http://mydomain.com/")
+album : Album = api.get("123")
+
+(or)
+
+api.get("123").then(album : Album => {
+	// do something!
+});
+```
+
+and behind the scenes we would have something like:
+
+```
+api.get("123") 
+	=> [ 123 to HttpRequest ] 
+    => HttpCall 
+    => [ Response to Album ] 
+    => Album
+```
+
+How do we wrap our middle 3 lines in our HttpAlbumApi?   Eg:
+
+```
+...
+	@http.call(HttpRequest {
+    	method <= "GET"
+        endpoint <= id
+    } => Response2Album)
+	get : fun(id : String) -> Album
+```
+
+This is **VERY UGLY** if we have to do both in one go.  How about we seperate `call` and `parse` phases:
+
+
+```
+...
+	// code gen looks for this to create the HttpRequest
+	@http.torequest(HttpRequest {
+    	method = "GET"
+        endpoint = id		// this "id" is bound to the "id" in the get method
+    })
+    // code gen looks for this to parse the HttpResponse
+	@http.onresponse(Response2Album)
+	get : fun(id : String) -> Album
+```
+
+The `HttpRequest { }` syntax is "data constructor" syntax.  In general we can create data objects as part of Onering to denote values for instances of particular types.   Data constructor still looks like a function and would be good to not go into function syntax just yet.   The goal of this to tell the code gen what to generate so can/should we leave it at the point of having "enough hints" and having things plugged in.
+
+eg:
+
+
+```
+@http.endpoint("/albums/")
+interface HttpAlbumApi derives AlbumsApi {
+	@http.endpoint("/${id}")
+	@http.headers("accept:", "application/json")
+	get : fun(id : String) -> Album
+    
+    @http.method("POST")
+    @http.contentType("application/json")
+    @http.body(entry)
+    create : fun(entry : Album) -> UniqueId
+
+	@http.method("POST")
+    @http.endpoint("/${id}")
+    @http.contentType("application/json")
+    @http.body(patchOps)
+    update : fun(id : String, patchOps : List[PatchOp[Album]]) -> Void
+
+	@http.method("DELETE")
+    @http.endpoint("/${id}")
+    delete : fun(id : String) -> Void
+    
+	@http.queryParams({"offset": offset, "count": count, "orderBy": flatMap(orderBy), "filterBy": flatMap(map(toQP, filterBy))}
+	@http.headers("accept:", "application/json")
+    list : fun(offset : Int, count : Int, orderBy : Map[String, Bool], filterBy : List[Predicate]) -> List[Album]
+}
+```
+
+The advantage of this is our annotation syntax can take in things that are expressions and variables bind to those in function arguments or other variables around them as seen fit by the code generator.  Also we can always extend this expression syntax to get into data constructor if necessary so we can just have `HttpRequest { }` creations easily.
