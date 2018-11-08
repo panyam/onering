@@ -21,6 +21,13 @@ class Type(annotations.Annotatable):
         out += ">"
         return out
 
+    @property
+    def copy(self):
+        return self._copy(self)
+
+    def _copy(self):
+        assert False, "Not Implemented"
+
     def set_validator(self, validator):
         self.validator = validator
         return self
@@ -42,6 +49,9 @@ class TypeVar(Type):
         # What does this bind to?
         self.bound_type = None
         self.bound_parent = None
+
+    def _copy(self):
+        return TypeVar(self.name)
 
     @property
     def is_bound(self) -> bool:
@@ -78,16 +88,22 @@ class TypeApp(Type):
     """
     def __init__(self, target_type, *type_args, **type_kwargs):
         Type.__init__(self)
-        self.param_values = {}
-        self.unused_values = []
         target_type = ensure_type(target_type)
         self.root_type = target_type
+        self.param_values = {}
+        self.unused_values = []
         if isinstance(target_type, TypeApp):
             self.root_type = target_type.root_type
             self.apply(**target_type.param_values)
         self.apply(*type_args, **type_kwargs)
 
-    def apply(self, *values : typing.List[Type], **kvpairs : typing.Map[str, Type]) -> "TypeApp":
+    def _copy(self):
+        out = TypeApp(self.target_type)
+        out.unused_values = self.unused_values[:]
+        out.param_values = self.param_values.copy()
+        return out
+
+    def apply(self, *values : typing.List[Type], **kvpairs : typing.Dict[str, Type]) -> "TypeApp":
         for value in values:
             value = ensure_type(value)
             root_type = self.root_type
@@ -122,16 +138,8 @@ class NativeType(Type):
         Type.__init__(self, args)
         self.mapper_functor = None
 
-class TypeClass(object):
-    def __init__(self, args = None):
-        self.args = args or []
-        self.methods = {}
-
-    def add_traits(self, *names_and_func_types):
-        for n, ft in zip(*[iter(names_and_func_types)]*2):
-            assert isinstance(ft, FunctionType)
-            self.methods[n] = ft
-        return self
+    def _copy(self):
+        return NativeType(self.args)
 
 class FunctionType(Type):
     def __init__(self, args = None):
@@ -139,6 +147,13 @@ class FunctionType(Type):
         self._input_names = []
         self._input_types = []
         self._return_type = None
+
+    def _copy(self):
+        out = FunctionType(self.args)
+        out._input_names = self._input_names[:]
+        out._input_types = self._input_types[:]
+        out._return_type = self._return_type
+        return out
 
     @property
     def return_type(self):
@@ -172,17 +187,25 @@ class DataType(Type):
         Product types (Records, Tuples, Named tuples etc) and 
         Sum types (Eg Unions, Enums (Tagged Unions), Algebraic Data Types.
     """
+    @property
+    def is_labelled(self): return False
 
-    name_required = False
-    sum_type = True
+    @property
+    def is_sum_type(self): return True
 
     def __init__(self, args = None):
         Type.__init__(self, args)
         self.child_types = []
         self.child_names = []
 
+    def _copy(self):
+        out = self.__class__(self.args)
+        out._child_names = self._child_names[:]
+        out._child_types = self._child_types[:]
+        return out
+
     def add(self, child_type, child_name = None):
-        assert not (self.name_required and child_name is None), "Name is required and cannot be empty"
+        assert not (self.is_labelled and child_name is None), "Name is required and cannot be empty"
         if child_name and self.name_exists(child_name):
             assert False, "Type '%s' already taken" % child_name
         self._add_type(child_type, child_name)
@@ -201,12 +224,41 @@ class DataType(Type):
         self.child_types.append(child_type)
         self.child_names.append(child_name)
 
+    def include(self, othertype):
+        # Includes let us copy parts of another type
+        if type(othertype) is RecordType:
+            assert False, "Not yet implemented"
+        elif type(othertype) is UnionType:
+            assert False, "Not yet implemented"
+        elif type(othertype) is TypeApp:
+            if type(othertype.root_type) is RecordType:
+                assert False, "Not yet implemented"
+            elif type(othertype.root_type) is UnionType:
+                assert False, "Not yet implemented"
+            else:
+                set_trace()
+                assert False, "Included type must be a record or a union"
+        else:
+            set_trace()
+            assert False, "Included type must be a record or a union"
+        return self
+
 class RecordType(DataType):
-    name_required = True
-    sum_type = False
+    @property
+    def is_labelled(self): return True
+
+    @property
+    def is_sum_type(self): return False
+
+    def get(self, name):
+        for n,t in zip(self.child_names, self.child_types):
+            if n == name:
+                return t
+        return None
 
 class TupleType(DataType):
-    sum_type = False
+    @property
+    def is_sum_type(self): return False
 
 class UnionType(DataType): pass
 
@@ -230,3 +282,4 @@ class RefinedType(Type):
         map(self.add, predicates)
         return self
     """
+
