@@ -9,21 +9,16 @@ def ensure_type(type_or_str):
     return type_or_str 
 
 class Type(annotations.Annotatable):
-    def __init__(self, args = None):
+    def __init__(self):
         annotations.Annotatable.__init__(self)
-        self.args = args or []
         self.validator = None
 
     def __repr__(self):
-        out = "<%s(0x%x)" % (self.__class__.__name__, id(self))
-        if self.args:
-            out += " [%s]" % ", ".join(self.args)
-        out += ">"
-        return out
+        return "<%s(0x%x)>" % (self.__class__.__name__, id(self))
 
     @property
     def copy(self):
-        return self._copy(self)
+        return self._copy()
 
     def _copy(self):
         assert False, "Not Implemented"
@@ -38,6 +33,18 @@ class Type(annotations.Annotatable):
         elif type(type_vals) is not list:
             type_vals = [type_vals]
         return TypeApp(self, *type_vals)
+
+class TypeFun(Type):
+    def __init__(self, args = None):
+        Type.__init__(self)
+        self.args = args or []
+
+    def __repr__(self):
+        out = "<%s(0x%x)" % (self.__class__.__name__, id(self))
+        if self.args:
+            out += " [%s]" % ", ".join(self.args)
+        out += ">"
+        return out
 
 class TypeVar(Type):
     """ A type variable.  """
@@ -98,7 +105,7 @@ class TypeApp(Type):
         self.apply(*type_args, **type_kwargs)
 
     def _copy(self):
-        out = TypeApp(self.target_type)
+        out = TypeApp(self.root_type)
         out.unused_values = self.unused_values[:]
         out.param_values = self.param_values.copy()
         return out
@@ -128,22 +135,22 @@ class TypeApp(Type):
             self.param_values[key] = value
         return self
 
-class NativeType(Type):
+class NativeType(TypeFun):
     """ A native type whose details are not known but cannot be 
     inspected further - like a leaf type. 
 
     eg Array<T>, Map<K,V> etc
     """
     def __init__(self, args = None):
-        Type.__init__(self, args)
+        TypeFun.__init__(self, args)
         self.mapper_functor = None
 
     def _copy(self):
         return NativeType(self.args)
 
-class FunctionType(Type):
+class FunctionType(TypeFun):
     def __init__(self, args = None):
-        Type.__init__(self, args)
+        TypeFun.__init__(self, args)
         self._input_names = []
         self._input_types = []
         self._return_type = None
@@ -181,8 +188,8 @@ class FunctionType(Type):
         map(self.add_input, input_types)
         return self
 
-class DataType(Type):
-    """ Non leaf types.  These include:
+class DataType(TypeFun):
+    """ All type functions/abstractions!
 
         Product types (Records, Tuples, Named tuples etc) and 
         Sum types (Eg Unions, Enums (Tagged Unions), Algebraic Data Types.
@@ -194,7 +201,7 @@ class DataType(Type):
     def is_sum_type(self): return True
 
     def __init__(self, args = None):
-        Type.__init__(self, args)
+        TypeFun.__init__(self, args)
         self.child_types = []
         self.child_names = []
 
@@ -204,17 +211,26 @@ class DataType(Type):
         out._child_types = self._child_types[:]
         return out
 
-    def add(self, child_type, child_name = None):
+    def add(self, child_type, child_name = None, override = False):
         assert not (self.is_labelled and child_name is None), "Name is required and cannot be empty"
-        if child_name and self.name_exists(child_name):
-            assert False, "Type '%s' already taken" % child_name
-        self._add_type(child_type, child_name)
+        index = self.indexof(child_name)
+        if child_name and index >= 0:
+            if not override:
+                assert False, "Type '%s' already taken" % child_name
+            self._set_type(index, child_type, child_name)
+        else:
+            self._add_type(child_type, child_name)
         return self
 
     def add_multi(self, *child_types_and_names):
         for t, n in zip(*[iter(child_types_and_names)]*2):
             self.add(t,n)
         return self
+
+    def indexof(self, name):
+        for i,n in enumerate(self.child_names):
+            if n == name: return i
+        return -1
 
     def name_exists(self, name):
         return name in self.child_names
@@ -224,23 +240,12 @@ class DataType(Type):
         self.child_types.append(child_type)
         self.child_names.append(child_name)
 
+    def _set_type(self, index, child_type, child_name):
+        child_type = ensure_type(child_type)
+        self.child_types[index] = child_type
+        self.child_names[index] = child_name
+
     def include(self, othertype):
-        # Includes let us copy parts of another type
-        if type(othertype) is RecordType:
-            assert False, "Not yet implemented"
-        elif type(othertype) is UnionType:
-            assert False, "Not yet implemented"
-        elif type(othertype) is TypeApp:
-            if type(othertype.root_type) is RecordType:
-                assert False, "Not yet implemented"
-            elif type(othertype.root_type) is UnionType:
-                assert False, "Not yet implemented"
-            else:
-                set_trace()
-                assert False, "Included type must be a record or a union"
-        else:
-            set_trace()
-            assert False, "Included type must be a record or a union"
         return self
 
 class RecordType(DataType):
@@ -262,13 +267,13 @@ class TupleType(DataType):
 
 class UnionType(DataType): pass
 
-class RefinedType(Type):
+class RefinedType(TypeFun):
     """ Refined types are types decorated by logical predicates or constraints.
     TODO - Do we need a special wrapper type here or can predicates not apply
     to *all* types?
     """
     def __init__(self, target_type, args = None):
-        Type.__init__(self, args)
+        TypeFun.__init__(self, args)
         self.target_type = target_type
 
     """

@@ -49,3 +49,4 @@ def resolve_bindings_for_type(T : core.Type, context : Context, container_stack 
                 T.bound_parent = parent
                 return
         T.bound_type = context.get(T.name)
+
