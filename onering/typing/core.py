@@ -1,290 +1,95 @@
 
 from ipdb import set_trace
 import typing
+from taggedunion import *
 from onering.common import errors, annotations
 
 def ensure_type(type_or_str):
     if isinstance(type_or_str, str):
-        type_or_str = TypeVar(type_or_str)
+        type_or_str = Type.as_var(type_or_str)
     return type_or_str 
 
-class Type(annotations.Annotatable):
+def ensure_expr(expr_or_str):
+    if isinstance(expr_or_str, str):
+        expr_or_str = Var(expr_or_str)
+    return expr_or_str 
+
+class NativeType(object):
     def __init__(self):
-        annotations.Annotatable.__init__(self)
-        self.validator = None
+        pass
 
-    def __repr__(self):
-        return "<%s(0x%x)>" % (self.__class__.__name__, id(self))
+class TypeFun(object):
+    def __init__(self, args : typing.List[str], body : "Type"):
+        self.args = args
+        self.body = ensure_type(body)
 
-    @property
-    def copy(self):
-        return self._copy()
+class TypeApp(object):
+    def __init__(self, operator, operands):
+        self.operator = ensure_type(operator)
+        self.operands = map(ensure_type, operands)
 
-    def _copy(self):
-        assert False, "Not Implemented"
-
-    def set_validator(self, validator):
-        self.validator = validator
-        return self
-
-    def __getitem__(self, type_vals):
-        if type(type_vals) is tuple:
-            type_vals = list(iter(type_vals))
-        elif type(type_vals) is not list:
-            type_vals = [type_vals]
-        return TypeApp(self, *type_vals)
-
-class TypeFun(Type):
-    def __init__(self, args = None):
-        Type.__init__(self)
-        self.args = args or []
-
-    def __repr__(self):
-        out = "<%s(0x%x)" % (self.__class__.__name__, id(self))
-        if self.args:
-            out += " [%s]" % ", ".join(self.args)
-        out += ">"
-        return out
-
-class TypeVar(Type):
-    """ A type variable.  """
-    def __init__(self, name):
-        assert name is not None and name.strip(), "Type vars MUST have names"
-        Type.__init__(self)
-        self.name = name
-
-        # What does this bind to?
-        self.bound_type = None
-        self.bound_parent = None
-
-    def _copy(self):
-        return TypeVar(self.name)
-
-    @property
-    def is_bound(self) -> bool:
-        return self.bound_type is not None or self.bound_parent is not None
-
-    @property
-    def final_type(self) -> Type:
-        """ Returns the ultimate type this variable is bound to since a TypeVar 
-        can bind to another TypeVar and so on.
-        TODO - Can there be cycles here?
-        """
-        t = self
-        while t and isinstance(t, TypeVar):
-            t = t.bound_type
-        return t
-
-class TypeApp(Type):
-    """ Type applications allow generics to be concretized. 
-
-        TypeApps follow certain rules.  Say if we have a type:
-        
-            Map = record Map[A,B,C,D,E,F] { .... }
-
-        Following are some possibilities:
-            Map[Int, String]            -> Valid - Binds A and B
-            Map[A = Int, C = String]    -> Valid - Binds A and C
-            Map[Int, String][A = Float] -> Invalid - Should result in error since A is already bound
-            Map[Int, String][D = Int]   -> Valid - Fine, same as Map[A = Int, B = String, D = Int]
-            Map[Int, String, Int, Float, Double, Boolean]   -> Valid - Fine as all params bound
-            Map[Int, String, Int, Float, Double, Boolean, String]   -> Invalid - Since we have more params than required
-            T[Int]   -> Valid - Though is actually same as above, but since T is a type var, 
-                        Int "could" bind if the resolved value of T can take a parameter as per above rule!
-            T[A = Int]  -> Invalid since T could be a type that has a parameter but not called A.
-    """
-    def __init__(self, target_type, *type_args, **type_kwargs):
-        Type.__init__(self)
-        target_type = ensure_type(target_type)
-        self.root_type = target_type
-        self.param_values = {}
-        self.unused_values = []
-        if isinstance(target_type, TypeApp):
-            self.root_type = target_type.root_type
-            self.apply(**target_type.param_values)
-        self.apply(*type_args, **type_kwargs)
-
-    def _copy(self):
-        out = TypeApp(self.root_type)
-        out.unused_values = self.unused_values[:]
-        out.param_values = self.param_values.copy()
-        return out
-
-    def apply(self, *values : typing.List[Type], **kvpairs : typing.Dict[str, Type]) -> "TypeApp":
-        for value in values:
-            value = ensure_type(value)
-            root_type = self.root_type
-            if isinstance(root_type, TypeVar) and not root_type.final_type:
-                self.unused_values.append(value)
+class FunType(object):
+    def __init__(self, *input_output_types):
+        self.input_names = []
+        self.input_types = []
+        self.return_name = None
+        self.return_type = None
+        for i,t in enumerate(input_output_types):
+            if type(t) is tuple:
+                n,t = ensure_type(t)
             else:
-                if isinstance(root_type, TypeVar):
-                    root_type = root_type.final_type
-                # Get the next unbound type argument in the root type and apply this value to it
-                next_arg = next(filter(lambda x: x not in self.param_values, root_type.args), None)
-                if not next_arg:
-                    raise errors.ORException("Trying to bind type (%s), but no more unbound arguments left in TypeApp" % repr(value))
-                self.param_values[next_arg] = value
+                n,t = None, ensure_type(t)
+            if i == len(input_output_types) - 1:
+                self.return_name = n
+                self.return_type = t
+            else:
+                self.input_names.append(n)
+                self.input_types.append(t)
 
-        for key, value in kvpairs.items():
-            value = ensure_type(value)
-            # Ensure this value has not already been applied.
-            if isinstance(self.root_type, TypeVar):
-                raise errors.ORException("Values cannot be bound by key for TypeVars")
-            if key in self.param_values:
-                raise errors.ORException("Type argument '%s' is already bound to a value" % key)
-            self.param_values[key] = value
-        return self
-
-class NativeType(TypeFun):
-    """ A native type whose details are not known but cannot be 
-    inspected further - like a leaf type. 
-
-    eg Array<T>, Map<K,V> etc
-    """
-    def __init__(self, args = None):
-        TypeFun.__init__(self, args)
-        self.mapper_functor = None
-
-    def _copy(self):
-        return NativeType(self.args)
-
-class FunctionType(TypeFun):
-    def __init__(self, args = None):
-        TypeFun.__init__(self, args)
-        self._input_names = []
-        self._input_types = []
-        self._return_type = None
-
-    def _copy(self):
-        out = FunctionType(self.args)
-        out._input_names = self._input_names[:]
-        out._input_types = self._input_types[:]
-        out._return_type = self._return_type
-        return out
-
-    @property
-    def return_type(self):
-        return self._return_type
-
-    @property
-    def input_types(self):
-        return self._input_types
-
-    def returns(self, return_type):
-        self._return_type = return_type
-        return self
-
-    def add_input(self, input_type, input_name = None):
-        if type(input_type) is tuple:
-            assert input_name is None
-            input_type, input_name = input_type
-        it, name = input_type, input_name
-        it = ensure_type(it)
-        self._input_types.append(it)
-        self._input_names.append(name)
-        return self
-
-    def with_inputs(self, *input_types):
-        map(self.add_input, input_types)
-        return self
-
-class DataType(TypeFun):
-    """ All type functions/abstractions!
-
-        Product types (Records, Tuples, Named tuples etc) and 
-        Sum types (Eg Unions, Enums (Tagged Unions), Algebraic Data Types.
-    """
-    @property
-    def is_labelled(self): return False
-
-    @property
-    def is_sum_type(self): return True
-
-    def __init__(self, args = None):
-        TypeFun.__init__(self, args)
-        self.child_types = []
-        self.child_names = []
-
-    def _copy(self):
-        out = self.__class__(self.args)
-        out._child_names = self._child_names[:]
-        out._child_types = self._child_types[:]
-        return out
-
-    def add(self, child_type, child_name = None, override = False):
-        assert not (self.is_labelled and child_name is None), "Name is required and cannot be empty"
-        index = self.indexof(child_name)
-        if child_name and index >= 0:
-            if not override:
-                assert False, "Type '%s' already taken" % child_name
-            self._set_type(index, child_type, child_name)
+class DataType(object):
+    def __init__(self, children):
+        #children can be a list or a dict
+        self.is_labelled = False
+        self.child_names = None
+        if type(children) is list:
+            self.child_types = list(map(ensure_type, children))
         else:
-            self._add_type(child_type, child_name)
-        return self
+            assert type(children) is dict, "Children must be a list or dict"
+            self.is_labelled = True
+            self.child_names = children.keys()
+            self.child_types = list(map(ensure_type, children.values()))
 
-    def add_multi(self, *child_types_and_names):
-        for t, n in zip(*[iter(child_types_and_names)]*2):
-            self.add(t,n)
-        return self
+    def get(self, index_or_key):
+        if not self.child_names:
+            assert type(index_or_key) in (int, float), "Key must be an int for unlabelled data types"
+            return self.child_types[index_or_key]
 
-    def indexof(self, name):
-        for i,n in enumerate(self.child_names):
-            if n == name: return i
-        return -1
-
-    def name_exists(self, name):
-        return name in self.child_names
-
-    def _add_type(self, child_type, child_name):
-        child_type = ensure_type(child_type)
-        self.child_types.append(child_type)
-        self.child_names.append(child_name)
-
-    def _set_type(self, index, child_type, child_name):
-        child_type = ensure_type(child_type)
-        self.child_types[index] = child_type
-        self.child_names[index] = child_name
-
-    def include(self, othertype):
-        return self
-
-class RecordType(DataType):
-    @property
-    def is_labelled(self): return True
-
-    @property
-    def is_sum_type(self): return False
-
-    def get(self, name):
+        assert type(index_or_key) is str, "Key must be an str for labelled data types"
         for n,t in zip(self.child_names, self.child_types):
-            if n == name:
+            if n == index_or_key:
                 return t
-        return None
+        set_trace()
+        raise Exception("Child/Variant %s not found" % index_or_key)
 
-class TupleType(DataType):
-    @property
-    def is_sum_type(self): return False
+class RefinedType(object):
+    def __init__(self, target_type):
+        self.target_type = ensure_type(target_type)
 
-class UnionType(DataType): pass
+class Type(Union, annotations.Annotatable):
+    native = Variant(NativeType)
+    funtype = Variant(FunType)
+    record = Variant(DataType)
+    tuple = Variant(DataType)
+    union = Variant(DataType)
+    var = Variant(str)
+    fun = Variant(TypeFun)
+    app = Variant(TypeApp)
+    refined = Variant(RefinedType)
 
-class RefinedType(TypeFun):
-    """ Refined types are types decorated by logical predicates or constraints.
-    TODO - Do we need a special wrapper type here or can predicates not apply
-    to *all* types?
-    """
-    def __init__(self, target_type, args = None):
-        TypeFun.__init__(self, args)
-        self.target_type = target_type
-
-    """
-        self.predicates = []
-
-    def add(self, predicate):
-        self.predicates.append(predicate)
-        return self
-
-    def add_multi(self, *predicates):
-        map(self.add, predicates)
-        return self
-    """
-
+    def __getitem__(self, expr_vals):
+        """ Performs a type application. """
+        if type(expr_vals) is tuple:
+            expr_vals = list(iter(expr_vals))
+        elif type(expr_vals) is not list:
+            expr_vals = [expr_vals]
+        return Type.as_app(self, map(ensure_type, expr_vals))

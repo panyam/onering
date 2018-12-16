@@ -219,7 +219,7 @@ record Reaction[T] {
 }
 
 record Share[T] {
-	#include Reaction
+	#include Reaction[T]
     
     title : String
     
@@ -229,7 +229,7 @@ record Share[T] {
 }
 
 record Like[T] {
-	#include Reaction
+	#include Reaction[T]
     
     likeCount : Int
     
@@ -244,7 +244,7 @@ record Like[T] {
 }
 
 record Comment[T] {
-	#include Reaction
+	#include Reaction[T]
     
     text : String
     
@@ -653,7 +653,7 @@ def handleRequest(httprequest):
 
 Firstly there are a couple of problems with this:
 
-1. Wwe are working on http requests directly and this means not having a clean seperation between transport and application level requests.
+1. We are working on http requests directly and this means not having a clean seperation between transport and application level requests.
 2. Even though our intent is simply applying `extractParamsForTypeN` such a function never *just* exists or has to be hand crafted and maintained.
 3. A DB Object is a very specific representation of our master data models and as a result we are unable to reason about which bits of our data model we are actually working on.
 4. And same for other "domains" too - say Kafka events.
@@ -696,9 +696,14 @@ In general our flows look like:
      V
 ```
 
-Here we have the concept of "transport" that is really a way to serialize/transmit a model instance.   By decoupling these out, our processing could work directly on "registerd" models only instead of us worring about custom model types.
+Here we have the concept of "transport" that is really a way to serialize/transmit a model instance.   By decoupling these out, our processing could work directly on "registered" models only instead of us worrying about custom model types.
 
 For instance the DataStoreModel would be an interface that a specific storage engine would implement instead of us worrying about what those look like.
+
+### Access Control
+
+1. Should this be based explicitly on the derivation?  ie those who are using the derivation will get the data (or transformations on the data) that is specified in the derivation (or master)?
+2. How should master definitions on data (eg hidden/secret/hashed fields) be "pushed" onto derivations?
 
 ## Onering Interfaces
 
@@ -787,7 +792,7 @@ interface AlbumsApi {
 
 There are a couple of problems with this:
 
-1. First we are clutterning our API definition with http specific details.  If we ever need to describe a different transport or content type (or encoding) we would have to add a ton more annotations at which point this becomes an exercise in annotation organization.
+1. First we are cluttering our API definition with http specific details.  If we ever need to describe a different transport or content type (or encoding) we would have to add a ton more annotations at which point this becomes an exercise in annotation organization.
 2. The annotations themselves can actually be typed instead of being a bunch of arbitrary (and worse - untyped) KV pairs.  
 3. The "$" notation is clunky again.  It seems like a code smell introduced to do bindings and introduce "expressions" inline.
 
@@ -894,13 +899,13 @@ interface HttpAlbumApi derives AlbumsApi {
     
     @http.method("POST")
     @http.contentType("application/json")
-    @http.body(entry)
+    @http.body("entry")
     create : fun(entry : Album) -> UniqueId
 
 	@http.method("POST")
     @http.endpoint("/${id}")
     @http.contentType("application/json")
-    @http.body(patchOps)
+    @http.body("patchOps")
     update : fun(id : String, patchOps : List[PatchOp[Album]]) -> Void
 
 	@http.method("DELETE")

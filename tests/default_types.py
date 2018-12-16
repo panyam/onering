@@ -37,13 +37,10 @@ Int = NativeType().set_validator(default_int_validator)
 Long = NativeType().set_validator(default_int_validator)
 String = NativeType().set_validator(default_string_validator)
 
-Ref = NativeType(["T"])
+Ref = TypeFun(["T"], NativeType())
 
-Array = NativeType(["T"])
-Array.mapper_functor = default_array_mapper_functor
+Array = TypeFun(["T"], NativeType())
 
-List = NativeType(["T"])
-List.mapper_functor = default_array_mapper_functor
+List = TypeFun(["T"], NativeType())
 
-Map = NativeType(["K", "V"])
-Map.mapper_functor = default_dict_mapper_functor
+Map = TypeFun(["K", "V"], NativeType())

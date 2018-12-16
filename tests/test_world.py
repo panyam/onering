@@ -53,7 +53,7 @@ def test_resolution_failure():
     """
     w = create_default_world()
 
-    Pair = RecordType(["F", "S"]).add_multi("F", "first", "S", "second")
+    Pair = TypeFun(["F", "S"], RecordType().add_multi("F", "first", "S", "second"))
     w.typing_context.set("utils.Pair", Pair)
     P1 = TypeApp("utils.Pair").apply(defaults.Int, defaults.String)
     checkers.type_check(Pair[defaults.Int, defaults.String], {'first': 1, 'second': '2'}, w.typing_context)
@@ -70,7 +70,7 @@ def test_resolution_success():
     """
     w = create_default_world()
 
-    Pair = RecordType(["F", "S"]).add_multi("F", "first", "S", "second")
+    Pair = TypeFun(["F", "S"], RecordType().add_multi("F", "first", "S", "second"))
     w.typing_context.set("utils.Pair", Pair)
     P1 = TypeApp("utils.Pair").apply(defaults.Int, defaults.String)
 

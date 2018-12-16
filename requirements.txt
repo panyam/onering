@@ -5,3 +5,4 @@ avro
 thriftpy
 pytest
 pytest-mock
+taggedunion
